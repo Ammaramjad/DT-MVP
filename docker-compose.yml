@@ -124,12 +124,7 @@ services:
       dockerfile: Dockerfile
     container_name: dt_frontend
     ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_API_URL=http://localhost:8000
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "3000:80"
     depends_on:
       - api
     networks:
