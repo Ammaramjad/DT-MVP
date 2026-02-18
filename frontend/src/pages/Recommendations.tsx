@@ -22,6 +22,7 @@ export const Recommendations: React.FC = () => {
       loadRecommendations();
     }
   }, [selectedSiteId, priorityFilter, statusFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const loadSites = async () => {
     try {
@@ -55,7 +56,7 @@ export const Recommendations: React.FC = () => {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      await apiClient.updateRecommendation(id, { status: status as any });
+      await apiClient.updateRecommendation(id, { status: status as 'pending' | 'reviewed' | 'implemented' | 'rejected' });
       toast.success('Recommendation status updated');
       loadRecommendations();
     } catch (error) {

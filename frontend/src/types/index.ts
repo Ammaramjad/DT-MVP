@@ -54,7 +54,7 @@ export interface Site {
   description: string | null;
   project_id: string;
   location: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -69,7 +69,7 @@ export interface KPI {
   site_id: string;
   kpi_type: 'metric' | 'dimension';
   aggregation_method: 'sum' | 'avg' | 'min' | 'max' | 'count';
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -103,7 +103,7 @@ export interface Forecast {
     mae?: number;
   };
   created_at: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface ForecastRequest {
@@ -154,7 +154,7 @@ export interface Anomaly {
   severity: 'low' | 'medium' | 'high' | 'critical';
   description: string;
   status: 'open' | 'acknowledged' | 'resolved';
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
 }
 
@@ -170,7 +170,7 @@ export interface Recommendation {
   confidence_score: number;
   status: 'pending' | 'reviewed' | 'implemented' | 'rejected';
   created_at: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 // Data Health types

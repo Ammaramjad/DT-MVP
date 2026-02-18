@@ -23,6 +23,7 @@ export const Settings: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const loadData = async () => {
     setLoading(true);
@@ -110,7 +111,7 @@ export const Settings: React.FC = () => {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as 'organizations' | 'projects' | 'sites')}
                 className={`${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'

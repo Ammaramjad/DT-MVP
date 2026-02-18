@@ -22,6 +22,7 @@ export const DataHealth: React.FC = () => {
     if (selectedSiteId) {
       loadDataHealth();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSiteId]);
 
   const loadSites = async () => {

@@ -49,10 +49,12 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        const originalRequest = error.config as any;
+        const originalRequest = error.config as typeof error.config & { _retry?: boolean };
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
+        if (error.response?.status === 401 && !originalRequest?._retry) {
+          if (originalRequest) {
+            originalRequest._retry = true;
+          }
 
           try {
             const newToken = await this.refreshToken();
@@ -94,8 +96,8 @@ class ApiClient {
   }
 
   async register(data: RegisterRequest): Promise<User> {
-    const response = await this.client.post<User>('/api/v1/auth/register', data);
-    return response.data;
+    const newUser = await this.client.post<User>('/api/v1/auth/register', data);
+    return newUser.data;
   }
 
   async refreshToken(): Promise<string> {
@@ -157,7 +159,7 @@ class ApiClient {
 
   // Project endpoints
   async getProjects(organizationId?: string, page = 1, size = 50): Promise<PaginatedResponse<Project>> {
-    const params: any = { page, size };
+    const params: Record<string, string | number | undefined> = { page, size };
     if (organizationId) params.organization_id = organizationId;
     
     const response = await this.client.get<PaginatedResponse<Project>>(
@@ -184,7 +186,7 @@ class ApiClient {
 
   // Site endpoints
   async getSites(projectId?: string, page = 1, size = 50): Promise<PaginatedResponse<Site>> {
-    const params: any = { page, size };
+    const params: Record<string, string | number | undefined> = { page, size };
     if (projectId) params.project_id = projectId;
     
     const response = await this.client.get<PaginatedResponse<Site>>(
@@ -211,7 +213,7 @@ class ApiClient {
 
   // KPI endpoints
   async getKPIs(siteId?: string, page = 1, size = 50): Promise<PaginatedResponse<KPI>> {
-    const params: any = { page, size };
+    const params: Record<string, string | number | undefined> = { page, size };
     if (siteId) params.site_id = siteId;
     
     const response = await this.client.get<PaginatedResponse<KPI>>(
@@ -238,7 +240,7 @@ class ApiClient {
   }
 
   async getForecasts(siteId?: string, kpiId?: string, page = 1, size = 20): Promise<PaginatedResponse<Forecast>> {
-    const params: any = { page, size };
+    const params: Record<string, string | number | undefined> = { page, size };
     if (siteId) params.site_id = siteId;
     if (kpiId) params.kpi_id = kpiId;
     
@@ -256,7 +258,7 @@ class ApiClient {
   }
 
   async getScenarios(siteId?: string, page = 1, size = 20): Promise<PaginatedResponse<ScenarioResult>> {
-    const params: any = { page, size };
+    const params: Record<string, string | number | undefined> = { page, size };
     if (siteId) params.site_id = siteId;
     
     const response = await this.client.get<PaginatedResponse<ScenarioResult>>(
@@ -274,7 +276,7 @@ class ApiClient {
     page = 1,
     size = 50
   ): Promise<PaginatedResponse<Anomaly>> {
-    const params: any = { page, size };
+    const params: Record<string, string | number | undefined> = { page, size };
     if (siteId) params.site_id = siteId;
     if (severity) params.severity = severity;
     if (status) params.status = status;
@@ -299,7 +301,7 @@ class ApiClient {
     page = 1,
     size = 50
   ): Promise<PaginatedResponse<Recommendation>> {
-    const params: any = { page, size };
+    const params: Record<string, string | number | undefined> = { page, size };
     if (siteId) params.site_id = siteId;
     if (priority) params.priority = priority;
     if (status) params.status = status;
@@ -318,7 +320,7 @@ class ApiClient {
 
   // Data Health endpoints
   async getDataIngestionStatus(siteId?: string): Promise<DataIngestionStatus[]> {
-    const params: any = {};
+    const params: Record<string, string | number | undefined> = {};
     if (siteId) params.site_id = siteId;
     
     const response = await this.client.get<DataIngestionStatus[]>(
@@ -329,7 +331,7 @@ class ApiClient {
   }
 
   async getDataQualityScores(siteId?: string): Promise<DataQualityScore[]> {
-    const params: any = {};
+    const params: Record<string, string | number | undefined> = {};
     if (siteId) params.site_id = siteId;
     
     const response = await this.client.get<DataQualityScore[]>(

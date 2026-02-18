@@ -22,6 +22,7 @@ export const Dashboard: React.FC = () => {
     if (selectedSiteId) {
       loadDashboardData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSiteId]);
 
   const loadSites = async () => {
@@ -66,7 +67,7 @@ export const Dashboard: React.FC = () => {
 
   const handleUpdateAlertStatus = async (id: string, status: string) => {
     try {
-      await apiClient.updateAnomaly(id, { status: status as any });
+      await apiClient.updateAnomaly(id, { status: status as 'open' | 'acknowledged' | 'resolved' });
       toast.success('Alert status updated');
       loadDashboardData();
     } catch (error) {

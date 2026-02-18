@@ -12,7 +12,6 @@ export const Forecasts: React.FC = () => {
   const [selectedKpiId, setSelectedKpiId] = useState<string>('');
   const [horizonDays, setHorizonDays] = useState(30);
   const [chartData, setChartData] = useState<TimeSeriesDataPoint[]>([]);
-  const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [accuracy, setAccuracy] = useState<{ mape?: number; rmse?: number; mae?: number }>({});
 
@@ -25,6 +24,7 @@ export const Forecasts: React.FC = () => {
       loadKPIs();
     }
   }, [selectedSiteId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const loadSites = async () => {
     try {

@@ -23,9 +23,10 @@ export const Login: React.FC = () => {
       await login({ username: email, password });
       toast.success('Login successful');
       navigate('/dashboard');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      toast.error(error.response?.data?.detail || 'Login failed. Please check your credentials.');
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }

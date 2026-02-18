@@ -34,6 +34,7 @@ export const Scenarios: React.FC = () => {
       loadKPIs();
     }
   }, [selectedSiteId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const loadSites = async () => {
     try {
