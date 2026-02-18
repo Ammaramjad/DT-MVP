@@ -7,7 +7,7 @@ statsmodels==0.14.1
 scipy==1.11.4
 
 # FastAPI for ML Service
-fastapi==0.109.0
+fastapi==0.129.0
 uvicorn[standard]==0.27.0
 
 # Model Persistence
