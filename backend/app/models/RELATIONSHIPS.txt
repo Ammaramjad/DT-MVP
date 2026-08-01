@@ -1,0 +1,75 @@
+"""
+Database Schema Relationships
+================================
+
+Organization (Multi-tenant Root)
+├── OrgMembership → User
+├── APIKey
+├── Project
+│   ├── Site
+│   │   ├── ManufacturingData (time-series)
+│   │   ├── EnergyData (time-series)
+│   │   ├── RetailData (time-series)
+│   │   ├── Anomaly
+│   │   └── DataQualityLog
+│   ├── Forecast
+│   │   └── ForecastResult
+│   ├── Simulation
+│   └── Recommendation
+└── Site (direct relationship)
+
+Entity Relationship Details:
+============================
+
+CORE HIERARCHY:
+  Organization (1) → (N) Project
+  Organization (1) → (N) Site
+  Organization (1) → (N) OrgMembership (N) ← User
+  Organization (1) → (N) APIKey
+  Project (1) → (N) Site
+
+TIME-SERIES DATA:
+  Site (1) → (N) ManufacturingData [time, site_id, machine_id]
+  Site (1) → (N) EnergyData [time, site_id, meter_id]
+  Site (1) → (N) RetailData [time, site_id, store_id, sku]
+
+ANALYTICS:
+  Project (1) → (N) Forecast
+  Forecast (1) → (N) ForecastResult
+  Project (1) → (N) Simulation
+  Project (1) → (N) Recommendation
+
+MONITORING:
+  Site (1) → (N) Anomaly
+  Site (1) → (N) DataQualityLog
+
+Foreign Key Cascade Rules:
+===========================
+All foreign keys use CASCADE on delete to maintain referential integrity.
+When a parent record is deleted, all child records are automatically removed.
+
+Example: Deleting an Organization cascades to:
+  → All Projects
+    → All Sites
+      → All time-series data (Manufacturing/Energy/Retail)
+      → All Anomalies
+      → All DataQualityLogs
+    → All Forecasts
+      → All ForecastResults
+    → All Simulations
+    → All Recommendations
+  → All OrgMemberships
+  → All APIKeys
+
+Composite Primary Keys (Time-Series):
+=====================================
+ManufacturingData: (time, site_id, machine_id)
+EnergyData:        (time, site_id, meter_id)
+RetailData:        (time, site_id, store_id, sku)
+
+These composite keys enable:
+- TimescaleDB hypertable partitioning by time
+- Multiple measurements per timestamp
+- Efficient time-range queries
+- Automatic data retention policies
+"""
