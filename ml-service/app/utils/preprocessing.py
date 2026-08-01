@@ -4,7 +4,7 @@ Data Preprocessing Utilities
 Provides utilities for time series preprocessing, feature engineering,
 and data quality improvements.
 """
-from typing import Optional, List
+from typing import Optional, List, Dict
 import pandas as pd
 import numpy as np
 import structlog

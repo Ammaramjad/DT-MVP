@@ -13,6 +13,7 @@ from app.models.site import Site
 from app.models.project import Project
 from app.models.recommendation import Recommendation
 from app.models.org_membership import OrgMembership, OrgRole
+from app.schemas.recommendation import RecommendationResponse
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 

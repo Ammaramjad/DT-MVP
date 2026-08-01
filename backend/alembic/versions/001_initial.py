@@ -93,7 +93,7 @@ def upgrade() -> None:
         sa.Column('site_type', sa.String(length=100), nullable=True),
         sa.Column('vertical', sa.String(length=50), nullable=False),
         sa.Column('location', sa.String(length=500), nullable=True),
-        sa.Column('metadata', postgresql.JSONB(), nullable=True),
+        sa.Column('site_metadata', postgresql.JSONB(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE'),
