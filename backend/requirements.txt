@@ -16,9 +16,11 @@ redis==5.0.1
 # Authentication and Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+# passlib 1.7.4 is incompatible with bcrypt>=4.1 (removed __about__); pin to a compatible release.
+bcrypt==4.0.1
 python-dotenv==1.0.0
-pydantic[email]==2.5.3
-pydantic-settings==2.1.0
+pydantic[email]==2.9.2
+pydantic-settings==2.5.2
 
 # Data Validation and Serialization
 email-validator==2.1.0
