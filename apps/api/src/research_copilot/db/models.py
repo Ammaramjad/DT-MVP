@@ -71,7 +71,7 @@ class Paper(Base):
     title: Mapped[str] = mapped_column(String(500), index=True)
     doi: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     abstract: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    paper_metadata: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     storage_key: Mapped[str] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
@@ -173,5 +173,5 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(255), index=True)
     entity_type: Mapped[str] = mapped_column(String(64), index=True)
     entity_id: Mapped[str] = mapped_column(String(36), index=True)
-    metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    event_metadata: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)

@@ -1,4 +1,5 @@
 from datetime import datetime
+from functools import lru_cache
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -18,8 +19,15 @@ router = APIRouter(prefix="/papers", tags=["papers"])
 
 pdf_processor = PdfProcessor()
 storage = StorageService()
-rag = RAGService()
 assistant = ResearchAssistantService()
+
+
+@lru_cache
+def get_rag_service() -> RAGService | None:
+    try:
+        return RAGService()
+    except Exception:
+        return None
 
 
 def _resolve_user(db: Session, user_id: str) -> User:
@@ -54,7 +62,7 @@ async def upload_paper(
         project_id=project.id,
         title=extracted.title_guess,
         storage_key=storage_key,
-        metadata={
+        paper_metadata={
             "filename": file.filename,
             "page_count": extracted.page_count,
             "extracted_chars": len(extracted.full_text),
@@ -65,7 +73,8 @@ async def upload_paper(
     db.commit()
     db.refresh(paper)
 
-    indexed_chunks = rag.index_paper(paper.id, extracted.full_text)
+    rag_service = get_rag_service()
+    indexed_chunks = rag_service.index_paper(paper.id, extracted.full_text) if rag_service else 0
     return {"paper_id": paper.id, "title": paper.title, "indexed_chunks": indexed_chunks}
 
 

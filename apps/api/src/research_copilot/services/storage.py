@@ -1,5 +1,5 @@
-from botocore.client import Config
 import boto3
+from botocore.client import Config
 
 from research_copilot.core.config import get_settings
 

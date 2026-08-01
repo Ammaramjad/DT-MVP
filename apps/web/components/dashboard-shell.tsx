@@ -11,11 +11,13 @@ import {
   Settings
 } from "lucide-react";
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname } from "next/navigation";
+import type { ComponentType, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-const nav = [
+const nav: Array<{ href: Route; label: string; icon: ComponentType<{ className?: string }> }> = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/library", label: "PDF Library", icon: BookOpenText },
   { href: "/gap-finder", label: "Gap Finder", icon: FileSearch2 },
@@ -25,7 +27,7 @@ const nav = [
   { href: "/settings", label: "Settings", icon: Settings }
 ];
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (

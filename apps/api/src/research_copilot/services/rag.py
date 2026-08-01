@@ -2,7 +2,14 @@ from uuid import uuid4
 
 from openai import OpenAI
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, FieldCondition, Filter, MatchAny, PointStruct, VectorParams
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchAny,
+    PointStruct,
+    VectorParams,
+)
 
 from research_copilot.core.config import get_settings
 

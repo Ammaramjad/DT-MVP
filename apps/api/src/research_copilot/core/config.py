@@ -12,17 +12,20 @@ class Settings(BaseSettings):
     app_debug: bool = Field(default=False, alias="APP_DEBUG")
     api_prefix: str = Field(default="/v1", alias="API_PREFIX")
 
-    database_url: str = Field(alias="DATABASE_URL")
-    redis_url: str = Field(alias="REDIS_URL")
+    database_url: str = Field(
+        default="sqlite+pysqlite:///./research_copilot.db",
+        alias="DATABASE_URL",
+    )
+    redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
 
-    qdrant_url: str = Field(alias="QDRANT_URL")
+    qdrant_url: str = Field(default="http://localhost:6333", alias="QDRANT_URL")
     qdrant_collection: str = Field(default="paper_chunks", alias="QDRANT_COLLECTION")
 
-    s3_endpoint_url: str = Field(alias="S3_ENDPOINT_URL")
-    s3_access_key: str = Field(alias="S3_ACCESS_KEY")
-    s3_secret_key: str = Field(alias="S3_SECRET_KEY")
+    s3_endpoint_url: str = Field(default="http://localhost:9000", alias="S3_ENDPOINT_URL")
+    s3_access_key: str = Field(default="minioadmin", alias="S3_ACCESS_KEY")
+    s3_secret_key: str = Field(default="minioadmin", alias="S3_SECRET_KEY")
     s3_region: str = Field(default="us-east-1", alias="S3_REGION")
-    s3_bucket: str = Field(alias="S3_BUCKET")
+    s3_bucket: str = Field(default="research-copilot", alias="S3_BUCKET")
 
     clerk_issuer: str | None = Field(default=None, alias="CLERK_ISSUER")
     clerk_jwks_url: str | None = Field(default=None, alias="CLERK_JWKS_URL")
@@ -35,7 +38,7 @@ class Settings(BaseSettings):
     google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
     deepseek_api_key: str | None = Field(default=None, alias="DEEPSEEK_API_KEY")
 
-    jwt_secret: str = Field(alias="JWT_SECRET")
+    jwt_secret: str = Field(default="local-dev-secret", alias="JWT_SECRET")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
 
 

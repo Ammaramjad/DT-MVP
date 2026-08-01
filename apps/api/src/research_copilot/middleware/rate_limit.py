@@ -21,10 +21,14 @@ class RedisRateLimitMiddleware(BaseHTTPMiddleware):
         window = int(time.time() // 60)
         key = f"rate_limit:{client_host}:{window}"
 
-        count = await self.redis.incr(key)
-        if count == 1:
-            await self.redis.expire(key, 70)
-        if count > self.requests_per_minute:
-            return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded."})
+        try:
+            count = await self.redis.incr(key)
+            if count == 1:
+                await self.redis.expire(key, 70)
+            if count > self.requests_per_minute:
+                return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded."})
+        except Exception:
+            # Fail-open for transient cache outages; availability wins over strict throttling.
+            pass
 
         return await call_next(request)
