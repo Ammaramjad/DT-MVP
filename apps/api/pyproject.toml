@@ -1,0 +1,49 @@
+[project]
+name = "research-copilot-api"
+version = "0.1.0"
+description = "Research Copilot FastAPI backend"
+requires-python = ">=3.11"
+dependencies = [
+  "alembic>=1.13.2",
+  "anthropic>=0.49.0",
+  "boto3>=1.37.10",
+  "fastapi>=0.115.8",
+  "google-genai>=1.7.0",
+  "httpx>=0.28.1",
+  "openai>=1.65.4",
+  "passlib[bcrypt]>=1.7.4",
+  "pillow>=11.1.0",
+  "psycopg[binary]>=3.2.5",
+  "pydantic-settings>=2.8.1",
+  "pymupdf>=1.25.4",
+  "pytesseract>=0.3.13",
+  "python-jose[cryptography]>=3.3.0",
+  "python-multipart>=0.0.20",
+  "qdrant-client>=1.13.3",
+  "redis>=5.2.1",
+  "sqlalchemy>=2.0.38",
+  "structlog>=25.1.0",
+  "tenacity>=9.0.0",
+  "uvicorn[standard]>=0.34.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.5",
+  "pytest-asyncio>=0.25.3",
+  "ruff>=0.9.8",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
