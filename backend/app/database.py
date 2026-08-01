@@ -6,14 +6,14 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from app.config import settings
 
-# Create database engine
-engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    echo=settings.debug
-)
+# Create database engine.
+# SQLite (used by the test suite) does not accept pool_size/max_overflow,
+# so only pass those pooling options for non-SQLite backends.
+_engine_kwargs = {"pool_pre_ping": True, "echo": settings.debug}
+if not settings.database_url.startswith("sqlite"):
+    _engine_kwargs.update(pool_size=10, max_overflow=20)
+
+engine = create_engine(settings.database_url, **_engine_kwargs)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

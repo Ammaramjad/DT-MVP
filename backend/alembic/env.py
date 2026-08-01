@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 from alembic import context
 
 # Add parent directory to path to import app modules
@@ -89,7 +89,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             # Enable TimescaleDB extension
-            connection.execute("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE")
+            connection.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE"))
             context.run_migrations()
 
 

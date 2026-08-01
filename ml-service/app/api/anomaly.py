@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Optional
 import pandas as pd
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel, Field
 
 from app.models.anomaly import IsolationForestDetector
@@ -350,7 +350,7 @@ async def get_anomaly_scores(
 @router.patch("/{model_id}/sensitivity")
 async def update_sensitivity(
     model_id: str,
-    sensitivity: str = Field(..., description="New sensitivity: low, medium, high"),
+    sensitivity: str = Query(..., description="New sensitivity: low, medium, high"),
 ):
     """
     Update anomaly detection sensitivity.

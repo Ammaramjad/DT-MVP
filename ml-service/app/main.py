@@ -4,6 +4,7 @@ ML Service FastAPI Application
 Main entry point for the ML service providing forecasting, anomaly detection,
 and simulation capabilities.
 """
+import logging
 import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
@@ -24,7 +25,7 @@ structlog.configure(
         else structlog.dev.ConsoleRenderer(),
     ],
     wrapper_class=structlog.make_filtering_bound_logger(
-        getattr(structlog, settings.log_level)
+        getattr(logging, settings.log_level)
     ),
     context_class=dict,
     logger_factory=structlog.PrintLoggerFactory(),
