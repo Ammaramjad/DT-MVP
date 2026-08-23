@@ -1,0 +1,2154 @@
+%% bare_jrnl.tex
+%% V1.4b
+%% 2015/08/26
+%% by Michael Shell
+%% see http://www.michaelshell.org/
+%% for current contact information.
+%%
+%% This is a skeleton file demonstrating the use of IEEEtran.cls
+%% (requires IEEEtran.cls version 1.8b or later) with an IEEE
+%% journal paper.
+%%
+%% Support sites:
+%% http://www.michaelshell.org/tex/ieeetran/
+%% http://www.ctan.org/pkg/ieeetran
+%% and
+%% http://www.ieee.org/
+
+%%*************************************************************************
+%% Legal Notice:
+%% This code is offered as-is without any warranty either expressed or
+%% implied; without even the implied warranty of MERCHANTABILITY or
+%% FITNESS FOR A PARTICULAR PURPOSE! 
+%% User assumes all risk.
+%% In no event shall the IEEE or any contributor to this code be liable for
+%% any damages or losses, including, but not limited to, incidental,
+%% consequential, or any other damages, resulting from the use or misuse
+%% of any information contained here.
+%%
+%% All comments are the opinions of their respective authors and are not
+%% necessarily endorsed by the IEEE.
+%%
+%% This work is distributed under the LaTeX Project Public License (LPPL)
+%% ( http://www.latex-project.org/ ) version 1.3, and may be freely used,
+%% distributed and modified. A copy of the LPPL, version 1.3, is included
+%% in the base LaTeX documentation of all distributions of LaTeX released
+%% 2003/12/01 or later.
+%% Retain all contribution notices and credits.
+%% ** Modified files should be clearly indicated as such, including  **
+%% ** renaming them and changing author support contact information. **
+%%*************************************************************************
+
+
+% *** Authors should verify (and, if needed, correct) their LaTeX system  ***
+% *** with the testflow diagnostic prior to trusting their LaTeX platform ***
+% *** with production work. The IEEE's font choices and paper sizes can   ***
+% *** trigger bugs that do not appear when using other class files.       ***                          ***
+% The testflow support page is at:
+% http://www.michaelshell.org/tex/testflow/
+
+
+
+\documentclass[journal]{IEEEtran}
+%
+% If IEEEtran.cls has not been installed into the LaTeX system files,
+% manually specify the path to it like:
+% \documentclass[journal]{../sty/IEEEtran}
+\usepackage{url}
+\usepackage{cite}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs} 
+\usepackage{multirow} 
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+ 
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, shapes.multipart}
+% Some very useful LaTeX packages include:
+% (uncomment the ones you want to load)
+
+
+% *** MISC UTILITY PACKAGES ***
+%
+%\usepackage{ifpdf}
+% Heiko Oberdiek's ifpdf.sty is very useful if you need conditional
+% compilation based on whether the output is pdf or dvi.
+% usage:
+% \ifpdf
+%   % pdf code
+% \else
+%   % dvi code
+% \fi
+% The latest version of ifpdf.sty can be obtained from:
+% http://www.ctan.org/pkg/ifpdf
+% Also, note that IEEEtran.cls V1.7 and later provides a builtin
+% \ifCLASSINFOpdf conditional that works the same way.
+% When switching from latex to pdflatex and vice-versa, the compiler may
+% have to be run twice to clear warning/error messages.
+
+
+
+
+
+
+% *** CITATION PACKAGES ***
+%
+%\usepackage{cite}
+% cite.sty was written by Donald Arseneau
+% V1.6 and later of IEEEtran pre-defines the format of the cite.sty package
+% \cite{} output to follow that of the IEEE. Loading the cite package will
+% result in citation numbers being automatically sorted and properly
+% "compressed/ranged". e.g., [1], [9], [2], [7], [5], [6] without using
+% cite.sty will become [1], [2], [5]--[7], [9] using cite.sty. cite.sty's
+% \cite will automatically add leading space, if needed. Use cite.sty's
+% noadjust option (cite.sty V3.8 and later) if you want to turn this off
+% such as if a citation ever needs to be enclosed in parenthesis.
+% cite.sty is already installed on most LaTeX systems. Be sure and use
+% version 5.0 (2009-03-20) and later if using hyperref.sty.
+% The latest version can be obtained at:
+% http://www.ctan.org/pkg/cite
+% The documentation is contained in the cite.sty file itself.
+
+
+
+
+
+
+% *** GRAPHICS RELATED PACKAGES ***
+%
+\ifCLASSINFOpdf
+  % \usepackage[pdftex]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../pdf/}{../jpeg/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+\else
+  % or other class option (dvipsone, dvipdf, if not using dvips). graphicx
+  % will default to the driver specified in the system graphics.cfg if no
+  % driver is specified.
+  % \usepackage[dvips]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../eps/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.eps}
+\fi
+% graphicx was written by David Carlisle and Sebastian Rahtz. It is
+% required if you want graphics, photos, etc. graphicx.sty is already
+% installed on most LaTeX systems. The latest version and documentation
+% can be obtained at: 
+% http://www.ctan.org/pkg/graphicx
+% Another good source of documentation is "Using Imported Graphics in
+% LaTeX2e" by Keith Reckdahl which can be found at:
+% http://www.ctan.org/pkg/epslatex
+%
+% latex, and pdflatex in dvi mode, support graphics in encapsulated
+% postscript (.eps) format. pdflatex in pdf mode supports graphics
+% in .pdf, .jpeg, .png and .mps (metapost) formats. Users should ensure
+% that all non-photo figures use a vector format (.eps, .pdf, .mps) and
+% not a bitmapped formats (.jpeg, .png). The IEEE frowns on bitmapped formats
+% which can result in "jaggedy"/blurry rendering of lines and letters as
+% well as large increases in file sizes.
+%
+% You can find documentation about the pdfTeX application at:
+% http://www.tug.org/applications/pdftex
+
+
+
+
+
+% *** MATH PACKAGES ***
+%
+%\usepackage{amsmath}
+% A popular package from the American Mathematical Society that provides
+% many useful and powerful commands for dealing with mathematics.
+%
+% Note that the amsmath package sets \interdisplaylinepenalty to 10000
+% thus preventing page breaks from occurring within multiline equations. Use:
+%\interdisplaylinepenalty=2500
+% after loading amsmath to restore such page breaks as IEEEtran.cls normally
+% does. amsmath.sty is already installed on most LaTeX systems. The latest
+% version and documentation can be obtained at:
+% http://www.ctan.org/pkg/amsmath
+
+
+
+
+
+% *** SPECIALIZED LIST PACKAGES ***
+%
+%\usepackage{algorithmic}
+% algorithmic.sty was written by Peter Williams and Rogerio Brito.
+% This package provides an algorithmic environment fo describing algorithms.
+% You can use the algorithmic environment in-text or within a figure
+% environment to provide for a floating algorithm. Do NOT use the algorithm
+% floating environment provided by algorithm.sty (by the same authors) or
+% algorithm2e.sty (by Christophe Fiorio) as the IEEE does not use dedicated
+% algorithm float types and packages that provide these will not provide
+% correct IEEE style captions. The latest version and documentation of
+% algorithmic.sty can be obtained at:
+% http://www.ctan.org/pkg/algorithms
+% Also of interest may be the (relatively newer and more customizable)
+% algorithmicx.sty package by Szasz Janos:
+% http://www.ctan.org/pkg/algorithmicx
+
+
+
+
+% *** ALIGNMENT PACKAGES ***
+%
+%\usepackage{array}
+% Frank Mittelbach's and David Carlisle's array.sty patches and improves
+% the standard LaTeX2e array and tabular environments to provide better
+% appearance and additional user controls. As the default LaTeX2e table
+% generation code is lacking to the point of almost being broken with
+% respect to the quality of the end results, all users are strongly
+% advised to use an enhanced (at the very least that provided by array.sty)
+% set of table tools. array.sty is already installed on most systems. The
+% latest version and documentation can be obtained at:
+% http://www.ctan.org/pkg/array
+
+
+% IEEEtran contains the IEEEeqnarray family of commands that can be used to
+% generate multiline equations as well as matrices, tables, etc., of high
+% quality.
+
+
+
+
+% *** SUBFIGURE PACKAGES ***
+%\ifCLASSOPTIONcompsoc
+%  \usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+%\else
+%  \usepackage[caption=false,font=footnotesize]{subfig}
+%\fi
+% subfig.sty, written by Steven Douglas Cochran, is the modern replacement
+% for subfigure.sty, the latter of which is no longer maintained and is
+% incompatible with some LaTeX packages including fixltx2e. However,
+% subfig.sty requires and automatically loads Axel Sommerfeldt's caption.sty
+% which will override IEEEtran.cls' handling of captions and this will result
+% in non-IEEE style figure/table captions. To prevent this problem, be sure
+% and invoke subfig.sty's "caption=false" package option (available since
+% subfig.sty version 1.3, 2005/06/28) as this is will preserve IEEEtran.cls
+% handling of captions.
+% Note that the Computer Society format requires a larger sans serif font
+% than the serif footnote size font used in traditional IEEE formatting
+% and thus the need to invoke different subfig.sty package options depending
+% on whether compsoc mode has been enabled.
+%
+% The latest version and documentation of subfig.sty can be obtained at:
+% http://www.ctan.org/pkg/subfig
+
+
+
+
+% *** FLOAT PACKAGES ***
+%
+%\usepackage{fixltx2e}
+% fixltx2e, the successor to the earlier fix2col.sty, was written by
+% Frank Mittelbach and David Carlisle. This package corrects a few problems
+% in the LaTeX2e kernel, the most notable of which is that in current
+% LaTeX2e releases, the ordering of single and double column floats is not
+% guaranteed to be preserved. Thus, an unpatched LaTeX2e can allow a
+% single column figure to be placed prior to an earlier double column
+% figure.
+% Be aware that LaTeX2e kernels dated 2015 and later have fixltx2e.sty's
+% corrections already built into the system in which case a warning will
+% be issued if an attempt is made to load fixltx2e.sty as it is no longer
+% needed.
+% The latest version and documentation can be found at:
+% http://www.ctan.org/pkg/fixltx2e
+
+
+%\usepackage{stfloats}
+% stfloats.sty was written by Sigitas Tolusis. This package gives LaTeX2e
+% the ability to do double column floats at the bottom of the page as well
+% as the top. (e.g., "\begin{figure*}[!b]" is not normally possible in
+% LaTeX2e). It also provides a command:
+%\fnbelowfloat
+% to enable the placement of footnotes below bottom floats (the standard
+% LaTeX2e kernel puts them above bottom floats). This is an invasive package
+% which rewrites many portions of the LaTeX2e float routines. It may not work
+% with other packages that modify the LaTeX2e float routines. The latest
+% version and documentation can be obtained at:
+% http://www.ctan.org/pkg/stfloats
+% Do not use the stfloats baselinefloat ability as the IEEE does not allow
+% \baselineskip to stretch. Authors submitting work to the IEEE should note
+% that the IEEE rarely uses double column equations and that authors should try
+% to avoid such use. Do not be tempted to use the cuted.sty or midfloat.sty
+% packages (also by Sigitas Tolusis) as the IEEE does not format its papers in
+% such ways.
+% Do not attempt to use stfloats with fixltx2e as they are incompatible.
+% Instead, use Morten Hogholm'a dblfloatfix which combines the features
+% of both fixltx2e and stfloats:
+%
+% \usepackage{dblfloatfix}
+% The latest version can be found at:
+% http://www.ctan.org/pkg/dblfloatfix
+
+
+
+
+%\ifCLASSOPTIONcaptionsoff
+%  \usepackage[nomarkers]{endfloat}
+% \let\MYoriglatexcaption\caption
+% \renewcommand{\caption}[2][\relax]{\MYoriglatexcaption[#2]{#2}}
+%\fi
+% endfloat.sty was written by James Darrell McCauley, Jeff Goldberg and 
+% Axel Sommerfeldt. This package may be useful when used in conjunction with 
+% IEEEtran.cls'  captionsoff option. Some IEEE journals/societies require that
+% submissions have lists of figures/tables at the end of the paper and that
+% figures/tables without any captions are placed on a page by themselves at
+% the end of the document. If needed, the draftcls IEEEtran class option or
+% \CLASSINPUTbaselinestretch interface can be used to increase the line
+% spacing as well. Be sure and use the nomarkers option of endfloat to
+% prevent endfloat from "marking" where the figures would have been placed
+% in the text. The two hack lines of code above are a slight modification of
+% that suggested by in the endfloat docs (section 8.4.1) to ensure that
+% the full captions always appear in the list of figures/tables - even if
+% the user used the short optional argument of \caption[]{}.
+% IEEE papers do not typically make use of \caption[]'s optional argument,
+% so this should not be an issue. A similar trick can be used to disable
+% captions of packages such as subfig.sty that lack options to turn off
+% the subcaptions:
+% For subfig.sty:
+% \let\MYorigsubfloat\subfloat
+% \renewcommand{\subfloat}[2][\relax]{\MYorigsubfloat[]{#2}}
+% However, the above trick will not work if both optional arguments of
+% the \subfloat command are used. Furthermore, there needs to be a
+% description of each subfigure *somewhere* and endfloat does not add
+% subfigure captions to its list of figures. Thus, the best approach is to
+% avoid the use of subfigure captions (many IEEE journals avoid them anyway)
+% and instead reference/explain all the subfigures within the main caption.
+% The latest version of endfloat.sty and its documentation can obtained at:
+% http://www.ctan.org/pkg/endfloat
+%
+% The IEEEtran \ifCLASSOPTIONcaptionsoff conditional can also be used
+% later in the document, say, to conditionally put the References on a 
+% page by themselves.
+
+
+
+
+% *** PDF, URL AND HYPERLINK PACKAGES ***
+%
+%\usepackage{url}
+\usepackage{cite}
+\usepackage{graphicx}
+\usepackage{float}
+% url.sty was written by Donald Arseneau. It provides better support for
+% handling and breaking URLs. url.sty is already installed on most LaTeX
+% systems. The latest version and documentation can be obtained at:
+% http://www.ctan.org/pkg/url
+% Basically, \url{my_url_here}.
+
+
+
+
+% *** Do not adjust lengths that control margins, column widths, etc. ***
+% *** Do not use packages that alter fonts (such as pslatex).         ***
+% There should be no need to do such things with IEEEtran.cls V1.6 and later.
+% (Unless specifically asked to do so by the journal or conference you plan
+% to submit to, of course. )
+
+
+% correct bad hyphenation here
+\hyphenation{op-tical net-works semi-conduc-tor}
+
+
+\begin{document}
+
+%
+% paper title
+% Titles are generally capitalized except for words such as a, an, and, as,
+% at, but, by, for, in, nor, of, on, or, the, to and up, which are usually
+% not capitalized unless they are the first or last word of the title.
+% Linebreaks \\ can be used within to get better formatting as desired.
+% Do not put math or special symbols in the title.
+\title{FireSmokeGenNet: Boundary-Aware Diffusion Synthesis and Multimodal Quality Filtering for Wildfire-Smoke Monitoring}
+%
+%
+% author names and IEEE memberships
+% note positions of commas and nonbreaking spaces ( ~ ) LaTeX will not break
+% a structure at a ~ so this keeps an author's name from being broken across
+% two lines.
+% use \thanks{} to gain access to the first footnote area
+% a separate \thanks must be used for each paragraph as LaTeX2e's \thanks
+% was not built to handle multiple paragraphs
+%
+
+\author{Ammar Amjad,~\IEEEmembership{Member,~IEEE,}%
+\thanks{Ammar Amjad is with the Department of Electrical and Computer Engineering, National Yang Ming Chiao Tung University, Hsinchu, Taiwan (e-mail: ammar@nycu.edu.tw).}%
+\and Kenny Lin,~\IEEEmembership{Senior Engineer, Gama Innovation Inc.}%
+\thanks{Kenny Lin is with the Department of Product Development and Engineering, Gama Innovation Inc., Taipei City, Taiwan (e-mail: kenneylin@hotmail.com).}}
+
+
+% <-this % stops a space
+%\thanks{M. Shell was with the Department
+%of Electrical and Computer Engineering, Georgia Institute of Technology, Atlanta,
+%GA, 30332 USA e-mail: (see http://www.michaelshell.org/contact.html).}% <-this % stops a space
+%\thanks{J. Doe and J. Doe are with Anonymous University.}% <-this % stops a space
+%\thanks{Manuscript received April 19, 2005; revised August 26, 2015.}}
+
+% note the % following the last \IEEEmembership and also \thanks - 
+% these prevent an unwanted space from occurring between the last author name
+% and the end of the author line. i.e., if you had this:
+% 
+% \author{....lastname \thanks{...} \thanks{...} }
+%                     ^------------^------------^----Do not want these spaces!
+%
+% a space would be appended to the last name and could cause every name on that
+% line to be shifted left slightly. This is one of those "LaTeX things". For
+% instance, "\textbf{A} \textbf{B}" will typeset as "A B" not "AB". To get
+% "AB" then you have to do: "\textbf{A}\textbf{B}"
+% \thanks is no different in this regard, so shield the last } of each \thanks
+% that ends a line with a % and do not let a space in before the next \thanks.
+% Spaces after \IEEEmembership other than the last one are OK (and needed) as
+% you are supposed to have spaces between the names. For what it is worth,
+% this is a minor point as most people would not even notice if the said evil
+% space somehow managed to creep in.
+
+
+
+% The paper headers
+\markboth{IEEE Transactions on Multimedia}%
+{Shell \MakeLowercase{\textit{et al.}}: Bare Demo of IEEEtran.cls for IEEE Journals}
+% The only time the second header will appear is for the odd numbered pages
+% after the title page when using the twoside option.
+% 
+% *** Note that you probably will NOT want to include the author's ***
+% *** name in the headers of peer review papers.                   ***
+% You can use \ifCLASSOPTIONpeerreview for conditional compilation here if
+% you desire.
+
+
+
+
+% If you want to put a publisher's ID mark on the page you can do it like
+% this:
+%\IEEEpubid{0000--0000/00\$00.00~\copyright~2015 IEEE}
+% Remember, if you use this you must call \IEEEpubidadjcol in the second
+% column for its text to clear the IEEEpubid mark.
+
+
+
+% use for special paper notices
+%\IEEEspecialpapernotice{(Invited Paper)}
+
+
+
+
+% make the title area
+\maketitle
+
+% As a general rule, do not put math, special symbols or citations
+% in the abstract or keywords.
+\begin{abstract}
+Smoke is typically the earliest visible indicator of a wildfire. With the rapid progress in deep learning, image-based smoke detection has become a vital approach for early wildfire recognition and prevention. However, a key bottleneck in training effective detection models is the limited availability of annotated forest fire smoke images. While generative models offer a promising solution for synthesizing such data, conventional inpainting approaches often struggle to maintain visual fidelity and contextual consistency—especially at the interface between synthesized smoke and complex natural backgrounds.
+
+To address these challenges, we propose \textbf{FireSmokeGenNet}, a novel framework for generating realistic and diverse forest fire smoke images. Our pipeline begins by using a pre-trained segmentation model and a multimodal vision-language model to extract smoke masks and generate descriptive captions. We then introduce a dual-branch architecture that incorporates both the mask and its masked image to guide the generative process. A key contribution of our framework is the \textit{Mask Random Difference Loss (MRDL)}, which enforces local consistency by introducing stochastic mask perturbations that improve boundary smoothness and transparency during training.
+
+
+\end{abstract}
+
+% Note that keywords are not normally used for peerreview papers.
+\begin{IEEEkeywords}
+Diffusion models, environmental monitoring, forest fire detection, generative AI, image inpainting, joint cross-attention, large language models, mask conditioning, multimodal guidance, and synthetic smoke generation.
+\end{IEEEkeywords}
+
+
+
+
+
+
+% For peer review papers, you can put extra information on the cover
+% page as needed:
+% \ifCLASSOPTIONpeerreview
+% \begin{center} \bfseries EDICS Category: 3-BBND \end{center}
+% \fi
+%
+% For peerreview papers, this IEEEtran command inserts a page break and
+% creates the second title. It will be ignored for other modes.
+\IEEEpeerreviewmaketitle
+% Required packages:
+% \usepackage{amsmath}
+% \usepackage{amssymb}
+% \usepackage{booktabs}
+% \usepackage{tabularx}
+% \usepackage{array}
+%
+% Define the proposed method in the preamble:
+\newcommand{\method}{FireSmokeGenNet}
+
+\section{Introduction}
+\label{sec:introduction}
+
+\IEEEPARstart{W}{ildfires} cause extensive environmental, economic,
+and societal damage, with severe fire seasons affecting millions of
+hectares and releasing substantial quantities of carbon into the
+atmosphere
+\cite{Giglio2018-ca,Jain2024,Byrne2024}. Timely wildfire detection is
+therefore important for early assessment, containment planning, and
+emergency response. Smoke is frequently observable before flames become
+clearly visible and is consequently an important visual indicator for
+early wildfire detection
+\cite{7823512,BOUGUETTAYA2022108309}. Unlike flames, which may be
+partially occluded by terrain or vegetation, smoke can rise above the
+forest canopy and remain visible over comparatively long distances.
+Vision-based smoke detection has thus become an important component of
+wildfire-monitoring systems, complementing satellite observations,
+unmanned aerial vehicle surveillance, and ground-based sensor networks
+\cite{BOUGUETTAYA2022108309,Karger2026}.
+
+Deep object detectors, including YOLO, DETR, and EfficientDet, have
+substantially advanced real-time object localization
+\cite{redmon2016lookonceunifiedrealtime,
+carion2020endtoendobjectdetectiontransformers,
+tan2020efficientdetscalableefficientobject}. Their effectiveness,
+however, depends strongly on the availability and diversity of
+annotated training data. These requirements are difficult to satisfy
+for early wildfire-smoke detection because real wildfire events are
+geographically dispersed, temporally unpredictable, and hazardous to
+observe at close range. Existing datasets provide valuable imagery for
+detection and segmentation research but may represent a restricted
+range of fire stages, camera viewpoints, illumination conditions,
+seasons, and weather patterns
+\cite{shamsoshoara2020aerialimagerypileburn}. Early-stage smoke is
+especially difficult to collect and annotate because it may appear as
+a faint, semi-transparent structure with low contrast against clouds,
+haze, fog, vegetation, or bright sky. Models trained on restricted
+environmental distributions may consequently exhibit reduced
+robustness under previously unseen conditions, consistent with the
+broader challenge of out-of-distribution generalization
+\cite{hendrycks2021facesrobustnesscriticalanalysis}.
+
+Synthetic data generation provides a scalable approach for increasing
+the diversity of smoke appearances and environmental conditions
+represented during detector training. Generating convincing smoke,
+however, differs substantially from synthesizing rigid objects. Smoke
+has no fixed geometry, contains structures at multiple spatial scales,
+and exhibits spatially varying opacity. Its appearance depends on
+illumination, background texture, atmospheric conditions, and plume
+density. Moreover, its boundaries are naturally diffuse and irregular.
+A useful synthetic-smoke generator must therefore preserve the
+environmental context while producing diverse smoke structures,
+plausible translucency, and smooth transitions around uncertain plume
+boundaries.
+
+Early synthetic-smoke methods relied on computational simulation,
+procedural generation, and image compositing
+\cite{6053841,6425498}. Such approaches offer explicit
+control over smoke location and appearance but may require substantial
+parameter adjustment and can retain a visual gap between simulated and
+real smoke. GAN-based methods have also been investigated for
+wildfire-data augmentation and controllable smoke generation
+\cite{rs12223715,9249044}. Although GANs offer comparatively efficient
+inference, their adversarial optimization may be affected by training
+instability and insufficient mode coverage, particularly when modeling
+fine turbulent structures and spatially varying opacity.
+
+Diffusion models have recently achieved strong performance in
+high-fidelity image synthesis. Denoising diffusion probabilistic models
+learn to reconstruct data by reversing a progressive Gaussian
+corruption process
+\cite{ho2020denoisingdiffusionprobabilisticmodels}, while improved
+formulations introduce more effective noise schedules and
+reverse-process variance parameterizations
+\cite{nichol2021improveddenoisingdiffusionprobabilistic}. Latent
+diffusion models reduce computational requirements by performing the
+denoising process in a compressed representation space and incorporate
+external conditions using cross-attention
+\cite{rombach2022highresolutionimagesynthesislatent}. Spatial-control
+architectures such as ControlNet and T2I-Adapter further demonstrate
+that external structural signals can be injected into multiple stages
+of a pretrained diffusion model
+\cite{zhang2023addingconditionalcontroltexttoimage,
+mou2023t2iadapterlearningadaptersdig}. For wildfire imagery,
+FlameDiffuser employs mask-guided latent diffusion to generate synthetic
+fire scenes for data augmentation
+\cite{wang2024flamediffuserwildfireimage}.
+
+Despite this progress, three limitations remain important for
+diffusion-based wildfire-smoke synthesis. First, standard inpainting
+commonly combines the noisy latent, binary mask, and masked-image
+representation through input-level concatenation. This formulation does
+not explicitly separate structural information from contextual
+appearance. Second, deterministic binary masks provide rigid spatial
+constraints that do not represent the uncertain and semi-transparent
+transitions observed at smoke boundaries. Third, diffusion sampling
+produces samples with varying perceptual and task-level quality, and
+indiscriminately adding all generated images to detector training can
+introduce unrealistic colors, insufficient visibility, or implausible
+opacity. Existing wildfire-synthesis pipelines have not jointly
+addressed these limitations through decoupled multiscale conditioning,
+boundary-specific consistency regularization, and task-aware synthetic
+sample filtering.
+
+To address these limitations, we propose \method, a controllable
+latent-diffusion framework for synthetic wildfire-smoke generation.
+The framework separately encodes the target smoke mask and masked-image
+context, injects their multiscale representations hierarchically into
+the diffusion U-Net, and combines them through Joint Cross-Attention
+(JCA). We further introduce the Mask Random Difference Loss (MRDL), a
+stochastic consistency objective that regularizes the model around
+morphologically perturbed smoke boundaries. Finally, a task-specific
+vision--language quality-assessment module ranks generated samples
+according to smoke color, visibility, and translucency before their use
+in downstream detector training.
+
+The main contributions of this work are summarized as follows:
+
+\begin{itemize}
+    \item We propose a hierarchical dual-branch conditioning
+    architecture that represents smoke-mask geometry and masked-image
+    context through separate feature streams. The proposed JCA module
+    independently attends to the structural and contextual features
+    before fusing their representations at intermediate U-Net
+    resolutions.
+
+    \item We introduce MRDL, a stochastic boundary-consistency
+    regularizer inspired by prediction consistency under
+    semantics-preserving perturbations
+    \cite{sajjadi2016regularizationstochastictransformationsperturbations}.
+    MRDL penalizes differences between denoising predictions conditioned
+    on the original and morphologically perturbed masks within the
+    affected latent-space boundary region.
+
+    \item We develop a task-specific multimodal quality-filtering
+    strategy based on Qwen2-VL-7B
+    \cite{wang2024qwen2vlenhancingvisionlanguagemodels}. Motivated by
+    learned human-preference assessment
+    \cite{xu2023imagerewardlearningevaluatinghuman,
+    wu2023humanpreferencescorebetter}, the module evaluates generated
+    smoke according to color fidelity, visibility, and translucency
+    realism and retains the highest-ranked samples for downstream
+    detector training.
+
+    \item We establish an equal-budget evaluation protocol comparing
+    real-only training, additional real data, randomly selected
+    synthetic data, and VLM-filtered synthetic data. This protocol
+    separates the benefit of synthetic-data generation from the
+    contribution of quality filtering and evaluates robustness under
+    environmental distribution shifts.
+\end{itemize}
+
+The remainder of this paper is organized as follows. Section~II reviews
+wildfire-smoke datasets, synthetic smoke generation, diffusion-based
+inpainting, and learned image-quality assessment. Section~III introduces
+the required diffusion-model preliminaries and formulates the
+smoke-boundary uncertainty problem. Section~IV presents the proposed
+architecture, JCA module, MRDL objective, and multimodal filtering
+pipeline. Section~V describes the datasets, implementation details,
+evaluation protocols, and metrics. Section~VI reports the quantitative,
+qualitative, domain-shift, and ablation results. Section~VII discusses
+limitations and future directions, and Section~VIII concludes the
+paper.
+\section{Related Work}
+\label{sec:related}
+
+
+\subsection{Wildfire-Smoke Datasets and Data Augmentation}
+\label{subsec:related_datasets}
+
+The development of reliable wildfire-smoke detectors is closely tied
+to the availability and diversity of annotated data. The FLAME dataset
+provides aerial visible and thermal imagery acquired during prescribed
+pile burns and supports fire classification and segmentation research
+\cite{shamsoshoara2020aerialimagerypileburn}. Although FLAME is an
+important benchmark for aerial fire analysis, its acquisition under a
+limited set of controlled burning conditions restricts its
+representation of environmental and geographical variability.
+
+For early smoke detection from fixed-view cameras, Dewangan
+\emph{et al.} introduced FIgLib, a collection of approximately 25,000
+labeled images derived from wildfire-camera sequences in Southern
+California, together with the spatiotemporal SmokeyNet architecture
+\cite{Dewangan_2022}. The dataset includes smoke and non-smoke
+observations captured before and after reported fire ignition.
+Nevertheless, its geographical concentration and reliance on fixed
+camera infrastructure may limit direct generalization to other regions,
+camera configurations, and atmospheric conditions.
+
+Several datasets have also been developed for smoke localization and
+segmentation. Smoke100K contains synthetic smoke images paired with
+smoke-free backgrounds, smoke masks, and bounding-box annotations
+\cite{cheng_gcce19_smoke100k}. SMOKE5K combines real and synthetic images
+with pixel-level smoke annotations and explicitly considers the
+uncertainty associated with transparent and irregular smoke regions
+\cite{yan2023transmissionguidedbayesiangenerativemodel}. These resources are valuable for detection
+and segmentation; however, synthetic subsets constructed through
+compositing can exhibit appearance differences from real smoke,
+particularly around semi-transparent boundaries.
+
+Data augmentation has consequently become an important strategy for
+improving smoke-detector robustness. Conventional transformations,
+including geometric, photometric, and color-space augmentation, improve
+sample diversity but cannot introduce genuinely new smoke structures.
+Compositing-based approaches offer greater control by blending
+foreground smoke masks with smoke-free scenes
+\cite{6425498}. Their realism,
+however, depends strongly on the quality of the source masks, opacity
+estimation, color adjustment, and boundary blending. These limitations
+motivate generative approaches that learn smoke appearance directly
+from data.
+
+
+\subsection{Generative Models for Smoke and Wildfire Synthesis}
+\label{subsec:related_generative_smoke}
+
+GAN-based generation has been investigated as an alternative to
+procedural simulation and deterministic compositing. Park
+\emph{et al.} employed CycleGAN-based augmentation to improve wildfire
+classification from remote-camera imagery
+\cite{rs12223715}. Xie and Tao proposed controllable smoke-generation
+networks that decompose an image into smoke and non-smoke components,
+allowing smoke characteristics to be modified through latent
+representations
+\cite{9249044}. These studies demonstrated the potential of learned
+generation for expanding smoke-related datasets.
+
+Despite their efficient inference, GAN-based methods can be sensitive
+to adversarial-training instability and insufficient mode coverage.
+For smoke synthesis, these issues may appear as repetitive plume
+structures, inconsistent opacity, or inadequate integration with the
+background. Moreover, methods designed for image-level augmentation do
+not necessarily preserve the spatial correspondence required for
+automatically transferring masks or bounding-box annotations to
+generated samples.
+
+Diffusion models provide an alternative generative formulation based
+on iterative denoising. DDPMs learn a reverse process that reconstructs
+samples from progressively corrupted observations
+\cite{ho2020denoisingdiffusionprobabilisticmodels}. Subsequent
+developments improved noise scheduling, variance parameterization, and
+sampling efficiency
+\cite{nichol2021improveddenoisingdiffusionprobabilistic}. Latent
+diffusion models perform the denoising process within a compressed
+representation space and incorporate semantic conditions through
+cross-attention
+\cite{rombach2022highresolutionimagesynthesislatent}. Compared with
+adversarial generators, diffusion models generally provide stable
+training and strong sample diversity, although their iterative
+inference incurs greater computational cost.
+
+
+\subsection{Spatially Controlled Diffusion and Image Inpainting}
+\label{subsec:related_controlled_diffusion}
+
+Diffusion-based image inpainting uses masks, image context, text, or
+other structural signals to constrain the denoising process. RePaint
+conditions a pretrained unconditional diffusion model by repeatedly
+resampling the known image regions during reverse diffusion, enabling
+inpainting across different mask configurations without mask-specific
+model retraining
+\cite{lugmayr2022repaintinpaintingusingdenoising}. SmartBrush incorporates text and object-shape
+guidance to improve spatial controllability and background preservation
+during object inpainting
+\cite{xie2022smartbrushtextshapeguided}. InstructPix2Pix learns instruction-guided
+image editing from synthetically constructed editing pairs
+\cite{brooks2023instructpix2pixlearningfollowimage}.
+
+More general spatial-control architectures inject external conditions
+into pretrained latent diffusion models. ControlNet introduces
+trainable control branches connected to a frozen diffusion backbone,
+allowing conditions such as edges, depth maps, poses, and segmentation
+maps to guide generation
+\cite{zhang2023addingconditionalcontroltexttoimage}. T2I-Adapter instead
+uses lightweight adapters to align external control signals with the
+internal representations of a pretrained text-to-image model
+\cite{mou2023t2iadapterlearningadaptersdig}. These methods demonstrate
+the value of hierarchical structural guidance but are designed for
+general image synthesis rather than the uncertain, semi-transparent
+boundaries characteristic of smoke.
+
+For wildfire synthesis, FLAME Diffuser introduced a training-free,
+mask-guided diffusion pipeline that uses wildfire masks and
+Perlin-noise-based guidance to control the location and extent of
+generated fire regions
+\cite{wang2024flamediffuserwildfireimage}. It demonstrates that
+diffusion-generated wildfire imagery can support downstream
+data-augmentation tasks. However, its primary emphasis is flame
+generation and paired spatial annotation rather than explicit modeling
+of semi-transparent smoke interfaces.
+
+In contrast, the present work focuses specifically on smoke synthesis.
+It separates mask geometry from masked-background context through two
+conditioning branches, fuses the resulting representations using Joint
+Cross-Attention, and introduces a boundary-restricted consistency loss
+for stochastic mask perturbations. This formulation is intended to
+address smoke-boundary uncertainty while retaining spatial control and
+environmental context.
+
+
+\subsection{Learned Assessment of Generated-Image Quality}
+\label{subsec:related_quality_assessment}
+
+Generated-image evaluation has traditionally relied on distributional
+and perceptual metrics such as Fréchet Inception Distance, structural
+similarity, learned perceptual similarity, and text--image embedding
+similarity. Although these measures capture complementary aspects of
+image quality, they may not reflect task-specific requirements or
+human judgments of realism.
+
+Recent preference-based models learn quality assessments directly from
+human comparisons. ImageReward uses expert-ranked text--image pairs to
+learn a reward model for evaluating and improving text-to-image
+generation
+\cite{xu2023imagerewardlearningevaluatinghuman}. Human Preference Score
+similarly adapts vision--language representations to predict human
+preferences among generated images
+\cite{wu2023humanpreferencescorebetter}. These approaches demonstrate
+that learned multimodal scoring can complement conventional automatic
+metrics.
+
+Large vision--language models provide a further mechanism for
+evaluating images according to explicitly defined semantic criteria.
+Qwen2-VL supports joint visual and textual reasoning across variable
+image resolutions
+\cite{wang2024qwen2vlenhancingvisionlanguagemodels}. However,
+general-purpose preference models are not specifically trained to
+assess the color fidelity, visibility, and translucency of wildfire
+smoke. Moreover, a generated image that appears perceptually appealing
+is not necessarily useful for downstream smoke detection.
+
+The proposed framework therefore adapts a vision--language model using
+smoke-specific human annotations and evaluates the effect of its
+filtering decisions through an equal-budget detector-training protocol.
+Unlike general-purpose generated-image ranking, the proposed filtering
+stage is explicitly evaluated according to its contribution to
+downstream wildfire-smoke detection.
+\section{Preliminaries}
+\label{sec:prelim}
+
+
+\subsection{Latent Diffusion Models}
+\label{subsec:prelim_ldm}
+
+Latent diffusion models (LDMs) perform the diffusion process in a
+compressed representation space learned by a variational autoencoder
+(VAE), thereby reducing the computational cost of high-resolution image
+generation
+\cite{rombach2022highresolutionimagesynthesislatent}. Given an RGB image
+
+\begin{equation}
+x\in\mathbb{R}^{H\times W\times3},
+\end{equation}
+
+the VAE encoder \(\mathcal{E}\) maps \(x\) to a latent representation
+
+\begin{equation}
+z_0=\mathcal{E}(x)
+\in\mathbb{R}^{h\times w\times c},
+\label{eq:vae_encoding}
+\end{equation}
+
+where \(h=H/f\), \(w=W/f\), and \(f\) is the spatial compression
+factor. For the VAE adopted in this work, \(f=8\) and \(c=4\). After
+reverse diffusion, the VAE decoder \(\mathcal{D}\) reconstructs the
+output image from the denoised latent:
+
+\begin{equation}
+\widehat{x}=\mathcal{D}(\widehat{z}_0).
+\label{eq:vae_decoding}
+\end{equation}
+
+The VAE parameters remain fixed during training of the conditional
+diffusion model.
+
+
+\subsection{Forward and Reverse Diffusion Processes}
+\label{subsec:prelim_diffusion}
+
+The diffusion formulation comprises a fixed forward corruption process
+and a learned reverse denoising process. As illustrated in
+Fig.~\ref{fig:diffusion}, the forward process progressively perturbs the
+clean latent \(z_0\) with Gaussian noise. The reverse process predicts
+and removes the injected noise under the supplied conditioning
+information.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig44.png}
+\caption{Forward and reverse latent-diffusion processes. The forward
+process progressively perturbs the clean latent representation \(z_0\)
+with Gaussian noise. During reverse diffusion, the conditional U-Net
+iteratively predicts and removes noise using the noisy latent, diffusion
+timestep, and multimodal conditioning information. The final denoised
+latent is decoded by the fixed VAE decoder to obtain the generated
+image.}
+\label{fig:diffusion}
+\end{figure*}
+
+
+\subsubsection{Forward Diffusion Process}
+
+Let \(\{\beta_t\}_{t=1}^{T}\) denote a predefined variance schedule,
+where \(0<\beta_t<1\). We define
+
+\begin{equation}
+\alpha_t=1-\beta_t,
+\qquad
+\bar{\alpha}_t=\prod_{\tau=1}^{t}\alpha_\tau.
+\label{eq:alpha_definition}
+\end{equation}
+
+The forward Markov transition is
+
+\begin{equation}
+q(z_t\mid z_{t-1})
+=
+\mathcal{N}
+\left(
+z_t;
+\sqrt{\alpha_t}\,z_{t-1},
+\beta_t I
+\right).
+\label{eq:forward_transition}
+\end{equation}
+
+Using the reparameterization property of Gaussian distributions,
+\(z_t\) can be sampled directly from \(z_0\):
+
+\begin{equation}
+z_t
+=
+\sqrt{\bar{\alpha}_t}\,z_0
++
+\sqrt{1-\bar{\alpha}_t}\,\epsilon,
+\qquad
+\epsilon\sim\mathcal{N}(0,I).
+\label{eq:forward}
+\end{equation}
+
+We employ the cosine noise schedule introduced by Nichol and Dhariwal
+\cite{nichol2021improveddenoisingdiffusionprobabilistic}. Let
+
+\begin{equation}
+g(t)
+=
+\cos^2
+\left(
+\frac{t/T+s_0}{1+s_0}\,
+\frac{\pi}{2}
+\right),
+\qquad s_0=0.008.
+\label{eq:cosine_function}
+\end{equation}
+
+The cumulative noise schedule is normalized as
+
+\begin{equation}
+\bar{\alpha}_t
+=
+\frac{g(t)}{g(0)}.
+\label{eq:cosine_schedule}
+\end{equation}
+
+The corresponding variance coefficients are obtained from successive
+values of \(\bar{\alpha}_t\):
+
+\begin{equation}
+\beta_t
+=
+\min
+\left(
+1-
+\frac{\bar{\alpha}_t}{\bar{\alpha}_{t-1}},
+\beta_{\max}
+\right),
+\label{eq:cosine_beta}
+\end{equation}
+
+where \(\beta_{\max}<1\) prevents numerical instability near the final
+diffusion steps.
+
+
+\subsubsection{Conditional Reverse Diffusion Process}
+
+The reverse process reconstructs the clean latent by iteratively
+sampling
+
+\begin{equation}
+p_\theta(z_{t-1}\mid z_t,C)
+=
+\mathcal{N}
+\left(
+z_{t-1};
+\mu_\theta(z_t,t,C),
+\sigma_t^2 I
+\right),
+\label{eq:reverse}
+\end{equation}
+
+where \(C\) denotes the conditioning information and \(\theta\)
+represents the trainable parameters of the diffusion U-Net. The
+diffusion timestep \(t\) is provided separately through a timestep
+embedding and is therefore not included in \(C\).
+
+Under the noise-prediction parameterization, the reverse-process mean
+is expressed as
+
+\begin{equation}
+\mu_\theta(z_t,t,C)
+=
+\frac{1}{\sqrt{\alpha_t}}
+\left(
+z_t-
+\frac{1-\alpha_t}{\sqrt{1-\bar{\alpha}_t}}
+\epsilon_\theta(z_t,t,C)
+\right).
+\label{eq:reverse_mean}
+\end{equation}
+
+where \(\epsilon_\theta(z_t,t,C)\) is the noise predicted by the
+conditional U-Net. Depending on the adopted DDPM parameterization, the
+reverse variance \(\sigma_t^2\) may be fixed according to the posterior
+variance or learned during training
+\cite{nichol2021improveddenoisingdiffusionprobabilistic}. The specific
+parameterization used in FireSmokeGenNet is reported in
+Section~\ref{sec:method}.
+
+
+\subsubsection{Classifier-Free Guidance}
+
+Classifier-free guidance combines conditional and unconditional noise
+predictions without requiring an external classifier
+\cite{ho2022classifierfreediffusionguidance}. During training, the conditioning information
+is randomly replaced by a null condition. At inference time, the guided
+noise prediction is
+
+\begin{equation}
+\begin{aligned}
+\widetilde{\epsilon}_{\theta}(z_t,t,C)
+={}&
+\epsilon_{\theta}(z_t,t,\varnothing) \\
+&+
+\gamma
+\left[
+\epsilon_{\theta}(z_t,t,C)
+-
+\epsilon_{\theta}(z_t,t,\varnothing)
+\right],
+\end{aligned}
+\label{eq:classifier_free_guidance}
+\end{equation}
+
+where \(\gamma\geq1\) is the guidance scale and \(\varnothing\)
+denotes the null condition. Increasing \(\gamma\) generally strengthens
+adherence to the conditioning information but may reduce sample
+diversity or introduce visual artifacts.
+
+
+\subsubsection{Diffusion Training Objective}
+
+The standard noise-prediction objective is
+
+\begin{equation}
+\begin{aligned}
+\mathcal{L}_{\mathrm{diff}}
+=
+\mathbb{E}_{
+\substack{
+x\sim p_{\mathrm{data}},\,
+t\sim\mathcal{U}\{1,\ldots,T\},\\
+\epsilon\sim\mathcal{N}(0,I)
+}
+}
+\left[
+\left\|
+\epsilon-
+\epsilon_\theta(z_t,t,C)
+\right\|_2^2
+\right],
+\end{aligned}
+\label{eq:loss_diff}
+\end{equation}
+
+where \(z_0=\mathcal{E}(x)\) and \(z_t\) is generated using
+Eq.~\eqref{eq:forward}. This simplified objective corresponds to a
+reweighted form of the variational objective used to optimize the
+reverse diffusion process
+\cite{ho2020denoisingdiffusionprobabilisticmodels}.
+
+
+\subsubsection{Conditional Score Interpretation}
+
+The noise-prediction network is related to the conditional score of the
+perturbed latent distribution:
+
+\begin{equation}
+\nabla_{z_t}
+\log p(z_t\mid C)
+\approx
+-
+\frac{
+\epsilon_\theta(z_t,t,C)
+}{
+\sqrt{1-\bar{\alpha}_t}
+}.
+\label{eq:conditional_score}
+\end{equation}
+
+This interpretation connects denoising diffusion models with
+score-based generative modeling
+\cite{song2021scorebasedgenerativemodelingstochastic}. The conditioning information therefore guides the
+estimated score toward latent configurations that are compatible with
+the specified generation constraints.
+
+
+\subsection{Conventional Latent-Inpainting Conditioning}
+\label{subsec:flat_conditioning}
+
+Let \(M\in\{0,1\}^{H\times W}\) denote a binary mask, where
+\(M_{ij}=1\) identifies the region to be synthesized. The corresponding
+masked image is
+
+\begin{equation}
+x_m=x\odot(1-M),
+\label{eq:masked_image}
+\end{equation}
+
+where \(\odot\) denotes elementwise multiplication. The masked-image
+latent is obtained as
+
+\begin{equation}
+z_m=\mathcal{E}(x_m)
+\in\mathbb{R}^{h\times w\times c}.
+\label{eq:masked_latent}
+\end{equation}
+
+The mask is resized to the latent spatial resolution:
+
+\begin{equation}
+M_z
+=
+\operatorname{Resize}(M,h,w)
+\in\{0,1\}^{h\times w\times1}.
+\label{eq:latent_mask}
+\end{equation}
+
+A conventional latent-inpainting U-Net forms its input through
+channelwise concatenation:
+
+\begin{equation}
+u_t
+=
+[z_t;z_m;M_z]
+\in
+\mathbb{R}^{h\times w\times(2c+1)}.
+\label{eq:flat_cond}
+\end{equation}
+
+For \(c=4\), this produces a nine-channel input. This formulation is
+computationally convenient and provides direct spatial conditioning.
+However, after input-level concatenation, it does not explicitly retain
+separate structural and contextual conditioning pathways.
+
+
+\subsection{Limitations of Flat Conditioning for Smoke Synthesis}
+\label{subsec:flat_conditioning_limitations}
+
+Although input-level concatenation is effective for general image
+inpainting, smoke synthesis introduces several additional requirements.
+
+\subsubsection{Implicit Multiscale Conditioning}
+
+The binary mask and masked-image latent are directly available at the
+input layer, whereas deeper U-Net blocks receive them through
+progressively transformed intermediate representations. The
+architecture therefore does not provide explicit multiscale access to
+the original structural and contextual features. This may make it more
+difficult to preserve global smoke geometry while refining local
+texture, opacity, and boundary transitions.
+
+\subsubsection{Heterogeneous Conditioning Sources}
+
+The noisy latent \(z_t\), masked-image latent \(z_m\), and binary mask
+\(M_z\) represent different types of information. The first two are
+continuous latent representations, whereas the mask is a discrete
+spatial constraint. Direct concatenation requires the initial U-Net
+layers to learn how to separate and integrate these heterogeneous
+signals without modality-specific encoders.
+
+This does not imply that concatenation is intrinsically ineffective.
+Rather, it motivates investigating whether separate structural and
+contextual encoders can provide more explicit conditioning for smoke
+generation.
+
+\subsubsection{Deterministic Boundary Representation}
+
+A binary mask defines a sharp distinction between the synthesis and
+preservation regions. Real smoke boundaries, however, are often
+semi-transparent, irregular, and difficult to localize precisely.
+Treating a single binary contour as an exact boundary may therefore
+introduce an overly rigid spatial assumption. Depending on the learned
+behavior, this can produce abrupt transitions near the mask boundary or
+excessive smoke leakage outside the intended region.
+
+\subsubsection{Static Input-Level Representation}
+
+The mask and masked-image inputs remain fixed throughout the reverse
+process. Although timestep embeddings allow the U-Net to learn
+noise-level-dependent behavior, conventional concatenation does not
+explicitly control how structural and contextual information is
+distributed across different U-Net resolutions. This observation
+motivates the hierarchical conditioning strategy introduced in
+Section~\ref{sec:method}.
+
+
+\subsection{Stochastic Smoke-Boundary Formulation}
+\label{subsec:boundary_uncertainty}
+
+For smoke synthesis, the binary mask \(M\) is treated as an approximate
+spatial constraint rather than an exact physical boundary. We define a
+conditional perturbation distribution
+
+\begin{equation}
+M'\sim p_{\mathcal{T}}(M'\mid M),
+\label{eq:mask_perturbation_distribution}
+\end{equation}
+
+where \(p_{\mathcal{T}}(M'\mid M)\) represents local morphological
+variations of \(M\), such as controlled dilation and erosion. These
+perturbations do not simulate the physical evolution of smoke. Instead,
+they represent uncertainty in the position of the specified or
+annotated smoke boundary.
+
+Let \(C(M)\) and \(C(M')\) denote conditioning representations obtained
+from the original and perturbed masks, respectively. For the same noisy
+latent \(z_t\), noise realization, and timestep \(t\), the sensitivity
+of the noise predictor to the mask perturbation can be expressed as
+
+\begin{equation}
+\Delta_\theta(M,M')
+=
+\epsilon_\theta(z_t,t,C(M))
+-
+\epsilon_\theta(z_t,t,C(M')).
+\label{eq:boundary_prediction_difference}
+\end{equation}
+
+A general boundary-consistency objective can then be written as
+
+\begin{equation}
+\begin{aligned}
+\mathcal{R}_{\mathrm{boundary}}
+=
+\mathbb{E}_{M'\sim p_{\mathcal{T}}(M'\mid M)}
+\Big[
+d_B\big(
+&\epsilon_\theta(z_t,t,C(M)),\\
+&\epsilon_\theta(z_t,t,C(M'))
+\big)
+\Big],
+\end{aligned}
+\label{eq:boundary_regularization_general}
+\end{equation}
+
+where \(d_B(\cdot,\cdot)\) measures prediction differences within the
+boundary region affected by the perturbation. This expectation can be
+estimated through stochastic mask sampling during training.
+
+Equation~\eqref{eq:boundary_regularization_general} defines a
+consistency objective over plausible mask perturbations; it is not a
+direct likelihood marginalization over physical smoke boundaries. The
+proposed MRDL provides a boundary-restricted and normalized
+instantiation of \(d_B(\cdot,\cdot)\), as described in
+Section~\ref{sec:method}.
+\section{Methodology}
+\label{sec:method}
+
+\subsection{Overall Architecture}
+
+\method~extends the SD-2 Inpainting U-Net \cite{rombach2022highresolutionimagesynthesislatent} with three major modifications: (1) a dual-branch conditioning encoder, (2) joint cross-attention (JCA) for feature fusion, and (3) stochastic mask perturbation via MRDL. Figure~\ref{fig:architecture} illustrates the complete pipeline.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig11.png}
+\caption{\textbf{Overall architecture of FireSmokeGenNet.} The proposed framework integrates multimodal guidance, dual-branch feature encoding, Joint Cross-Attention (JCA), conditional diffusion generation, and the proposed Mask Random Difference Loss (MRDL) to synthesize realistic forest fire smoke images with improved boundary consistency and contextual fidelity.}
+\label{fig:architecture}
+\end{figure*}
+
+\subsection{Dual-Branch Conditioning Encoder}
+
+To effectively capture complementary structural and contextual information, the proposed framework employs a dual-branch conditioning encoder, as illustrated in Fig.~\ref{fig:dual_encoder}. The binary smoke mask and masked background image are processed independently using dedicated backbone networks. A lightweight ResNet-18 encoder is adopted for the mask branch to efficiently extract structural and boundary information from the binary smoke mask, whereas a ResNet-50 encoder is employed for the masked RGB image to capture rich semantic and contextual representations. The extracted features are projected into a common latent space and concatenated before being forwarded to the proposed Joint Cross-Attention (JCA) module for multimodal feature fusion.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig22.png}
+\caption{\textbf{Dual-Branch Conditioning Encoder.} The proposed dual-branch conditioning encoder separately extracts structural and semantic information from the smoke mask and masked image. A lightweight ResNet-18 backbone encodes the binary smoke mask, while a ResNet-50 backbone extracts contextual features from the masked RGB image. Multi-scale feature representations are projected into a common latent space and concatenated to provide complementary conditioning information for the subsequent Joint Cross-Attention (JCA) module.}
+\label{fig:dual_encoder}
+\end{figure*}
+
+\paragraph{Feature Extraction.}
+Given a binary smoke mask $M$ and its corresponding masked image $x_m$, the mask branch extracts structural representations using a frozen ResNet-18 backbone, while the image branch employs a frozen ResNet-50 backbone to preserve rich semantic information learned from ImageNet pretraining. Multi-scale feature maps are extracted from both branches to facilitate hierarchical conditioning of the diffusion U-Net.
+
+For the image branch, the extracted feature maps are
+
+\begin{align}
+F_I^{(1)} &\in \mathbb{R}^{H/2 \times W/2 \times 64},\\
+F_I^{(2)} &\in \mathbb{R}^{H/4 \times W/4 \times 256},\\
+F_I^{(3)} &\in \mathbb{R}^{H/8 \times W/8 \times 512},\\
+F_I^{(4)} &\in \mathbb{R}^{H/16 \times W/16 \times 1024},\\
+F_I^{(5)} &\in \mathbb{R}^{H/32 \times W/32 \times 2048},
+\end{align}
+
+whereas the mask branch generates corresponding multi-scale representations
+
+\begin{equation}
+F_M^{(s)}, \quad s \in \{2,3,4,5\},
+\end{equation}
+
+which capture the geometric structure of the smoke regions.
+
+\paragraph{Feature Projection.}
+Since the extracted feature dimensions differ from those required by the diffusion U-Net, each feature map is projected into the corresponding latent dimension using lightweight learnable $1\times1$ convolutional layers,
+
+\begin{equation}
+\hat{F}^{(s)}=\mathrm{Proj}^{(s)}\!\left(F^{(s)}\right),
+\end{equation}
+
+where
+
+\[
+\hat{F}^{(s)}\in
+\mathbb{R}^{B\times C_{\mathrm{U\text{-}Net}}^{(s)}\times H_s\times W_s},
+\]
+
+and $C_{\mathrm{U\text{-}Net}}^{(s)}\in\{320,640,1280,1280\}$ denotes the channel dimension of the corresponding U-Net stage. These projected feature maps provide complementary structural and semantic guidance for the subsequent Joint Cross-Attention module while keeping the backbone encoders frozen throughout training.
+\subsection{Spatially Adaptive Feature Injection}
+
+Crucially, we inject features \emph{hierarchically} based on semantic granularity. Table~\ref{tab:injection} specifies the injection strategy for each U-Net resolution block.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Spatially adaptive feature injection strategy.}}
+\label{tab:injection}
+\begin{tabular}{lcccc}
+\toprule
+U-Net Block & Resolution & Feature Source & Injection Type \\
+\midrule
+Down block 1 & $H/32 \times W/32$ & $F_m$ only & Cross-attention \\
+Down block 2 & $H/16 \times W/16$ & $F_m$ only & Cross-attention \\
+Down block 3 & $H/8 \times W/8$ & $F_m + F_M$ & JCA \\
+Bottleneck & $H/8 \times W/8$ & $F_m$ only & Cross-attention \\
+Up block 1 & $H/8 \times W/8$ & $F_m + F_M$ & JCA \\
+Up block 2 & $H/16 \times W/16$ & $F_M$ only & Cross-attention \\
+Up block 3 & $H/32 \times W/32$ & $F_M$ only & Cross-attention \\
+Up block 4 & $H/64 \times W/64$ & $F_M$ only & Cross-attention \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Justification.}
+This design respects the information hierarchy:
+\begin{itemize}
+    \item \textbf{Low resolutions ($H/32$, $H/16$):} At these coarse scales, only mask features are needed to specify where smoke should appear. Image features would add distracting texture details at a stage where structure is being formed.
+    \item \textbf{Mid resolutions ($H/8$):} Both mask and image features are necessary. The mask provides structural constraints, while the image provides context for blending (e.g., matching background colors).
+    \item \textbf{High resolutions ($H/16$, $H/32$, $H/64$):} Only image features are injected. At these fine scales, the mask is already satisfied; the model focuses on texture synthesis and boundary refinement.
+\end{itemize}
+
+\subsection{Joint Cross-Attention (JCA)}
+
+To effectively integrate structural information from the smoke mask with semantic context extracted from the masked image, we propose the Joint Cross-Attention (JCA) module, as illustrated in Fig.~\ref{fig:jca}. Unlike conventional cross-attention that relies on a single conditioning source, JCA independently models the interactions between the U-Net latent features and the mask and image representations. The resulting attention features are subsequently fused to provide richer multimodal guidance for smoke synthesis.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig33.png}
+\caption{\textbf{Architecture of the proposed Joint Cross-Attention (JCA) module.} Multi-scale mask features $F_M$ and image features $F_I$ are independently projected into query, key, and value representations using learnable linear layers. Scaled dot-product attention is performed to capture complementary structural and semantic information from both modalities. The attended features are fused to generate the joint representation $F_J$, which is injected into the diffusion U-Net to guide realistic smoke generation.}
+\label{fig:jca}
+\end{figure*}
+
+For layers requiring both modalities, we propose Joint Cross-Attention (JCA). Standard cross-attention computes
+
+\begin{equation}
+\text{CrossAttn}(Q,K,V)=
+\operatorname{Softmax}\left(\frac{QK^{T}}{\sqrt{d}}\right)V
+\label{eq:cross_attn}
+\end{equation}
+
+where $Q$ is derived from the U-Net latent features, while $K$ and $V$ are obtained from the conditioning features.
+
+JCA computes separate attention for each conditioning branch and fuses the resulting representations through a lightweight multilayer perceptron (MLP):
+
+\begin{align}
+Q &= \text{Linear}_{Q}(X)\in\mathbb{R}^{B\times N\times d},\\
+K_m &= \text{Linear}_{K}(\hat{F}_m), \qquad
+V_m = \text{Linear}_{V}(\hat{F}_m),\\
+K_M &= \text{Linear}_{K}(\hat{F}_M), \qquad
+V_M = \text{Linear}_{V}(\hat{F}_M),\\
+Z_m &= \text{CrossAttn}(Q,K_m,V_m),\\
+Z_M &= \text{CrossAttn}(Q,K_M,V_M),\\
+X' &= X+\text{MLP}([Z_m;Z_M]),
+\label{eq:jca}
+\end{align}
+
+where $[\cdot;\cdot]$ denotes channel-wise concatenation, and the MLP consists of two fully connected layers with a hidden dimension of $4d$.
+
+\paragraph{Computational Complexity}
+Standard cross-attention has computational complexity $\mathcal{O}(N^{2}+NL)$, where $N$ denotes the number of spatial tokens and $L$ represents the conditioning sequence length. Since JCA computes attention for both the mask and image branches, its complexity becomes $\mathcal{O}(N^{2}+2NL)$. In practice, the additional computational overhead is modest because the conditioning sequence is relatively short (e.g., $L\approx1024$ for a $32\times32$ feature map), while the improved multimodal feature fusion significantly enhances the quality and structural consistency of the generated smoke.
+\subsection{Mask Random Difference Loss (MRDL)}
+
+MRDL addresses the deterministic boundary assumption by training the model to be invariant to plausible mask perturbations.
+
+\paragraph{Morphological Perturbation Generation.}
+
+Figure~\ref{fig:mrdl_mechanism} illustrates the stochastic
+perturbation process used to represent uncertainty around the
+annotated smoke boundary.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig21.png}
+\caption{Mask Random Difference Loss (MRDL) mechanism.
+Random morphological perturbations represent uncertainty in the
+annotated smoke boundary and encourage consistent predictions across
+plausible mask variations.}
+\label{fig:mrdl_mechanism}
+\end{figure}
+
+For each training iteration, a perturbed mask $M'$ is generated by
+applying a sequence of random morphological operations:
+
+\begin{equation}
+M'
+=
+\operatorname{Morph}(M,k,N),
+\label{eq:mask_perturbation}
+\end{equation}
+where $k\sim\mathcal{U}(10,20)$ denotes the kernel radius and
+$N\sim\mathcal{U}(1,3)$ denotes the number of consecutive
+operations. At each perturbation step, dilation or erosion is selected
+with equal probability.
+
+Using a square structuring element, dilation is defined as
+
+\begin{equation}
+\begin{aligned}
+\bigl[
+\operatorname{Dilate}(M,k)
+\bigr]_{ij}
+=
+\max_{\substack{-k\leq u\leq k\\-k\leq v\leq k}}
+M_{i+u,j+v}.
+\end{aligned}
+\label{eq:dilation}
+\end{equation}
+
+Similarly, erosion is defined as
+
+\begin{equation}
+\begin{aligned}
+\bigl[
+\operatorname{Erode}(M,k)
+\bigr]_{ij}
+=
+\min_{\substack{-k\leq u\leq k\\-k\leq v\leq k}}
+M_{i+u,j+v}.
+\end{aligned}
+\label{eq:erosion}
+\end{equation}
+\paragraph{Loss Formulation.}
+For an original mask $M$ and its perturbed realization $M'$, we define the changed boundary region by the symmetric difference
+\begin{equation}
+B(M,M') = \operatorname{Resize}(|M-M'|,h,w),
+\label{eq:boundary_band}
+\end{equation}
+where nearest-neighbor interpolation maps the binary region to latent resolution. The same clean latent $z_0$, Gaussian noise $\epsilon$, and timestep $t$ are used to construct $z_t$ for both conditions. MRDL then compares the two denoising predictions only inside the affected region:
+\begin{equation}
+\begin{aligned}
+\mathcal{L}_{\mathrm{MRDL}}
+&=
+\mathbb{E}_{M',t,\epsilon}
+\left[
+\frac{
+\left\|
+B\odot
+\left(
+\widehat{\epsilon}_{M}
+-
+\operatorname{sg}[\widehat{\epsilon}_{M'}]
+\right)
+\right\|_2^2
+}{
+\|B\|_1+\eta
+}
+\right],\\[-2pt]
+&\hspace{12mm} B=B(M,M').
+\end{aligned}
+\label{eq:mrd_loss}
+\end{equation}
+where $\operatorname{sg}[\cdot]$ denotes stop-gradient and $\eta=10^{-6}$ prevents division by zero. Samples producing an empty changed region are resampled. This normalized consistency loss prevents large masks from dominating the minibatch objective.
+
+\paragraph{Regularization Interpretation.}
+MRDL is a local consistency regularizer over plausible annotation-boundary perturbations. It reduces the sensitivity of the conditional score estimate to small changes in the supplied binary contour; it is not an exact marginalization of the data likelihood over physical smoke boundaries.
+
+\paragraph{Total Training Loss.}
+The complete training objective combines the standard diffusion loss
+with the proposed MRDL:
+
+\begin{equation}
+\mathcal{L}_{\mathrm{total}}
+=
+(1-\omega)\mathcal{L}_{\mathrm{diff}}
++
+\omega\mathcal{L}_{\mathrm{MRDL}},
+\label{eq:total_loss}
+\end{equation}
+
+where $\omega$ controls the strength of the boundary-consistency
+regularization. Based on the ablation study in Section~VI-F, we set
+$\omega=0.4$ in all reported experiments.
+
+
+
+
+
+
+
+\subsection{Regularization Analysis of MRDL}
+\label{sec:theory_mrdl}
+
+Let $f_\theta(M)=\epsilon_\theta(z_t,t,C(M))$ for fixed $z_t$ and $t$. For sufficiently small contour perturbations $\Delta M=M'-M$, a first-order expansion gives
+\begin{equation}
+f_\theta(M')-f_\theta(M)\approx J_{f_\theta}(M)\Delta M,
+\end{equation}
+where $J_{f_\theta}(M)$ is the Jacobian of the conditional prediction with respect to the mask condition. Minimizing Eq.~\eqref{eq:mrd_loss} therefore penalizes the locally weighted response $B(M,M')\odot J_{f_\theta}(M)\Delta M$. This encourages local stability around uncertain mask contours while leaving predictions away from the perturbed boundary unconstrained. The analysis motivates MRDL as a Jacobian-style consistency penalty and does not assume that morphological perturbations reproduce the physical evolution of smoke.
+
+\subsection{Multimodal Quality Filtering}
+
+Diffusion stochasticity produces variable-quality outputs. We implement a three-stage filtering pipeline.
+
+\paragraph{Stage 1: Manual Annotation.}
+We randomly sample 150 generated images and manually annotate each on three axes (0-10 scale):
+\begin{itemize}
+    \item \textbf{Color fidelity ($s_{\text{color}}$)}: Alignment with natural smoke tones (grays, browns, blues). Score 10 for perfect color, 0 for completely unnatural colors (e.g., neon green).
+    \item \textbf{Visibility ($s_{\text{visibility}}$)}: Smoke prominence against background. Score 10 for clearly visible but not overwhelming, 0 for invisible or fully opaque.
+    \item \textbf{Translucency ($s_{\text{translucency}}$)}: Semi-transparency and background blending. Score 10 for realistic transparency gradient, 0 for solid opaque or fully transparent.
+\end{itemize}
+
+To ensure consistency, we provide annotators with reference images and detailed rubrics. Inter-annotator agreement measured by Fleiss' $\kappa$ is 0.82, indicating substantial agreement.
+
+\paragraph{Stage 2: VLM Fine-Tuning.}
+We fine-tune Qwen2-VL-7B-Instruct \cite{wang2024qwen2vlenhancingvisionlanguagemodels} to predict quality scores. The model receives an image-caption pair and outputs three scores:
+\begin{equation}
+(s_{\text{color}}, s_{\text{visibility}}, s_{\text{translucency}}) = \text{Qwen2-VL}(x, c)
+\end{equation}
+
+Fine-tuning uses LoRA \cite{hu2021loralowrankadaptationlarge} (rank $r=16$) to reduce memory footprint, with learning rate $1\times10^{-4}$ for 10 epochs. The training loss is MSE between predicted and ground-truth scores. Because the annotation set contains 150 images, the VLM is used only as a task-specific ranking component within this pipeline; broader generalization of its absolute scores is not claimed.
+
+\paragraph{Stage 3: Filtering.}
+The composite quality metric combines the three scores with empirically determined weights:
+\begin{equation}
+Q = 0.4 s_{\text{color}} + 0.4 s_{\text{visibility}} + 0.2 s_{\text{translucency}}
+\label{eq:quality}
+\end{equation}
+Translucency receives lower weight because it is inherently more subjective and harder for the VLM to assess reliably.
+
+We generate 96,000 candidate samples, compute $Q$ for each using the fine-tuned VLM, sort the candidates by $Q$, and retain the top 30\% (28,800 samples) for downstream training.
+
+\paragraph{Bounding Box Annotation.}
+Since we have the original mask $M$, we can automatically extract bounding boxes without manual labeling. For each mask, we compute:
+\begin{equation}
+B = \text{BBox}(\text{MaxComponent}(M))
+\end{equation}
+where $\text{MaxComponent}$ selects the largest connected component (to filter out noise), and $\text{BBox}$ returns $(x_{\min}, y_{\min}, x_{\max}, y_{\max})$. This provides detection labels directly.
+
+\subsection{Distribution Consistency Validation} A key concern in synthetic data generation is whether generated samples follow the statistical characteristics of real smoke observations. If the generated distribution deviates significantly from the real-world distribution, the resulting detection models may fail to generalize in operational forest monitoring environments. To address this issue, we explicitly evaluate the similarity between real and synthetic smoke datasets using statistical distribution metrics. \paragraph{Feature Embedding Extraction} Let: \begin{equation} f_r = \phi(x_r) \end{equation} \begin{equation} f_s = \phi(x_s) \end{equation} where: \[ x_r \in D_{\text{real}} \] \[ x_s \in D_{\text{synthetic}} \] and: \[ \phi(\cdot) \] denotes the feature extractor (ResNet50 backbone). \paragraph{Distribution Similarity Metrics} We compute two complementary metrics: \textbf{Fréchet Inception Distance (FID)} \begin{equation} \text{FID} = \| \mu_r - \mu_s \|^2 + \operatorname{Tr} \left( \Sigma_r + \Sigma_s - 2 (\Sigma_r \Sigma_s)^{1/2} \right) \end{equation} \textbf{Maximum Mean Discrepancy (MMD)} \begin{equation} \text{MMD} = \left\| \frac{1}{n} \sum_{i=1}^{n} \phi(x_i) - \frac{1}{m} \sum_{j=1}^{m} \phi(y_j) \right\|^2 \end{equation} Lower values indicate stronger alignment between real and generated distributions. \paragraph{Interpretation} This validation ensures that the generated smoke samples are not only visually realistic but also statistically consistent with real smoke observations, improving detector robustness under varying environmental conditions.
+\subsection{Computational Complexity}
+\label{sec:complexity}
+
+The proposed method introduces modest overhead.
+
+\paragraph{Dual Encoder.}
+
+Feature extraction adds $\mathcal{O}(HW)$ complexity.
+
+\paragraph{Joint Cross-Attention.}
+
+\begin{equation}
+\text{Standard: } \mathcal{O}(N^2 + NL)
+\end{equation}
+
+\begin{equation}
+\text{JCA: } \mathcal{O}(N^2 + 2NL)
+\end{equation}
+
+resulting in less than 10\% computational increase.
+
+\paragraph{MRDL.}
+
+Morphological perturbations operate in $\mathcal{O}(HW)$ time and are negligible relative to diffusion computation.
+
+
+
+\section{Experimental Setup}
+\label{sec:experiments}
+
+\subsection{Datasets}
+
+\paragraph{Smoke-Free Backgrounds.}
+We curate 8,000 high-resolution images ($1920\times1080$ or higher) from diverse sources:
+\begin{itemize}
+    \item Forest surveillance cameras (40\%)
+    \item Public landscape datasets (30\%)
+    \item Aerial drone footage (20\%)
+    \item Web-scraped forest scenes (10\%)
+\end{itemize}
+
+Environmental diversity is ensured across:
+\begin{itemize}
+    \item \textbf{Seasons:} Summer (40\%), Autumn (30\%), Winter (20\%), Spring (10\%)
+    \item \textbf{Illumination:} Day (60\%), Dusk (25\%), Night (15\%)
+    \item \textbf{Weather:} Clear (50\%), Haze (30\%), Fog (20\%)
+    \item \textbf{Terrain:} Flat (40\%), Hilly (35\%), Mountainous (25\%)
+\end{itemize}
+
+\paragraph{Smoke Mask Extraction.}
+We use SAM \cite{kirillov2023segment} with bounding box prompts from existing datasets:
+\begin{itemize}
+    \item FLAME \cite{SHAMSOSHOARA2021108001}: 40,000 masks
+    \item HPWREN \cite{los1998high}: 15,000 masks
+    \item SMOKE5K \cite{yan2023transmissionguidedbayesiangenerativemodel}: 5,000 masks
+\end{itemize}
+Total: 60,000 binary smoke masks with varying shapes, sizes, and densities.
+
+\paragraph{Synthetic Generation.}
+For each of the 8,000 backgrounds $\times$ 3 masks = 24,000 pairs, we generate 4 variations using \method~with different random seeds, yielding 96,000 synthetic smoke images. After VLM filtering, we retain the top 30\% (28,800 samples) for downstream training.
+
+\subsection{Implementation Details}
+
+\paragraph{Hardware.}
+\begin{itemize}
+    \item GPU: NVIDIA A100 80GB (single)
+    \item CPU: 32-core Intel Xeon
+    \item RAM: 256GB
+    \item Storage: 4TB NVMe SSD
+\end{itemize}
+
+\paragraph{Training Hyperparameters.}
+\begin{table}[H]
+\centering
+\caption{\textbf{Training hyperparameters.}}
+\label{tab:hyperparams}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Optimizer & AdamW ($\beta_1=0.9$, $\beta_2=0.999$) \\
+Learning rate & $1\times10^{-4}$ (cosine decay) \\
+Warmup steps & 1,000 \\
+Weight decay & $1\times10^{-2}$ \\
+Batch size & 32 \\
+Total iterations & 20,000 \\
+Precision & Mixed-precision (fp16) \\
+Gradient checkpointing & Enabled \\
+EMA decay & 0.9999 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Inference Hyperparameters.}
+\begin{table}[H]
+\centering
+\caption{\textbf{Inference hyperparameters.}}
+\label{tab:inference_hp}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Sampling algorithm & DDIM \cite{song2022denoisingdiffusionimplicitmodels} \\
+Number of steps & 50 \\
+Classifier-free guidance scale & 7.5 \\
+Latent noise seed & Fixed (42) \\
+Output resolution & $512\times512$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Architecture Details.}
+\begin{table}[H]
+\centering
+\caption{U-Net architecture details.}
+\label{tab:unet}
+\resizebox{0.98\linewidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+Stage & Resolution & Channels & Attention & Conditioning \\
+\midrule
+Input      & $64\times64$ & 320  & --            & --    \\
+Down 1     & $32\times32$ & 320  & --            & $F_m$ \\
+Down 2     & $16\times16$ & 640  & --            & $F_m$ \\
+Down 3     & $8\times8$   & 1280 & $\checkmark$  & JCA   \\
+Bottleneck & $8\times8$   & 1280 & $\checkmark$  & $F_m$ \\
+Up 1       & $8\times8$   & 1280 & $\checkmark$  & JCA   \\
+Up 2       & $16\times16$ & 640  & --            & $F_M$ \\
+Up 3       & $32\times32$ & 320  & --            & $F_M$ \\
+Up 4       & $64\times64$ & 320  & --            & $F_M$ \\
+Output     & $64\times64$ & 320  & --            & --    \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\subsection{Evaluation Metrics}
+
+\paragraph{Generative Quality Metrics.}
+\begin{itemize}
+    \item \textbf{PSNR (dB)}: Peak signal-to-noise ratio. Higher is better.
+    \item \textbf{SSIM} \cite{1284395}: Structural similarity index. Range [0,1], higher is better.
+    \item \textbf{LPIPS} \cite{zhang2018unreasonableeffectivenessdeepfeatures}: Learned perceptual similarity. Lower is better; we report 1-LPIPS for intuitive comparison.
+    \item \textbf{CLIP-Sim} \cite{radford2021learningtransferablevisualmodels}: Cosine similarity between image and text prompt embeddings. Higher is better.
+\end{itemize}
+
+\paragraph{Detection Performance Metrics.}
+\begin{itemize}
+    \item \textbf{mAP@50}: Mean average precision at IoU threshold 0.5.
+    \item \textbf{mAP@50-95}: Average over IoU thresholds 0.5:0.05:0.95.
+    \item \textbf{Precision}: $\text{TP}/(\text{TP}+\text{FP})$.
+    \item \textbf{Recall}: $\text{TP}/(\text{TP}+\text{FN})$.
+\end{itemize}
+
+\paragraph{Boundary Quality Metrics.}
+The boundary band is defined as
+\begin{equation}
+B_{\delta}(M)
+=
+\operatorname{Dilate}(M,\delta)
+\setminus
+\operatorname{Erode}(M,\delta),
+\qquad \delta=5.
+\label{eq:boundary_band_metric}
+\end{equation}
+
+The boundary-softness score is computed as
+\begin{equation}
+\mathcal{S}
+=
+\frac{1}{|B_{\delta}|}
+\sum_{p\in B_{\delta}}
+\left\lVert\nabla I(p)\right\rVert_2 .
+\label{eq:boundary_softness}
+\end{equation}
+
+The gradient-distribution divergence is
+\begin{equation}
+\mathcal{G}
+=
+D_{\mathrm{KL}}
+\left(
+p_{\mathrm{real}}(g)
+\,\middle\|\,
+p_{\mathrm{synth}}(g)
+\right),
+\label{eq:gradient_divergence}
+\end{equation}
+where
+\begin{equation}
+g(p)=\left\lVert\nabla I(p)\right\rVert_2,
+\qquad p\in B_{\delta}.
+\label{eq:gradient_magnitude}
+\end{equation}
+\section{Results}
+\label{sec:results}
+
+\subsection{Quantitative Generative Quality}
+
+Table~\ref{tab:quantitative} compares the generative performance of the evaluated methods. \method~achieves the strongest reported values for PSNR, SSIM, 1-LPIPS, and CLIP similarity:
+
+\begin{itemize}
+    \item \textbf{PSNR:} 28.10 dB, an 8.1\% improvement over SD-Inpainting (26.00 dB)
+    \item \textbf{SSIM:} 0.88, reflecting superior structural preservation
+    \item \textbf{1-LPIPS:} 0.92, indicating the lowest perceptual distance among the evaluated methods
+    \item \textbf{CLIP-Sim:} 0.258, demonstrating strong text-image alignment
+\end{itemize}
+
+\begin{table}[t]
+\centering
+\caption{Quantitative comparison of generative performance. Best results are shown in bold.}
+\label{tab:quantitative}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+Method & PSNR $\uparrow$ & SSIM $\uparrow$ & 1-LPIPS $\uparrow$ & CLIP-Sim $\uparrow$ \\
+\midrule
+Stable Diffusion \cite{rombach2022highresolutionimagesynthesislatent} & 25.10 & 0.78 & 0.87 & 0.251 \\
+PowerPaint \cite{zhuang2024taskworthwordlearning} & 25.60 & 0.80 & 0.89 & 0.253 \\
+SD-Inpainting & 26.00 & 0.81 & 0.90 & 0.255 \\
+BLD \cite{Avrahami_2023} & 26.30 & 0.83 & 0.91 & 0.254 \\
+FlameDiffuser \cite{wang2024flame} & 27.10 & 0.85 & 0.91 & 0.256 \\
+\textbf{\method{} (Ours)} & \textbf{28.10} & \textbf{0.88} & \textbf{0.92} & \textbf{0.258} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\subsection{Distribution Alignment}
+
+Table~\ref{tab:distribution} evaluates distributional similarity between real and synthetic smoke in feature space. Using CLIP ViT-H/14 features, \method~achieves the lowest FD (28.15), MMD (0.062), and Wasserstein distance (5.14), confirming that our synthetic data lies closer to the real distribution than prior methods by substantial margins (28\% lower FD than FlameDiffuser).
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Distribution alignment between real and synthetic smoke.} Lower is better. Features from CLIP ViT-H/14.}
+\label{tab:distribution}
+\begin{tabular}{lccc}
+\toprule
+Method & FD$\downarrow$ & MMD$\downarrow$ & Wasserstein$\downarrow$ \\
+\midrule
+GAN-based synthesis \cite{rs12223715} & 45.32 & 0.124 & 8.67 \\
+Vanilla SD-inpainting & 38.47 & 0.098 & 7.23 \\
+FlameDiffuser \cite{wang2024flame} & 32.15 & 0.081 & 6.18 \\
+\textbf{\method (Ours)} & \textbf{28.15} & \textbf{0.062} & \textbf{5.14} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Boundary Softness Analysis}
+
+Table~\ref{tab:boundary} quantifies boundary quality. \method~produces gradient distributions nearly identical to real smoke (KL divergence 0.041 vs. SD-Inpainting's 0.187), confirming that MRDL successfully models diffuse transitions. The boundary softness $\mathcal{S}$ is also closest to real smoke (0.124 vs. 0.119 for real).
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Boundary quality metrics.} Real smoke values shown for reference.}
+\label{tab:boundary}
+\begin{tabular}{lcc}
+\toprule
+Method & Boundary Softness $\mathcal{S}$ & KL Divergence $\downarrow$ \\
+\midrule
+Real smoke & 0.119 & - \\
+SD-Inpainting & 0.203 & 0.187 \\
+FlameDiffuser & 0.167 & 0.112 \\
+\textbf{\method} & \textbf{0.124} & \textbf{0.041} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Downstream Detection Performance}
+
+\paragraph{Main Results.}
+Table~\ref{tab:detection} reports detection metrics across YOLO variants (v6-v13). Training with \method~synthetic data yields consistent and substantial improvements:
+
+\begin{itemize}
+    \item \textbf{YOLOv13:} mAP@50 improves from 0.683 $\rightarrow$ 0.829 (+21.4\% relative)
+    \item \textbf{YOLOv10:} Recall improves from 0.593 $\rightarrow$ 0.791 (+33.4\% relative)
+    \item \textbf{Average across all models:} +0.156 mAP@50, +0.126 Recall
+\end{itemize}
+
+\begin{table*}[t]
+\centering
+\caption{\textbf{Performance comparison of smoke detection models trained on real vs. mixed datasets.} Mixed dataset combines real data with \method~synthetic samples.}
+\label{tab:detection}
+\small
+\begin{tabular}{lcccccccc}
+\toprule
+& \multicolumn{4}{c}{Real Dataset Only} & \multicolumn{4}{c}{Mixed Dataset (Real + \method)} \\
+\cmidrule(lr){2-5} \cmidrule(lr){6-9}
+Model & mAP@50 & mAP@50-95 & Precision & Recall & mAP@50 & mAP@50-95 & Precision & Recall \\
+\midrule
+YOLOv6 & 0.582 & 0.285 & 0.668 & 0.552 & 0.752 & 0.362 & 0.724 & 0.676 \\
+YOLOv7 & 0.598 & 0.291 & 0.677 & 0.568 & 0.761 & 0.371 & 0.735 & 0.688 \\
+YOLOv8 & 0.621 & 0.309 & 0.689 & 0.612 & 0.789 & 0.399 & 0.765 & 0.719 \\
+YOLOv9 & 0.645 & 0.323 & 0.705 & 0.625 & 0.791 & 0.409 & 0.778 & 0.728 \\
+YOLOv10 & 0.603 & 0.294 & 0.672 & 0.593 & 0.776 & 0.384 & 0.749 & 0.791 \\
+YOLOv11 & 0.648 & 0.334 & 0.756 & 0.604 & 0.794 & 0.414 & 0.802 & 0.729 \\
+YOLOv12 & 0.672 & 0.348 & 0.778 & 0.638 & 0.813 & 0.448 & 0.831 & 0.751 \\
+YOLOv13 & 0.683 & 0.359 & 0.791 & 0.649 & \textbf{0.829} & \textbf{0.531} & \textbf{0.847} & \textbf{0.763} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\paragraph{Comparison with Real Data Augmentation.}
+Table~\ref{tab:real_vs_synth} compares synthetic augmentation against adding more real data (both settings add $N$ samples to a fixed base dataset). Remarkably, \method~synthetic data \emph{outperforms} additional real samples across all metrics, validating the utility of targeted synthetic generation. For YOLOv13, synthetic data achieves mAP@50 of 0.829 vs. 0.701 for additional real data—an 18.3\% advantage.
+
+\begin{table}[H]
+\centering
+\caption{Real versus synthetic data augmentation comparison.}
+\label{tab:real_vs_synth}
+\resizebox{0.98\linewidth}{!}{%
+\begin{tabular}{lcccccccc}
+\toprule
+& \multicolumn{4}{c}{Real + Real}
+& \multicolumn{4}{c}{Real + Synthetic} \\
+\cmidrule(lr){2-5}
+\cmidrule(lr){6-9}
+
+Model
+& \shortstack{mAP\\@50}
+& \shortstack{mAP\\@50--95}
+& Prec.
+& Rec.
+& \shortstack{mAP\\@50}
+& \shortstack{mAP\\@50--95}
+& Prec.
+& Rec. \\
+\midrule
+
+YOLOv6
+& 0.637 & 0.330 & 0.641 & 0.642
+& 0.752 & 0.362 & 0.724 & 0.676 \\
+
+YOLOv8
+& 0.675 & 0.350 & 0.710 & 0.665
+& 0.789 & 0.399 & 0.765 & 0.719 \\
+
+YOLOv10
+& 0.670 & 0.341 & 0.737 & 0.636
+& 0.776 & 0.384 & 0.749 & \textbf{0.791} \\
+
+YOLOv13
+& \textbf{0.701}
+& \textbf{0.362}
+& \textbf{0.779}
+& \textbf{0.682}
+& \textbf{0.829}
+& \textbf{0.531}
+& \textbf{0.847}
+& 0.763 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\paragraph{Comparison with Other Synthetic Sources.}
+Table~\ref{tab:sources} compares different synthetic data sources under identical training budgets. \method~substantially outperforms GAN-based and vanilla diffusion baselines, achieving mAP@50 of 0.829 vs. 0.712 (GAN) and 0.748 (vanilla diffusion).
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Downstream detection performance using different synthetic data sources.} YOLOv13 detector.}
+\label{tab:sources}
+\begin{tabular}{lcccc}
+\toprule
+Training Data & mAP@50 & mAP@50-95 & Precision & Recall \\
+\midrule
+Real only & 0.683 & 0.359 & 0.791 & 0.649 \\
+Real + GAN synth & 0.712 & 0.382 & 0.805 & 0.671 \\
+Real + Vanilla diffusion synth & 0.748 & 0.412 & 0.821 & 0.698 \\
+\textbf{Real + \method synth} & \textbf{0.829} & \textbf{0.531} & \textbf{0.847} & \textbf{0.763} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Domain Generalization Under Environmental Shifts}
+
+Table~\ref{tab:domainshift} evaluates cross-domain robustness. \method~synthetic data substantially improves generalization across all three shift scenarios:
+
+\begin{itemize}
+    \item \textbf{Season shift (Summer $\rightarrow$ Winter):} mAP@50 improves from 0.412 $\rightarrow$ 0.587 (+42.5\% relative)
+    \item \textbf{Illumination shift (Day $\rightarrow$ Dusk):} mAP@50 improves from 0.385 $\rightarrow$ 0.542 (+40.8\%)
+    \item \textbf{Weather shift (Clear $\rightarrow$ Haze/Fog):} mAP@50 improves from 0.338 $\rightarrow$ 0.496 (+46.7\%)
+\end{itemize}
+
+The largest improvement occurs under weather shift, where background ambiguity is strongest—confirming that boundary-aware diffusion synthesis improves robustness in low-contrast conditions. All improvements are statistically significant ($p<0.01$, paired t-test).
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Generalization under monitoring domain shifts.} Mean $\pm$ std over 5 runs. YOLOv13 detector.}
+\label{tab:domainshift}
+\begin{tabular}{lcccc}
+\toprule
+& \multicolumn{2}{c}{Real Only} & \multicolumn{2}{c}{Real + \method} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-5}
+Train $\rightarrow$ Test & mAP@50 & Recall & mAP@50 & Recall \\
+\midrule
+Summer $\rightarrow$ Winter & 0.412$\pm$0.023 & 0.385$\pm$0.021 & 0.587$\pm$0.018 & 0.542$\pm$0.019 \\
+Day $\rightarrow$ Dusk & 0.385$\pm$0.031 & 0.352$\pm$0.027 & 0.542$\pm$0.022 & 0.498$\pm$0.020 \\
+Clear $\rightarrow$ Haze/Fog & 0.338$\pm$0.028 & 0.306$\pm$0.024 & 0.496$\pm$0.025 & 0.458$\pm$0.021 \\
+\midrule
+\textbf{Average} & 0.378 & 0.348 & \textbf{0.542} & \textbf{0.499} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Ablation Studies}
+
+\paragraph{Component Ablation.}
+Table~\ref{tab:ablation} ablates key architectural components. The full model outperforms all variants:
+\begin{itemize}
+    \item Removing JCA reduces mAP@50 from 0.829 $\rightarrow$ 0.758 (-8.6\%)
+    \item Removing MRDL reduces mAP@50 from 0.829 $\rightarrow$ 0.771 (-7.0\%)
+    \item Removing ResNet50 (random initialization) reduces mAP@50 from 0.829 $\rightarrow$ 0.735 (-11.3\%)
+    \item Removing filtering reduces mAP@50 from 0.829 $\rightarrow$ 0.748 (-9.8\%)
+\end{itemize}
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Ablation of architectural components.} YOLOv13 detector.}
+\label{tab:ablation}
+\begin{tabular}{lcccc}
+\toprule
+Configuration & mAP@50 & mAP@50-95 & Precision & Recall \\
+\midrule
+No JCA (CA only) & 0.758 & 0.412 & 0.781 & 0.702 \\
+No MRDL ($\omega=0$) & 0.771 & 0.428 & 0.795 & 0.715 \\
+No ResNet50 (random init) & 0.735 & 0.389 & 0.748 & 0.681 \\
+No filtering (random selection) & 0.748 & 0.412 & 0.761 & 0.698 \\
+\textbf{Full \method} & \textbf{0.829} & \textbf{0.531} & \textbf{0.847} & \textbf{0.763} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{MRDL Weight Sensitivity.}
+Figure~\ref{fig:mrdl_sensitivity} shows mAP@50 as a function of MRDL weight $\omega$. Performance peaks at $\omega=0.4$, with degradation on either side:
+\begin{itemize}
+    \item $\omega=0$ (no MRDL): mAP@50 = 0.771 (hard edges)
+    \item $\omega=0.4$ (optimal): mAP@50 = 0.829
+    \item $\omega=1.0$ (MRDL only): mAP@50 = 0.682 (loss of spatial structure)
+\end{itemize}
+
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.45\textwidth]{fig31.png}
+\caption{\textbf{MRDL weight sensitivity analysis.} Performance peaks at $\omega=0.4$. Too low ($\omega=0$): hard boundary artifacts. Too high ($\omega=1.0$): loss of spatial coherence.}
+\label{fig:mrdl_sensitivity}
+\end{figure}
+
+
+
+
+\paragraph{Filtering Threshold Sensitivity.}
+Table~\ref{tab:filter_threshold} reports an exploratory retention-threshold analysis. The 30\% setting obtains the strongest result in this sweep. Because the retained dataset size changes with the threshold, the comparison reflects the combined influence of sample quality and sample quantity and should not be interpreted as an isolated causal estimate of filtering quality.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Effect of filtering threshold on detection performance.} YOLOv13 detector.}
+\label{tab:filter_threshold}
+\begin{tabular}{lccc}
+\toprule
+Retention Threshold & Dataset Size & mAP@50 & Recall \\
+\midrule
+10\% & 9,600 & 0.812 & 0.741 \\
+20\% & 19,200 & 0.821 & 0.752 \\
+30\% & 28,800 & \textbf{0.829} & \textbf{0.763} \\
+40\% & 38,400 & 0.818 & 0.751 \\
+50\% & 48,000 & 0.805 & 0.738 \\
+No filtering & 96,000 & 0.748 & 0.698 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Qualitative Ablation Visualizations.}
+Figure~\ref{fig:ablation_vis} shows representative outputs from ablated configurations:
+\begin{itemize}
+    \item No JCA: Smoke exhibits unrealistic texture repetition and poor background integration.
+    \item No MRDL: Sharp, binary boundaries with no semi-transparency.
+    \item No ResNet50: Severe artifacts, often failing to produce coherent smoke structures.
+    \item No filtering: Occasional catastrophic failures (e.g., smoke in wrong colors).
+    \item Full model: Realistic, semi-transparent smoke with natural boundaries.
+\end{itemize}
+
+\begin{figure}[t]
+\centering
+\IfFileExists{qualitative_ablation.pdf}{%
+\includegraphics[width=0.98\linewidth]{qualitative_ablation.pdf}%
+}{\PackageError{FireSmokeGenNet}{Missing qualitative_ablation.pdf}{Upload the experimentally generated qualitative ablation panel before submission}}
+\caption{\textbf{Qualitative ablation results.} Full model produces most realistic smoke with proper semi-transparency and boundary softness.}
+\label{fig:ablation_vis}
+\end{figure}
+
+\subsection{Qualitative Comparison}
+
+Figure~\ref{fig:qualitative} presents side-by-side visual comparisons across methods. \method~produces smoke with:
+\begin{itemize}
+    \item \textbf{Semi-transparent boundaries} that naturally blend with backgrounds (unlike GANs and vanilla diffusion)
+    \item \textbf{Realistic color} (appropriate grays, browns, and blues depending on background)
+    \item \textbf{Multi-scale structure} (fine wisps and large plumes coexist coherently)
+    \item \textbf{Context-aware density} (thicker near source, thinner at edges)
+\end{itemize}
+
+Failure cases (bottom row) show occasional over-opacity or fog confusion, which we analyze in Section VII.
+
+\begin{figure*}[t]
+\centering
+\IfFileExists{qualitative_comparison.pdf}{%
+\includegraphics[width=0.98\textwidth]{qualitative_comparison.pdf}%
+}{\PackageError{FireSmokeGenNet}{Missing qualitative_comparison.pdf}{Upload the experimentally generated qualitative comparison panel before submission}}
+\caption{\textbf{Qualitative comparison.} Rows 1-3: Successful generations. Row 4: Failure cases (fog confusion, over-opacity). \method~produces most realistic boundaries and transparency.}
+\label{fig:qualitative}
+\end{figure*}
+
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Why Does \method~Work?}
+
+Three principles explain our method's effectiveness:
+
+\paragraph{P1: Decoupled Conditioning Prevents Interference.}
+By processing the mask and masked image through separate ResNet-18 and ResNet-50 branches, respectively, the framework preserves modality-specific representations before fusion. The frozen ImageNet-pretrained encoders provide complementary structural and contextual features, while hierarchical injection supplies these features at the corresponding U-Net stages.
+
+\paragraph{P2: Stochastic Boundary Regularization Matches Physical Reality.}
+MRDL's morphological perturbations simulate the natural variability of smoke interfaces. By training the model to produce consistent denoising predictions under local boundary perturbations, MRDL reduces sensitivity to a single rigid annotation contour. This produces naturally diffuse gradients that align with real smoke statistics (KL divergence 0.041 vs. 0.187 for baseline).
+
+\paragraph{P3: Hierarchical Injection Respects Semantics.}
+Low-resolution layers receive global mask constraints (where should smoke appear?). High-resolution layers receive fine image details (what textures and colors?). This aligns with how smoke should be generated: first approximate shape, then refine texture. The JCA module at mid-resolutions enables cross-modal interaction where both structure and texture are important.
+
+\subsection{Comparison with Prior Work}
+
+\paragraph{vs. GAN-based Methods.}
+GAN-based smoke synthesis \cite{rs12223715} can be affected by limited mode coverage and training instability. In the present experiments, the diffusion baselines produced more diverse smoke appearances and stronger downstream detection performance than the evaluated GAN baseline.
+
+\paragraph{vs. Standard Diffusion Inpainting.}
+Flat concatenation \cite{rombach2022highresolutionimagesynthesislatent, wang2024flame} forces the network to learn ad-hoc disentanglement of noise, mask, and image signals. Our dual-branch design with JCA provides explicit separation, leading to better boundary quality (8.1\% higher PSNR, 46.7\% better domain generalization under weather shift).
+
+\paragraph{vs. Simulation-Based Methods.}
+Physics-based rendering \cite{6053841} requires solving Navier-Stokes equations (computationally expensive) and manual parameter tuning. Our diffusion-based approach learns the distribution directly from data, requiring no physical simulation.
+
+\subsection{Limitations and Failure Modes}
+\label{sec:limitations}
+
+Despite its performance relative to the evaluated baselines, \method~exhibits several limitations:
+
+\paragraph{L1: Fog-Smoke Confusion (5-8\% of failure cases).}
+In high-haze conditions, generated smoke occasionally resembles fog rather than distinct smoke plumes. This occurs because the training data contains both fog and smoke examples, and the model sometimes confuses them. Potential solution: incorporate explicit weather conditioning or use contrastive learning to separate fog and smoke representations.
+
+\paragraph{L2: Over-Opacity in High-Contrast Scenes (3-5\% of cases).}
+When smoke should be extremely faint (early-stage fires, distant plumes), the model sometimes generates overly opaque outputs. This reflects a bias in the training data toward visible smoke. Potential solution: augment training with more examples of faint smoke or use density prediction as an auxiliary task.
+
+\paragraph{L3: Limited Quality-Annotation Set.}
+The task-specific VLM is trained from 150 human-rated generated images. Although the observed agreement supports consistent annotation within this set, the limited sample size constrains conclusions about score calibration and transfer to other smoke datasets. Future work should use a larger independently held-out rating set and report rank correlation and prediction error.
+
+\paragraph{L4: Computational Cost.}
+With 50 DDIM sampling steps, \method~requires approximately 2 seconds per $512\times512$ image on an A100 GPU. While acceptable for offline dataset generation, this is too slow for real-time applications. Potential solution: distill to a few-step sampler using progressive distillation \cite{salimans2022progressivedistillationfastsampling} or consistency models \cite{song2023consistencymodels}.
+
+\subsection{Future Directions}
+
+\paragraph{F1: Video Smoke Synthesis.}
+Extend the framework to latent video diffusion. This would enable explicit evaluation of temporal consistency and smoke dynamics, including plume movement, dissipation, and growth.
+
+\paragraph{F2: Physical Grounding.}
+Incorporate fluid dynamics priors into diffusion guidance. The score function could be augmented with a term that penalizes non-physical flow fields, ensuring generated smoke obeys conservation laws.
+
+\paragraph{F3: Active Learning.}
+Use detection model uncertainty to identify challenging scenes and target them for additional synthetic generation. This could create a virtuous cycle: detector $\rightarrow$ identifies weaknesses $\rightarrow$ generator synthesizes targeted examples $\rightarrow$ detector improves.
+
+\paragraph{F4: Real-Time Adaptation.}
+Develop lightweight adapters that can fine-tune the generator on the fly using detection feedback, enabling deployment-specific customization.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented \method, a comprehensive diffusion-based framework for wildfire smoke synthesis that addresses three critical limitations of prior work: flat conditioning, deterministic boundaries, and lack of quality control. Our contributions are:
+
+\begin{enumerate}
+    \item A hierarchical dual-branch conditioning mechanism with joint cross-attention that provides multi-scale spatial control while preventing feature interference.
+    \item Mask Random Difference Loss (MRDL), a stochastic boundary regularization that models boundary uncertainty via morphological perturbations, achieving boundary softness (KL divergence 0.041) nearly identical to real smoke.
+    \item A multimodal quality filtering pipeline using fine-tuned Qwen2-VL that retains only top 30\% of samples, improving downstream detection mAP@50 by 8.1\% over random selection.
+\end{enumerate}
+
+Across the evaluated baselines, \method~achieves PSNR of 28.10, SSIM of 0.88, and YOLOv13 mAP@50 of 0.829, corresponding to a 21.4\% relative improvement over real-only training. Under challenging domain shifts, \method~achieves up to 46.7\% relative mAP@50 improvement, with all gains statistically significant ($p<0.01$). Ablation studies confirm the necessity of each component, with the full model outperforming variants lacking JCA or MRDL by 8.6\% and 7.0\% respectively.
+
+These results indicate that task-aware diffusion synthesis can complement limited real data for wildfire-smoke monitoring. Our code, dataset, and pretrained models will be publicly released to facilitate further research.
+
+\section*{Acknowledgment}
+
+This work was supported in part by the National Science and Technology Council, Taiwan, under Grant NSTC 112-2221-E-A49-099-MY3. The authors thank Gama Innovation Inc. for providing computational resources and domain expertise. 
+\bibliographystyle{IEEEtran}
+\bibliography{ref}
+
+% that's all folks
+\end{document}
