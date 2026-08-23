@@ -57,6 +57,19 @@ baseline-comparison figure, honestly labeled.
   intended only to prove the "real photo + real released checkpoint + real
   inference" pipeline works end to end.
 
+## Multiple samples in one image
+
+Yes -- `run_real_sd_inpainting_multi.py` runs the same real checkpoint
+multiple times (different random seeds, same real background/mask) and
+tiles the genuine outputs into a single labeled panel
+(`outputs/real_sd_inpainting_4samples_panel.png`, 4 samples: seeds 0-3).
+This mirrors the manuscript's stated procedure of generating "4 variations
+... with different random seeds" per (background, mask) pair -- except
+using the real SD-Inpainting baseline instead of the (nonexistent)
+FireSmokeGenNet checkpoint. Every panel is an independent, genuine forward
+pass; none are duplicated, edited, or synthesized outside the real model.
+The individual per-seed outputs are saved under `outputs/multi_seed/`.
+
 ## Reproducing this result
 
 ```bash
@@ -69,6 +82,15 @@ python run_real_sd_inpainting.py \
     --output outputs/sd_inpainting_real_output.png \
     --num-inference-steps 25 \
     --resolution 512
+
+# Multiple real samples (different seeds) tiled into one panel:
+python run_real_sd_inpainting_multi.py \
+    --background inputs/forest_sunrise_512.png \
+    --mask inputs/handauthored_test_mask_512.png \
+    --output-dir outputs/multi_seed \
+    --panel-output outputs/real_sd_inpainting_4samples_panel.png \
+    --num-inference-steps 25 \
+    --seeds 0 1 2 3
 ```
 
 Runs in about 1-2 minutes on 4 CPU cores; no GPU required (though a GPU
