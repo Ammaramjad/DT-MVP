@@ -67,6 +67,12 @@
  
 \usepackage{tikz}
 \usetikzlibrary{positioning, arrows.meta, shapes.multipart}
+\usepackage{placeins}
+% placeins/\FloatBarrier is used at a few points below to prevent queued
+% tables/figures from being placed so late that they visually collide with
+% unrelated later content -- the exact class of rendering defect flagged in
+% the reviewer assessment for Table XII ("No MRDL" row appearing awkwardly
+% aligned).
 % Some very useful LaTeX packages include:
 % (uncomment the ones you want to load)
 
@@ -369,7 +375,12 @@
 % not capitalized unless they are the first or last word of the title.
 % Linebreaks \\ can be used within to get better formatting as desired.
 % Do not put math or special symbols in the title.
-\title{FireSmokeGenNet: Boundary-Aware Diffusion Synthesis and Multimodal Quality Filtering for Wildfire-Smoke Monitoring}
+\title{FireSmokeGenNet: Boundary-Aware Diffusion Synthesis and Multimodal Quality Filtering for Wildfire-Smoke Detection}
+% Title moderated per reviewer request: the experiments in this manuscript
+% evaluate still-image smoke detection/synthesis and do not measure
+% detection delay, time-to-alarm, or other early-monitoring quantities.
+% "Detection" is used instead of "Monitoring" until a dedicated
+% early-detection/time-to-alarm experiment (Section VII, item F5) is added.
 %
 %
 % author names and IEEE memberships
@@ -383,7 +394,12 @@
 
 \author{Ammar Amjad,~\IEEEmembership{Member,~IEEE,}%
 \thanks{Ammar Amjad is with the Department of Electrical and Computer Engineering, National Yang Ming Chiao Tung University, Hsinchu, Taiwan (e-mail: ammar@nycu.edu.tw).}%
-\and Kenny Lin,~\IEEEmembership{Senior Engineer, Gama Innovation Inc.}%
+% NOTE: "\and" is only valid in IEEEtran's conference/peerreviewca modes; in
+% journal mode (used here) it silently fails to insert any separator or
+% spacing, which previously rendered as "IEEE,Kenny Lin" with no space. A
+% plain comma-separated list (the standard IEEEtran journal-mode author
+% format) is used instead.
+~Kenny Lin,~\IEEEmembership{Senior Engineer, Gama Innovation Inc.}%
 \thanks{Kenny Lin is with the Department of Product Development and Engineering, Gama Innovation Inc., Taipei City, Taiwan (e-mail: kenneylin@hotmail.com).}}
 
 
@@ -1420,10 +1436,15 @@ M'
 \operatorname{Morph}(M,k,N),
 \label{eq:mask_perturbation}
 \end{equation}
-where $k\sim\mathcal{U}(10,20)$ denotes the kernel radius and
-$N\sim\mathcal{U}(1,3)$ denotes the number of consecutive
-operations. At each perturbation step, dilation or erosion is selected
-with equal probability.
+where $k$ and $N$ are drawn independently from \emph{discrete} uniform
+distributions, $k\sim\mathcal{U}\{10,11,\ldots,20\}$ (pixels) and
+$N\sim\mathcal{U}\{1,2,3\}$ (operations), and $k$ denotes the
+\emph{kernel radius}: with the neighborhood $u,v\in[-k,k]$ used in
+Eqs.~\eqref{eq:dilation}--\eqref{eq:erosion} below, the resulting square
+structuring element spans $(2k+1)\times(2k+1)$ pixels (e.g., $k=10$
+corresponds to a $21\times21$ structuring element, and $k=20$ to a
+$41\times41$ structuring element). At each perturbation step, dilation or
+erosion is selected with equal probability.
 
 Using a square structuring element, dilation is defined as
 
@@ -1533,6 +1554,42 @@ We randomly sample 150 generated images and manually annotate each on three axes
 
 To ensure consistency, we provide annotators with reference images and detailed rubrics. Inter-annotator agreement measured by Fleiss' $\kappa$ is 0.82, indicating substantial agreement.
 
+\paragraph{VLM Annotation Protocol (Required Definition).}
+\label{sec:vlm_protocol}
+\textbf{[PENDING VERIFICATION -- every bracketed field below must be
+confirmed against the actual annotation records before submission.]}
+\begin{itemize}
+    \item \textbf{Number and expertise of annotators}: [N] annotators
+    with [background/training, e.g., domain familiarity with wildfire
+    imagery or a documented calibration session] must be reported.
+    \item \textbf{Coverage}: whether all annotators rated all 150 images,
+    or a partial/overlapping design was used (which affects how Fleiss'
+    $\kappa$ or an ICC should be computed).
+    \item \textbf{Disagreement resolution}: the procedure used when
+    annotators disagreed (e.g., averaging scores, adjudication by a third
+    annotator, or majority vote).
+    \item \textbf{Discretization}: Fleiss' $\kappa$ is defined for
+    \emph{categorical} ratings. If the underlying 0--10 scores are
+    continuous (or effectively so), state explicitly whether they were
+    discretized into bins before computing $\kappa=0.82$, and if so, the
+    binning scheme used. If the scores were not discretized, an
+    intraclass correlation coefficient (ICC, e.g., ICC(2,1) or ICC(3,1)
+    depending on whether annotators are treated as a random or fixed
+    effect) or another weighted agreement statistic appropriate for
+    ordinal/continuous ratings should be reported instead of, or in
+    addition to, Fleiss' $\kappa$.
+    \item \textbf{Train/validation/test split of the 150 images}: the
+    exact number of the 150 human-annotated images used to fit the LoRA
+    fine-tuning (Stage 2), to validate hyperparameters, and to hold out
+    for reporting prediction error/correlation; this split must be
+    disjoint at the image level.
+    \item \textbf{Held-out prediction quality}: the fine-tuned VLM's
+    prediction error (e.g., MAE/RMSE per score axis) and correlation
+    (e.g., Pearson/Spearman) with human ratings on the held-out test
+    images, which is currently not reported and is necessary to justify
+    using the VLM as a ranking function in Stage 3.
+\end{itemize}
+
 \paragraph{Stage 2: VLM Fine-Tuning.}
 We fine-tune Qwen2-VL-7B-Instruct \cite{wang2024qwen2vlenhancingvisionlanguagemodels} to predict quality scores. The model receives an image-caption pair and outputs three scores:
 \begin{equation}
@@ -1558,7 +1615,135 @@ B = \text{BBox}(\text{MaxComponent}(M))
 \end{equation}
 where $\text{MaxComponent}$ selects the largest connected component (to filter out noise), and $\text{BBox}$ returns $(x_{\min}, y_{\min}, x_{\max}, y_{\max})$. This provides detection labels directly.
 
-\subsection{Distribution Consistency Validation} A key concern in synthetic data generation is whether generated samples follow the statistical characteristics of real smoke observations. If the generated distribution deviates significantly from the real-world distribution, the resulting detection models may fail to generalize in operational forest monitoring environments. To address this issue, we explicitly evaluate the similarity between real and synthetic smoke datasets using statistical distribution metrics. \paragraph{Feature Embedding Extraction} Let: \begin{equation} f_r = \phi(x_r) \end{equation} \begin{equation} f_s = \phi(x_s) \end{equation} where: \[ x_r \in D_{\text{real}} \] \[ x_s \in D_{\text{synthetic}} \] and: \[ \phi(\cdot) \] denotes the feature extractor (ResNet50 backbone). \paragraph{Distribution Similarity Metrics} We compute two complementary metrics: \textbf{Fréchet Inception Distance (FID)} \begin{equation} \text{FID} = \| \mu_r - \mu_s \|^2 + \operatorname{Tr} \left( \Sigma_r + \Sigma_s - 2 (\Sigma_r \Sigma_s)^{1/2} \right) \end{equation} \textbf{Maximum Mean Discrepancy (MMD)} \begin{equation} \text{MMD} = \left\| \frac{1}{n} \sum_{i=1}^{n} \phi(x_i) - \frac{1}{m} \sum_{j=1}^{m} \phi(y_j) \right\|^2 \end{equation} Lower values indicate stronger alignment between real and generated distributions. \paragraph{Interpretation} This validation ensures that the generated smoke samples are not only visually realistic but also statistically consistent with real smoke observations, improving detector robustness under varying environmental conditions.
+\subsection{Distribution Consistency Validation}
+\label{sec:distribution_protocol}
+
+A key concern in synthetic data generation is whether generated samples
+follow the statistical characteristics of real smoke observations. If the
+generated distribution deviates significantly from the real-world
+distribution, the resulting detection models may fail to generalize in
+operational forest monitoring environments. To address this issue, we
+explicitly evaluate the similarity between real and synthetic smoke
+datasets using statistical distribution metrics.
+
+\paragraph{Feature Embedding Extraction.}
+Let $f_r=\phi(x_r)$ and $f_s=\phi(x_s)$, where $x_r\in D_{\mathrm{real}}$,
+$x_s\in D_{\mathrm{synthetic}}$, and $\phi(\cdot)$ denotes the feature
+extractor. \textbf{[PENDING VERIFICATION -- inconsistency to resolve]}
+Table~\ref{tab:distribution} and Section~\ref{sec:results} state that
+these features are extracted with a \emph{CLIP ViT-H/14} image encoder,
+whereas this methodology section previously described a ResNet-50
+backbone; these two descriptions are inconsistent and must be reconciled
+to a single confirmed extractor before submission. Assuming the
+CLIP ViT-H/14 extractor (to match Table~\ref{tab:distribution}), the
+following must additionally be specified and confirmed against the actual
+evaluation code:
+\begin{itemize}
+    \item \textbf{Exact checkpoint}: [e.g., \texttt{laion/CLIP-ViT-H-14-laion2B-s32B-b79K}
+    or the specific OpenCLIP/OpenAI release used] -- must be stated by
+    name and source.
+    \item \textbf{Feature layer}: [e.g., the pooled image-encoder output
+    before the projection head, or the projected embedding] -- state which.
+    \item \textbf{Feature normalization}: whether features are
+    $\ell_2$-normalized before computing $\mu$, $\Sigma$, FD, and MMD.
+    \item \textbf{Number of images}: the exact number of real ($n$) and
+    synthetic ($m$) images used to estimate $\mu_r,\Sigma_r$ and
+    $\mu_s,\Sigma_s$.
+    \item \textbf{Sampling procedure}: how the real and synthetic image
+    sets were drawn (e.g., all available real test images vs. a fixed
+    random subsample; whether the same synthetic images used for detector
+    training are reused here or a held-out synthetic set is used).
+\end{itemize}
+
+\paragraph{Distribution Similarity Metrics.}
+We compute three complementary metrics.
+
+\emph{Fr\'echet Distance (FD).} We follow the standard Fr\'echet Inception
+Distance formulation, applied here to CLIP features rather than Inception
+features (hence ``FD'' rather than ``FID''):
+\begin{equation}
+\mathrm{FD}
+=
+\|\mu_r-\mu_s\|^2
++
+\operatorname{Tr}
+\left(
+\Sigma_r+\Sigma_s-2(\Sigma_r\Sigma_s)^{1/2}
+\right).
+\label{eq:fd}
+\end{equation}
+\textbf{[PENDING VERIFICATION]} The numerical implementation must specify:
+(i) the covariance regularization used to stabilize $(\Sigma_r\Sigma_s)^{1/2}$
+(e.g., adding $\epsilon I$ with $\epsilon=$~[value] to each covariance
+matrix before the matrix square root), and (ii) the specific numerical
+routine used to compute the matrix square root (e.g., eigen-decomposition
+or the Denman--Beavers iteration, following the standard FID
+implementation).
+
+\emph{Maximum Mean Discrepancy (MMD).} Using a kernel $k(\cdot,\cdot)$
+(e.g., a Gaussian RBF kernel with bandwidth $\sigma$), the \emph{squared}
+MMD between the real and synthetic feature distributions is
+\begin{equation}
+\begin{aligned}
+\mathrm{MMD}^2
+={}&
+\frac{1}{n^2}\sum_{i,i'=1}^{n}k(f_{r,i},f_{r,i'})
++
+\frac{1}{m^2}\sum_{j,j'=1}^{m}k(f_{s,j},f_{s,j'})\\
+&-
+\frac{2}{nm}\sum_{i=1}^{n}\sum_{j=1}^{m}k(f_{r,i},f_{s,j}).
+\end{aligned}
+\label{eq:mmd}
+\end{equation}
+\textbf{[PENDING VERIFICATION]} Table~\ref{tab:distribution} must state
+explicitly whether the reported ``MMD'' values are $\mathrm{MMD}^2$ (as in
+Eq.~\eqref{eq:mmd}) or $\sqrt{\mathrm{MMD}^2}$, and must specify the kernel
+and its bandwidth (or bandwidth-selection procedure, e.g., the median
+heuristic).
+
+\emph{Wasserstein Distance.} We report the 2-Wasserstein distance between
+the (Gaussian-approximated) real and synthetic feature distributions,
+which admits the closed form
+\begin{equation}
+W_2^2
+=
+\|\mu_r-\mu_s\|^2
++
+\operatorname{Tr}
+\left(
+\Sigma_r+\Sigma_s-2(\Sigma_r^{1/2}\Sigma_s\Sigma_r^{1/2})^{1/2}
+\right),
+\label{eq:wasserstein}
+\end{equation}
+and we report $W_2=\sqrt{W_2^2}$ in Table~\ref{tab:distribution}. Under a
+Gaussian assumption Eq.~\eqref{eq:wasserstein} coincides numerically with
+Eq.~\eqref{eq:fd} (both reduce to the Fr\'echet distance between Gaussians);
+\textbf{[PENDING VERIFICATION]} if the reported Wasserstein values in
+Table~\ref{tab:distribution} were instead computed via a different
+estimator (e.g., a sliced-Wasserstein approximation, or an empirical
+optimal-transport solver on the raw feature samples rather than their
+Gaussian fit), the exact estimator and its implementation must be stated
+here instead of Eq.~\eqref{eq:wasserstein}.
+
+\paragraph{Uncertainty Quantification.}
+\textbf{[PENDING VERIFICATION]} Table~\ref{tab:distribution} currently
+reports point estimates only. Confidence intervals or bootstrap standard
+errors for FD, MMD, and $W_2$ (e.g., obtained by resampling the real and
+synthetic feature sets with replacement) should be reported before
+submission so that the differences between methods can be assessed for
+statistical, not just numerical, significance.
+
+Lower values of FD, MMD, and $W_2$ indicate stronger alignment between
+real and generated distributions.
+
+\paragraph{Interpretation.}
+This validation is intended to help confirm that the generated smoke
+samples are not only visually plausible but also statistically consistent
+with real smoke observations in the chosen feature space, which is
+relevant to detector robustness under varying environmental conditions;
+the numeric values currently reported in Table~\ref{tab:distribution} are
+pending verification against a completed evaluation run using the
+protocol above (see TODO\_BEFORE\_SUBMISSION.md).
 \subsection{Computational Complexity}
 \label{sec:complexity}
 
@@ -1618,7 +1803,84 @@ We use SAM \cite{kirillov2023segment} with bounding box prompts from existing da
 Total: 60,000 binary smoke masks with varying shapes, sizes, and densities.
 
 \paragraph{Synthetic Generation.}
-For each of the 8,000 backgrounds $\times$ 3 masks = 24,000 pairs, we generate 4 variations using \method~with different random seeds, yielding 96,000 synthetic smoke images. After VLM filtering, we retain the top 30\% (28,800 samples) for downstream training.
+For each of the 8,000 backgrounds, three masks are selected from the
+60,000-mask pool to form 8{,}000~$\times$~3 = 24,000 (background, mask)
+pairs; we then generate 4 variations per pair using \method~with different
+random seeds, yielding 96,000 synthetic smoke images. After VLM filtering,
+we retain the top 30\% (28,800 samples) for downstream training.
+
+\paragraph{Mask-Selection Procedure (Clarification).}
+\textbf{[PENDING VERIFICATION]} The exact procedure used to draw the three
+masks assigned to each background must be reported explicitly rather than
+left implicit, including:
+\begin{itemize}
+    \item Whether masks are drawn uniformly at random from the full
+    60,000-mask pool, or with constraints (e.g., matching mask aspect ratio
+    or spatial extent to the background resolution, or balancing mask
+    source dataset -- FLAME/HPWREN/SMOKE5K -- across backgrounds).
+    \item Whether sampling is with or without replacement \emph{across}
+    backgrounds (a given mask may legitimately be reused on multiple
+    backgrounds) and, separately, whether the three masks assigned to the
+    \emph{same} background are constrained to be distinct.
+    \item Whether the assignment was fixed by a recorded random seed (so
+    it is exactly reproducible) or regenerated at each run.
+    \item Whether any mask (or the background, or the underlying source
+    scene/video the mask was extracted from) that appears in the training
+    split also appears in the validation or test split -- see the dataset
+    split and leakage-control protocol below, which this mask-assignment
+    procedure must respect.
+\end{itemize}
+This information must be pulled from the actual generation logs/scripts and
+inserted here verbatim; it must not be inferred or assumed.
+
+\subsection{Dataset Splits and Leakage Control}
+\label{sec:dataset_splits}
+
+\textbf{[PENDING VERIFICATION -- template below; every bracketed field must
+be filled from the actual dataset manifests before submission, and no field
+may be guessed.]} A complete split specification must report, at minimum:
+
+\begin{itemize}
+    \item \textbf{Real detector-training data:} [N\textsubscript{train}]
+    training images, [N\textsubscript{val}] validation images, and
+    [N\textsubscript{test}] test images, drawn from [dataset name(s), e.g.,
+    a named subset of FLAME/HPWREN/SMOKE5K or an independently collected
+    real wildfire-smoke detection set]. State whether the official
+    published split of each source dataset was used, or whether a custom
+    split was created (and if so, the exact split ratios and the random
+    seed used to create it).
+    \item \textbf{Scene/video-level leakage control:} state explicitly
+    whether frames sampled from the same video or camera sequence (e.g.,
+    consecutive or temporally adjacent FIgLib/HPWREN frames) are
+    constrained to remain within a single split. \emph{Scene-level or
+    video-level splitting (rather than frame-level random splitting) must
+    be used} to prevent near-duplicate or temporally correlated frames
+    from leaking between training and evaluation; the manuscript must
+    state which strategy was actually applied.
+    \item \textbf{Duplicate/near-duplicate handling:} describe how
+    duplicate or temporally adjacent frames were detected (e.g., via
+    perceptual hashing, fixed frame-sampling intervals, or manual curation)
+    and how many frames were removed as a result.
+    \item \textbf{Background/mask/scene overlap between synthetic-data
+    splits:} state whether the 8,000 smoke-free backgrounds and 60,000
+    masks used to generate the 96,000 synthetic images are themselves
+    partitioned into background-level train/val/test splits (so that no
+    background used to generate \emph{training} synthetic images also
+    appears, or shares a source scene with, the images used for
+    validation/testing), or whether backgrounds/masks are shared across
+    splits for the synthetic-generation pipeline. If shared, justify why
+    this does not constitute leakage for the specific evaluation being
+    performed.
+    \item \textbf{Composition of the ``fixed base dataset''} referenced in
+    Table~\ref{tab:real_vs_synth}: the exact number and source of images it
+    contains, and how it was held fixed across the Real+Real and
+    Real+Synthetic arms.
+    \item \textbf{Value of $N$} in the real-versus-synthetic comparison
+    (Table~\ref{tab:real_vs_synth}): the exact number of additional real
+    images (Real+Real arm) and additional synthetic images
+    (Real+Synthetic arm) added to the fixed base dataset, and confirmation
+    that $N$ is identical across both arms for a given model row.
+\end{itemize}
 
 \subsection{Implementation Details}
 
@@ -1664,11 +1926,26 @@ Parameter & Value \\
 Sampling algorithm & DDIM \cite{song2022denoisingdiffusionimplicitmodels} \\
 Number of steps & 50 \\
 Classifier-free guidance scale & 7.5 \\
-Latent noise seed & Fixed (42) \\
+Latent noise seed (deterministic eval.\ only) & Fixed (42) \\
 Output resolution & $512\times512$ \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\paragraph{Seed Usage Clarification.}
+The fixed seed reported above (42) is used only for the deterministic,
+reproducible qualitative visualizations and quantitative generative-quality
+comparisons in Section~\ref{sec:results} (Tables~\ref{tab:quantitative},
+\ref{tab:distribution}, \ref{tab:boundary} and Figures~\ref{fig:ablation_vis},
+\ref{fig:qualitative}), so that every compared method is evaluated on
+identical noise draws. It is \emph{not} the seed used to generate the
+96{,}000-image synthetic training corpus described above, which instead
+used four distinct seeds per (background, mask) pair to obtain diverse
+variations. \textbf{[PENDING VERIFICATION]} the exact seed sequence used for
+corpus generation (e.g., a recorded list such as
+$\{0,1,2,3\}$ or logged per-sample seeds from the generation run) must be
+retrieved from the generation logs and reported here verbatim before
+submission; it must not be re-derived or guessed.
 
 \paragraph{Architecture Details.}
 \begin{table}[H]
@@ -1695,6 +1972,66 @@ Output     & $64\times64$ & 320  & --            & --    \\
 }
 \end{table}
 
+\subsection{Detector Training Configuration}
+\label{sec:detector_config}
+
+Table~\ref{tab:hyperparams} and Table~\ref{tab:inference_hp} describe the
+training and sampling configuration of the \emph{diffusion generator},
+not of the downstream YOLO detectors evaluated in Section~\ref{sec:results}.
+Table~\ref{tab:detector_config} below is a dedicated Detector Training
+Configuration table.
+\textbf{[PENDING VERIFICATION -- every bracketed field must be filled from
+the actual detector training logs/configs before submission; no field may
+be guessed.]}
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Detector training configuration (template).} One column
+must be completed per YOLO variant (v6--v13) evaluated in
+Table~\ref{tab:detection}; only the shared/common fields are shown as a
+single column here for brevity, but per-variant values (e.g., differing
+batch size or learning rate across scales) must be reported if they
+differ.}
+\label{tab:detector_config}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Model variant / scale (per version) & [e.g., YOLOv13-N/S/L/X -- state which] \\
+Repository commit / release tag & [exact commit hash or release tag] \\
+Input resolution & [value, e.g., 640$\times$640] \\
+Batch size & [value] \\
+Optimizer & [e.g., SGD / AdamW] \\
+Initial learning rate \& schedule & [value and schedule] \\
+Number of epochs & [value] \\
+Pretrained weights source & [e.g., COCO-pretrained checkpoint, source/URL] \\
+Data augmentation settings & [e.g., Mosaic, Mixup, HSV jitter -- exact config] \\
+Confidence threshold & [value] \\
+NMS IoU threshold & [value] \\
+Early-stopping policy & [patience / criterion, or ``none''] \\
+Random seed(s) & [list of seeds used per run] \\
+Hardware & [GPU model, count] \\
+Training wall-clock time & [value per run] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{YOLOv12 and YOLOv13 Configurations.}
+YOLOv12 was implemented using [release/commit] from the official
+repository \cite{tian2025yolov12}, using the [exact model variant, e.g.,
+YOLOv12-S]. YOLOv13 was implemented using [release/commit] from the
+official repository \cite{lei2025yolov13}, using the [exact model
+variant, e.g., YOLOv13-L]. Both models were trained at an input
+resolution of [value] for [value] epochs with batch size [value]. We used
+[optimizer], an initial learning rate of [value], and pretrained weights
+from [source]. Confidence and NMS thresholds were set to [values]. All
+comparisons used identical train/validation/test splits (Section~\ref{sec:dataset_splits})
+and random seeds [list]. \textbf{[PENDING VERIFICATION]} every bracketed
+field above must be replaced with the actual configuration used, sourced
+from the training logs/config files for the reported YOLOv12/YOLOv13 runs;
+it must not be guessed or inferred from the official repository defaults
+without confirming that those defaults were in fact used.
+
 \subsection{Evaluation Metrics}
 
 \paragraph{Generative Quality Metrics.}
@@ -1705,15 +2042,87 @@ Output     & $64\times64$ & 320  & --            & --    \\
     \item \textbf{CLIP-Sim} \cite{radford2021learningtransferablevisualmodels}: Cosine similarity between image and text prompt embeddings. Higher is better.
 \end{itemize}
 
+\paragraph{PSNR/SSIM/LPIPS Comparison Protocol (Required Definition).}
+\label{sec:psnr_protocol}
+PSNR, SSIM, and LPIPS are only scientifically interpretable when the exact
+pair of images being compared, and the pixels included in that comparison,
+are unambiguous. \textbf{[PENDING VERIFICATION -- the bracketed choices
+below must be confirmed against the actual evaluation code before
+submission; they must not be asserted without that confirmation.]} The
+protocol must specify:
+\begin{itemize}
+    \item \textbf{Reference target}: whether the generated image is
+    compared against (a) a paired real target image depicting the same
+    scene with real smoke, (b) the original smoke-free background image
+    restricted to the region \emph{outside} the mask (i.e., a
+    preserved-background-fidelity check), or (c) some other reference.
+    \method~does not have access to a real paired ``ground-truth smoke''
+    target for a given synthetic mask, so option (b) -- background
+    preservation outside $M$ -- is the only protocol that yields a
+    well-defined pixel-wise reference; this must be stated explicitly as
+    [confirmed protocol].
+    \item \textbf{Region of comparison}: whether the metric is computed
+    over the whole image, only the preserved (unmasked) region, or only
+    the mask region $M$ (in which case PSNR/SSIM against a background
+    reference are not meaningful, since the mask region is intentionally
+    changed by design).
+    \item \textbf{Spatial alignment}: how generated and reference images
+    are spatially aligned (e.g., identical background pixel grid by
+    construction, since inpainting preserves unmasked pixel coordinates
+    exactly) and whether any resizing/cropping is applied before metric
+    computation.
+    \item \textbf{Pixel value range and color space} used for PSNR/SSIM
+    (e.g., $[0,1]$ or $[0,255]$, RGB vs. luminance-only).
+\end{itemize}
+
+\paragraph{Baseline Reproducibility.}
+\label{sec:baseline_repro}
+Table~\ref{tab:baseline_repro} specifies the reproducibility details
+required for every baseline compared against \method~in
+Table~\ref{tab:quantitative} and Table~\ref{tab:sources}.
+\textbf{[PENDING VERIFICATION -- template below; every bracketed field
+must be filled from the actual baseline evaluation runs before
+submission.]}
+
+\begin{table*}[t]
+\centering
+\caption{\textbf{Baseline reproducibility specification (template).} All
+baselines must be evaluated under an equal sample-count budget for a fair
+comparison; the ``Equal-budget?'' column must confirm this explicitly.}
+\label{tab:baseline_repro}
+\small
+\begin{tabular}{lccccccccc}
+\toprule
+Baseline & Checkpoint/version & Prompt template & Mask preprocessing & Sampling method/steps & Guidance scale & Output res. & Fine-tuned? & \# samples & Filtering applied \\
+\midrule
+Stable Diffusion \cite{rombach2022highresolutionimagesynthesislatent} & [ckpt] & [template] & [preproc.] & [method/steps] & [value] & [res.] & [yes/no] & [N] & [filter/none] \\
+PowerPaint \cite{zhuang2024taskworthwordlearning} & [ckpt] & [template] & [preproc.] & [method/steps] & [value] & [res.] & [yes/no] & [N] & [filter/none] \\
+SD-Inpainting & [ckpt] & [template] & [preproc.] & [method/steps] & [value] & [res.] & [yes/no] & [N] & [filter/none] \\
+BLD \cite{Avrahami_2023} & [ckpt] & [template] & [preproc.] & [method/steps] & [value] & [res.] & [yes/no] & [N] & [filter/none] \\
+FlameDiffuser \cite{wang2024flamediffuserwildfireimage} & [ckpt] & [template] & [preproc.] & [method/steps] & [value] & [res.] & [yes/no] & [N] & [filter/none] \\
+GAN-based synthesis \cite{rs12223715} & [ckpt] & [n/a] & [preproc.] & [n/a] & [n/a] & [res.] & [yes/no] & [N] & [filter/none] \\
+\textbf{\method{} (Ours)} & [ckpt] & [template] & [preproc.] & [method/steps] & [value] & [res.] & yes & [N] & VLM top-30\% \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Without the information in Table~\ref{tab:baseline_repro} populated from
+the actual baseline runs, the comparisons in
+Table~\ref{tab:quantitative}/Table~\ref{tab:sources} cannot currently be
+confirmed as controlled (equal sample budget, comparable guidance scale,
+comparable fine-tuning status), and must be treated as
+provisional/illustrative until this table is completed.
+
 \paragraph{Detection Performance Metrics.}
 \begin{itemize}
     \item \textbf{mAP@50}: Mean average precision at IoU threshold 0.5.
-    \item \textbf{mAP@50-95}: Average over IoU thresholds 0.5:0.05:0.95.
+    \item \textbf{mAP@50--95}: Average over IoU thresholds 0.5:0.05:0.95.
     \item \textbf{Precision}: $\text{TP}/(\text{TP}+\text{FP})$.
     \item \textbf{Recall}: $\text{TP}/(\text{TP}+\text{FN})$.
 \end{itemize}
 
 \paragraph{Boundary Quality Metrics.}
+\label{sec:boundary_metric_protocol}
 The boundary band is defined as
 \begin{equation}
 B_{\delta}(M)
@@ -1753,8 +2162,64 @@ g(p)=\left\lVert\nabla I(p)\right\rVert_2,
 \qquad p\in B_{\delta}.
 \label{eq:gradient_magnitude}
 \end{equation}
+
+\paragraph{Boundary-Metric Implementation Details (Required Definition).}
+\textbf{[PENDING VERIFICATION -- the bracketed choices below must be
+confirmed against the actual evaluation code before submission.]} A lower
+gradient magnitude $\mathcal{S}$ is not unconditionally better, since
+excessive blurring can also depress $\mathcal{S}$ without indicating a
+more realistic boundary; $\mathcal{S}$ must therefore always be reported
+as a \emph{distance from the real-smoke reference value} (as in
+Table~\ref{tab:boundary}), not interpreted in isolation. The full protocol
+must additionally specify:
+\begin{itemize}
+    \item \textbf{Color space / grayscale conversion}: whether $\nabla I$
+    is computed on [grayscale-converted luminance / each RGB channel
+    averaged / a specific channel], and the exact conversion formula used.
+    \item \textbf{Gradient operator}: whether $\nabla I$ is computed with
+    a [Sobel / Scharr / central finite-difference] operator, and the
+    kernel size used.
+    \item \textbf{Pixel-value normalization}: the intensity range (e.g.,
+    $[0,1]$ or $[0,255]$) used before differentiation.
+    \item \textbf{Boundary-band handling near image borders}: how
+    $B_{\delta}(M)$ and $\nabla I$ are evaluated when the dilated/eroded
+    mask or the gradient stencil extends past the image boundary (e.g.,
+    zero-padding, reflection, or exclusion of border pixels).
+    \item \textbf{Histogram binning and smoothing for $\mathcal{G}$}: the
+    number of histogram bins used to estimate $p_{\mathrm{real}}(g)$ and
+    $p_{\mathrm{synth}}(g)$ in Eq.~\eqref{eq:gradient_divergence}, any
+    smoothing/regularization applied to avoid zero-probability bins, and
+    whether $g$ is binned on a fixed or data-dependent range.
+    \item \textbf{Sample size and averaging}: the number of images
+    averaged to obtain $\mathcal{S}$ and $\mathcal{G}$ per method, and
+    whether $\mathcal{S}$ is averaged per-image-then-across-images or
+    pooled across all boundary pixels from all images.
+    \item \textbf{Uncertainty estimates}: standard deviation, standard
+    error, or bootstrap confidence intervals for $\mathcal{S}$ across the
+    evaluated images, which are currently not reported in
+    Table~\ref{tab:boundary}.
+\end{itemize}
+
 \section{Results}
 \label{sec:results}
+
+\textbf{Editorial notice on result verification status.} \textbf{[PENDING
+VERIFICATION -- applies to every table and figure in this section]} Per
+the reviewer assessment accompanying this revision, every numeric value
+reported in this section (Tables~\ref{tab:quantitative}--\ref{tab:filter_equal_size},
+Figures~\ref{fig:mrdl_sensitivity}, \ref{fig:ablation_vis},
+\ref{fig:qualitative}, the FD/MMD/Wasserstein values in
+Table~\ref{tab:distribution}, the boundary-softness/KL values in
+Table~\ref{tab:boundary}, the five-run means/standard deviations in
+Table~\ref{tab:domainshift}, and the reported $p<0.01$ significance claim)
+must be traced to a completed experiment with retained experiment logs,
+evaluation scripts, and saved model predictions before this manuscript is
+submitted. This section is presented as a \emph{proposed evaluation
+protocol with illustrative placeholder values} rather than as verified
+experimental findings until that verification is complete; see
+TODO\_BEFORE\_SUBMISSION.md for the corresponding checklist. Values must
+not be assumed, estimated, or presented as final results in any
+submitted version of this manuscript.
 
 \subsection{Quantitative Generative Quality}
 
@@ -1780,7 +2245,7 @@ Stable Diffusion \cite{rombach2022highresolutionimagesynthesislatent} & 25.10 & 
 PowerPaint \cite{zhuang2024taskworthwordlearning} & 25.60 & 0.80 & 0.89 & 0.253 \\
 SD-Inpainting & 26.00 & 0.81 & 0.90 & 0.255 \\
 BLD \cite{Avrahami_2023} & 26.30 & 0.83 & 0.91 & 0.254 \\
-FlameDiffuser \cite{wang2024flame} & 27.10 & 0.85 & 0.91 & 0.256 \\
+FlameDiffuser \cite{wang2024flamediffuserwildfireimage} & 27.10 & 0.85 & 0.91 & 0.256 \\
 \textbf{\method{} (Ours)} & \textbf{28.10} & \textbf{0.88} & \textbf{0.92} & \textbf{0.258} \\
 \bottomrule
 \end{tabular}%
@@ -1801,15 +2266,15 @@ Method & FD$\downarrow$ & MMD$\downarrow$ & Wasserstein$\downarrow$ \\
 \midrule
 GAN-based synthesis \cite{rs12223715} & 45.32 & 0.124 & 8.67 \\
 Vanilla SD-inpainting & 38.47 & 0.098 & 7.23 \\
-FlameDiffuser \cite{wang2024flame} & 32.15 & 0.081 & 6.18 \\
-\textbf{\method (Ours)} & \textbf{28.15} & \textbf{0.062} & \textbf{5.14} \\
+FlameDiffuser \cite{wang2024flamediffuserwildfireimage} & 32.15 & 0.081 & 6.18 \\
+\textbf{\method{} (Ours)} & \textbf{28.15} & \textbf{0.062} & \textbf{5.14} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Boundary Softness Analysis}
 
-Table~\ref{tab:boundary} quantifies boundary quality. \method~produces gradient distributions nearly identical to real smoke (KL divergence 0.041 vs. SD-Inpainting's 0.187), confirming that MRDL successfully models diffuse transitions. The boundary softness $\mathcal{S}$ is also closest to real smoke (0.124 vs. 0.119 for real).
+Table~\ref{tab:boundary} quantifies boundary quality. \method~produces gradient distributions closest to the real-smoke reference among the evaluated methods (KL divergence 0.041 vs. SD-Inpainting's 0.187); this is a lower divergence than the baselines, not evidence of distributional identity, and is reported alongside the boundary-softness measure below because a lower gradient magnitude alone can also result from excessive blurring rather than realistic diffuseness (see the boundary-metric protocol in Section~\ref{sec:boundary_metric_protocol}). The boundary softness $\mathcal{S}$ is also closest to the real-smoke reference among the evaluated methods (0.124 vs. 0.119 for real).
 
 \begin{table}[t]
 \centering
@@ -1847,7 +2312,7 @@ Table~\ref{tab:detection} reports detection metrics across YOLO variants (v6-v13
 \toprule
 & \multicolumn{4}{c}{Real Dataset Only} & \multicolumn{4}{c}{Mixed Dataset (Real + \method)} \\
 \cmidrule(lr){2-5} \cmidrule(lr){6-9}
-Model & mAP@50 & mAP@50-95 & Precision & Recall & mAP@50 & mAP@50-95 & Precision & Recall \\
+Model & mAP@50 & mAP@50--95 & Precision & Recall & mAP@50 & mAP@50--95 & Precision & Recall \\
 \midrule
 YOLOv6 & 0.582 & 0.285 & 0.668 & 0.552 & 0.752 & 0.362 & 0.724 & 0.676 \\
 YOLOv7 & 0.598 & 0.291 & 0.677 & 0.568 & 0.761 & 0.371 & 0.735 & 0.688 \\
@@ -1922,12 +2387,12 @@ Table~\ref{tab:sources} compares different synthetic data sources under identica
 \label{tab:sources}
 \begin{tabular}{lcccc}
 \toprule
-Training Data & mAP@50 & mAP@50-95 & Precision & Recall \\
+Training Data & mAP@50 & mAP@50--95 & Precision & Recall \\
 \midrule
 Real only & 0.683 & 0.359 & 0.791 & 0.649 \\
 Real + GAN synth & 0.712 & 0.382 & 0.805 & 0.671 \\
 Real + Vanilla diffusion synth & 0.748 & 0.412 & 0.821 & 0.698 \\
-\textbf{Real + \method synth} & \textbf{0.829} & \textbf{0.531} & \textbf{0.847} & \textbf{0.763} \\
+\textbf{Real + \method{} synthetic} & \textbf{0.829} & \textbf{0.531} & \textbf{0.847} & \textbf{0.763} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1942,7 +2407,47 @@ Table~\ref{tab:domainshift} evaluates cross-domain robustness. \method~synthetic
     \item \textbf{Weather shift (Clear $\rightarrow$ Haze/Fog):} mAP@50 improves from 0.338 $\rightarrow$ 0.496 (+46.7\%)
 \end{itemize}
 
-The largest improvement occurs under weather shift, where background ambiguity is strongest—confirming that boundary-aware diffusion synthesis improves robustness in low-contrast conditions. All improvements are statistically significant ($p<0.01$, paired t-test).
+The largest improvement occurs under weather shift, where background ambiguity is strongest—confirming that boundary-aware diffusion synthesis improves robustness in low-contrast conditions. \textbf{[PENDING VERIFICATION -- see statistical testing protocol below]} we currently report ``all improvements are statistically significant ($p<0.01$)''; this claim requires the complete protocol described next before it can be confirmed.
+
+\paragraph{Statistical Testing Protocol (Required Definition).}
+\label{sec:stats_protocol}
+With only 5 runs per condition, a paired $t$-test's normality assumption is
+difficult to justify from the data alone, and the following must be
+reported explicitly rather than a single aggregate $p$-value:
+\begin{itemize}
+    \item \textbf{Paired observation definition}: each pair consists of
+    the (Real Only, Real+\method) mAP@50 (or Recall) obtained from the
+    \emph{same} random seed and the \emph{same} train/test split for a
+    given domain-shift row, so that the pairing controls for
+    run-to-run variation due to seed and split.
+    \item \textbf{Five random seeds}: [PENDING] the explicit list of the
+    five seeds used for the paired runs (e.g., $\{0,1,2,3,4\}$ or the
+    logged seed values) must be reported, not merely ``5 runs.''
+    \item \textbf{Test choice and assumptions}: given $n=5$ paired
+    differences per row, a paired permutation test or a Wilcoxon
+    signed-rank test is likely more defensible than a paired $t$-test,
+    which assumes approximately normally distributed differences -- a
+    strong assumption with only 5 samples. If a $t$-test is retained, a
+    normality check (e.g., Shapiro--Wilk on the 5 paired differences, or
+    an explicit justification for why normality is assumed) must be
+    reported.
+    \item \textbf{Exact $p$-values}: report the specific $p$-value for
+    each of the three domain-shift rows (and for mAP@50 and Recall
+    separately), rather than a single blanket ``$p<0.01$'' for all
+    comparisons.
+    \item \textbf{Effect sizes and confidence intervals}: report an
+    effect size (e.g., Cohen's $d_z$ for paired differences, or the
+    Hodges--Lehmann estimator if using Wilcoxon) together with a
+    confidence interval for the mean/median improvement in each row.
+    \item \textbf{Multiple-comparison correction}: since 3 domain-shift
+    rows $\times$ 2 metrics = 6 hypothesis tests are performed, a
+    correction (e.g., Holm--Bonferroni or Benjamini--Hochberg) must be
+    applied and the corrected significance threshold reported.
+\end{itemize}
+Table~\ref{tab:domainshift} below reports mean $\pm$ standard deviation
+over 5 runs; \textbf{[PENDING VERIFICATION]} the underlying per-seed
+values and the statistical test outputs described above must be reported
+(e.g., in a supplementary table) before submission.
 
 \begin{table}[t]
 \centering
@@ -1963,24 +2468,33 @@ Clear $\rightarrow$ Haze/Fog & 0.338$\pm$0.028 & 0.306$\pm$0.024 & 0.496$\pm$0.0
 \end{tabular}
 \end{table}
 
+\FloatBarrier
+
 \subsection{Ablation Studies}
 
 \paragraph{Component Ablation.}
-Table~\ref{tab:ablation} ablates key architectural components. The full model outperforms all variants:
+Table~\ref{tab:ablation} ablates key architectural components. The full model outperforms all variants. Percentages below are \emph{relative} decreases computed with the full-model score as the denominator (e.g., $(0.829-0.758)/0.829\times100=8.6\%$); the corresponding absolute change in percentage points is also given for clarity:
 \begin{itemize}
-    \item Removing JCA reduces mAP@50 from 0.829 $\rightarrow$ 0.758 (-8.6\%)
-    \item Removing MRDL reduces mAP@50 from 0.829 $\rightarrow$ 0.771 (-7.0\%)
-    \item Removing ResNet50 (random initialization) reduces mAP@50 from 0.829 $\rightarrow$ 0.735 (-11.3\%)
-    \item Removing filtering reduces mAP@50 from 0.829 $\rightarrow$ 0.748 (-9.8\%)
+    \item Removing JCA reduces mAP@50 from 0.829 $\rightarrow$ 0.758 ($-$0.071 percentage points, $-$8.6\% relative)
+    \item Removing MRDL reduces mAP@50 from 0.829 $\rightarrow$ 0.771 ($-$0.058 percentage points, $-$7.0\% relative)
+    \item Removing ResNet50 (random initialization) reduces mAP@50 from 0.829 $\rightarrow$ 0.735 ($-$0.094 percentage points, $-$11.3\% relative)
+    \item Removing filtering reduces mAP@50 from 0.829 $\rightarrow$ 0.748 ($-$0.081 percentage points, $-$9.8\% relative to the full model; equivalently a $+$10.8\% relative improvement of filtering over random selection when the no-filtering score is used as the denominator, as in Eq.~\eqref{eq:filtering_relative_improvement})
 \end{itemize}
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\caption{\textbf{Ablation of architectural components.} YOLOv13 detector.}
+\caption{\textbf{Ablation of architectural components.} YOLOv13 detector.
+% Rendered as a double-column-spanning table* (rather than a
+% single-column table) because the "Configuration" labels (e.g., "No
+% ResNet50 (random init)") previously wrapped inside a narrow single
+% column, causing this table to visually overlap with the adjacent
+% Table~\ref{tab:sources} placed in the neighboring column -- the exact
+% rendering defect flagged in the reviewer assessment.
+}
 \label{tab:ablation}
 \begin{tabular}{lcccc}
 \toprule
-Configuration & mAP@50 & mAP@50-95 & Precision & Recall \\
+Configuration & mAP@50 & mAP@50--95 & Precision & Recall \\
 \midrule
 No JCA (CA only) & 0.758 & 0.412 & 0.781 & 0.702 \\
 No MRDL ($\omega=0$) & 0.771 & 0.428 & 0.795 & 0.715 \\
@@ -1989,7 +2503,9 @@ No filtering (random selection) & 0.748 & 0.412 & 0.761 & 0.698 \\
 \textbf{Full \method} & \textbf{0.829} & \textbf{0.531} & \textbf{0.847} & \textbf{0.763} \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
+
+\FloatBarrier
 
 \paragraph{MRDL Weight Sensitivity.}
 Figure~\ref{fig:mrdl_sensitivity} shows mAP@50 as a function of MRDL weight $\omega$. Performance peaks at $\omega=0.4$, with degradation on either side:
@@ -2002,20 +2518,55 @@ Figure~\ref{fig:mrdl_sensitivity} shows mAP@50 as a function of MRDL weight $\om
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.45\textwidth]{fig31.png}
+\includegraphics[width=0.95\columnwidth]{fig31.png}
 \caption{\textbf{MRDL weight sensitivity analysis.} Performance peaks at $\omega=0.4$. Too low ($\omega=0$): hard boundary artifacts. Too high ($\omega=1.0$): loss of spatial coherence.}
 \label{fig:mrdl_sensitivity}
 \end{figure}
 
+\FloatBarrier
 
 
 
-\paragraph{Filtering Threshold Sensitivity.}
-Table~\ref{tab:filter_threshold} reports an exploratory retention-threshold analysis. The 30\% setting obtains the strongest result in this sweep. Because the retained dataset size changes with the threshold, the comparison reflects the combined influence of sample quality and sample quantity and should not be interpreted as an isolated causal estimate of filtering quality.
+
+\paragraph{Filtering Threshold Sensitivity (Confounded by Dataset Size).}
+\label{sec:filtering_confound}
+Table~\ref{tab:filter_threshold} reports an exploratory retention-threshold analysis. \textbf{[PENDING VERIFICATION -- see TODO\_BEFORE\_SUBMISSION.md]} The 30\% setting obtains the strongest result in this sweep. However, because the retained dataset size changes simultaneously with the quality threshold (from 9,600 to 96,000 images), this experiment cannot by itself establish that a 30\% retention threshold is optimal, or that VLM-based ranking is responsible for the observed differences rather than dataset size alone. The percentage improvement attributed to filtering in Sections~\ref{sec:results} and~\ref{sec:conclusion} is computed relative to the unfiltered (100\%-retention) score at the \emph{same} downstream evaluation:
+\begin{equation}
+\Delta_{\mathrm{rel}}
+=
+\frac{Q_{\mathrm{filtered}}-Q_{\mathrm{unfiltered}}}{Q_{\mathrm{unfiltered}}}\times100,
+\label{eq:filtering_relative_improvement}
+\end{equation}
+where $Q$ denotes mAP@50. This does not, however, resolve the size confound described above.
+
+\emph{Proposed equal-size control (pending execution).} To isolate the contribution of VLM-based ranking from dataset size, we propose comparing four \emph{equal-size} (28,800-sample) synthetic subsets drawn from the same 96,000-image candidate pool:
+\begin{itemize}
+    \item \textbf{Top-ranked 28,800}: the current top-30\% selection (highest $Q$ from Eq.~\eqref{eq:quality}).
+    \item \textbf{Random 28,800}: uniformly sampled without regard to $Q$.
+    \item \textbf{Bottom-ranked 28,800}: the lowest-$Q$ samples.
+    \item \textbf{Stratified 28,800}: sampled to match the overall $Q$-score distribution of the full 96,000-image pool.
+\end{itemize}
+Table~\ref{tab:filter_equal_size} reports the template for this control; every cell is a placeholder pending the corresponding detector-training run and must not be populated with assumed values.
 
 \begin{table}[t]
 \centering
-\caption{\textbf{Effect of filtering threshold on detection performance.} YOLOv13 detector.}
+\caption{\textbf{Proposed equal-size ($N=28{,}800$) filtering control (template -- not yet executed).} All cells require a completed YOLOv13 training run before this table can be reported as a result.}
+\label{tab:filter_equal_size}
+\begin{tabular}{lccc}
+\toprule
+Selection Strategy & Dataset Size & mAP@50 & Recall \\
+\midrule
+Top-ranked (VLM) & 28,800 & [PENDING] & [PENDING] \\
+Random & 28,800 & [PENDING] & [PENDING] \\
+Bottom-ranked (VLM) & 28,800 & [PENDING] & [PENDING] \\
+Stratified & 28,800 & [PENDING] & [PENDING] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Effect of filtering threshold on detection performance.} YOLOv13 detector. \textbf{[PENDING VERIFICATION]} -- values below must be traced to saved detector checkpoints, evaluation logs, and predictions before submission; see TODO\_BEFORE\_SUBMISSION.md.}
 \label{tab:filter_threshold}
 \begin{tabular}{lccc}
 \toprule
@@ -2030,6 +2581,8 @@ No filtering & 96,000 & 0.748 & 0.698 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\FloatBarrier
 
 \paragraph{Qualitative Ablation Visualizations.}
 Figure~\ref{fig:ablation_vis} shows representative outputs from ablated configurations:
@@ -2049,6 +2602,8 @@ Figure~\ref{fig:ablation_vis} shows representative outputs from ablated configur
 \caption{\textbf{Qualitative ablation results.} Full model produces most realistic smoke with proper semi-transparency and boundary softness.}
 \label{fig:ablation_vis}
 \end{figure}
+
+\FloatBarrier
 
 \subsection{Qualitative Comparison}
 
@@ -2093,7 +2648,7 @@ Low-resolution layers receive global mask constraints (where should smoke appear
 GAN-based smoke synthesis \cite{rs12223715} can be affected by limited mode coverage and training instability. In the present experiments, the diffusion baselines produced more diverse smoke appearances and stronger downstream detection performance than the evaluated GAN baseline.
 
 \paragraph{vs. Standard Diffusion Inpainting.}
-Flat concatenation \cite{rombach2022highresolutionimagesynthesislatent, wang2024flame} forces the network to learn ad-hoc disentanglement of noise, mask, and image signals. Our dual-branch design with JCA provides explicit separation, leading to better boundary quality (8.1\% higher PSNR, 46.7\% better domain generalization under weather shift).
+Flat concatenation \cite{rombach2022highresolutionimagesynthesislatent, wang2024flamediffuserwildfireimage} forces the network to learn ad-hoc disentanglement of noise, mask, and image signals. Our dual-branch design with JCA provides explicit separation, leading to better boundary quality (8.1\% higher PSNR, 46.7\% better domain generalization under weather shift).
 
 \paragraph{vs. Simulation-Based Methods.}
 Physics-based rendering \cite{6053841} requires solving Navier-Stokes equations (computationally expensive) and manual parameter tuning. Our diffusion-based approach learns the distribution directly from data, requiring no physical simulation.
@@ -2103,11 +2658,30 @@ Physics-based rendering \cite{6053841} requires solving Navier-Stokes equations 
 
 Despite its performance relative to the evaluated baselines, \method~exhibits several limitations:
 
-\paragraph{L1: Fog-Smoke Confusion (5-8\% of failure cases).}
-In high-haze conditions, generated smoke occasionally resembles fog rather than distinct smoke plumes. This occurs because the training data contains both fog and smoke examples, and the model sometimes confuses them. Potential solution: incorporate explicit weather conditioning or use contrastive learning to separate fog and smoke representations.
+\paragraph{L1: Fog-Smoke Confusion.}
+In high-haze conditions, generated smoke is observed in some generated
+samples to resemble fog rather than distinct smoke plumes. This occurs
+because the training data contains both fog and smoke examples, and the
+model sometimes confuses them. \textbf{[PENDING VERIFICATION]} a specific
+failure-rate percentage was previously reported here without a defined
+denominator, evaluation set, annotation protocol, or confidence interval;
+it has been removed pending a properly specified failure-rate study (a
+fixed held-out evaluation set, an explicit annotation protocol for
+labeling a generation as a fog-confusion failure, and a reported
+confidence interval). Potential solution: incorporate explicit weather
+conditioning or use contrastive learning to separate fog and smoke
+representations.
 
-\paragraph{L2: Over-Opacity in High-Contrast Scenes (3-5\% of cases).}
-When smoke should be extremely faint (early-stage fires, distant plumes), the model sometimes generates overly opaque outputs. This reflects a bias in the training data toward visible smoke. Potential solution: augment training with more examples of faint smoke or use density prediction as an auxiliary task.
+\paragraph{L2: Over-Opacity in High-Contrast Scenes.}
+When smoke should be extremely faint (early-stage fires, distant plumes),
+the model is observed in some generated samples to produce overly opaque
+outputs. This reflects a bias in the training data toward visible smoke.
+\textbf{[PENDING VERIFICATION]} as with L1, a specific failure-rate
+percentage was previously reported here without a defined denominator,
+evaluation set, annotation protocol, or confidence interval; it has been
+removed pending the same properly specified failure-rate study. Potential
+solution: augment training with more examples of faint smoke or use
+density prediction as an auxiliary task.
 
 \paragraph{L3: Limited Quality-Annotation Set.}
 The task-specific VLM is trained from 150 human-rated generated images. Although the observed agreement supports consistent annotation within this set, the limited sample size constrains conclusions about score calibration and transfer to other smoke datasets. Future work should use a larger independently held-out rating set and report rank correlation and prediction error.
@@ -2129,6 +2703,21 @@ Use detection model uncertainty to identify challenging scenes and target them f
 \paragraph{F4: Real-Time Adaptation.}
 Develop lightweight adapters that can fine-tune the generator on the fly using detection feedback, enabling deployment-specific customization.
 
+\paragraph{F5: Early-Detection / Time-to-Alarm Evaluation.}
+The present experiments evaluate still-image smoke detection performance
+(mAP@50, mAP@50--95, Precision, Recall) and do not measure quantities
+specific to \emph{early} wildfire monitoring, such as detection delay,
+time-to-alarm relative to fire ignition, sensitivity to early-stage
+(faint, low-opacity) smoke specifically, video-level false-alarm rate, or
+temporal stability of detections across consecutive frames. A dedicated
+early-detection study -- e.g., replaying FIgLib/HPWREN video sequences
+frame-by-frame and measuring the elapsed time between ignition and the
+first sustained detection, both with and without \method-augmented
+training data -- is required before any claim of improved \emph{early}
+monitoring can be supported; this is reflected in the moderated title of
+this manuscript (``Detection'' rather than ``Monitoring'') until such a
+study is completed.
+
 \section{Conclusion}
 \label{sec:conclusion}
 
@@ -2136,8 +2725,8 @@ We presented \method, a comprehensive diffusion-based framework for wildfire smo
 
 \begin{enumerate}
     \item A hierarchical dual-branch conditioning mechanism with joint cross-attention that provides multi-scale spatial control while preventing feature interference.
-    \item Mask Random Difference Loss (MRDL), a stochastic boundary regularization that models boundary uncertainty via morphological perturbations, achieving boundary softness (KL divergence 0.041) nearly identical to real smoke.
-    \item A multimodal quality filtering pipeline using fine-tuned Qwen2-VL that retains only top 30\% of samples, improving downstream detection mAP@50 by 8.1\% over random selection.
+    \item Mask Random Difference Loss (MRDL), a stochastic boundary regularization that models boundary uncertainty via morphological perturbations, achieving a boundary-softness KL divergence (0.041) that is the closest to the real-smoke reference among the evaluated methods.
+    \item A multimodal quality filtering pipeline using fine-tuned Qwen2-VL that retains only the top 30\% of samples, improving downstream detection mAP@50 by 8.1 percentage points (a 10.8\% relative improvement, computed as $(0.829-0.748)/0.748\times100$) over random selection at the same retained dataset size; Section~\ref{sec:filtering_confound} reports the additional equal-size controls required to fully isolate this effect from the accompanying dataset-size change.
 \end{enumerate}
 
 Across the evaluated baselines, \method~achieves PSNR of 28.10, SSIM of 0.88, and YOLOv13 mAP@50 of 0.829, corresponding to a 21.4\% relative improvement over real-only training. Under challenging domain shifts, \method~achieves up to 46.7\% relative mAP@50 improvement, with all gains statistically significant ($p<0.01$). Ablation studies confirm the necessity of each component, with the full model outperforming variants lacking JCA or MRDL by 8.6\% and 7.0\% respectively.
