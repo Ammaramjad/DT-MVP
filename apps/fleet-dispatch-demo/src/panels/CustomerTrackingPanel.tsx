@@ -4,18 +4,24 @@ import { Copy, Luggage, MapPinned, Phone, Plane, ShieldCheck, Star, Users } from
 import { useFleetStore } from '../store/useFleetStore'
 import { PanelHeader } from '../components/layout/PanelHeader'
 import { StatusStepper } from '../components/ui/StatusStepper'
-import { OrderTypeBadge, FlightBadge } from '../components/ui/OrderBadges'
+import { OrderTypeBadge, FlightBadge, ChannelBadge } from '../components/ui/OrderBadges'
+import { CountdownRing } from '../components/ui/CountdownRing'
 import { RouteMapView } from '../components/map/RouteMapView'
+import { BookingHistoryCard } from '../components/customer/BookingHistoryCard'
 import { formatClock, formatTWD, ticksToMinutesLabel } from '../lib/format'
 import { remainingDistanceKm } from '../lib/geo'
+
+type Tab = 'TRACKING' | 'HISTORY'
 
 export default function CustomerTrackingPanel() {
   const orders = useFleetStore((s) => s.orders)
   const drivers = useFleetStore((s) => s.drivers)
   const vehicles = useFleetStore((s) => s.vehicles)
+  const customerProfiles = useFleetStore((s) => s.customerProfiles)
   const focusOrderId = useFleetStore((s) => s.focusOrderId)
   const setFocusOrder = useFleetStore((s) => s.setFocusOrder)
   const [copied, setCopied] = useState(false)
+  const [tab, setTab] = useState<Tab>('TRACKING')
 
   const sortedOrders = useMemo(() => [...orders].sort((a, b) => b.createdAt - a.createdAt), [orders])
   const selectedId = focusOrderId ?? sortedOrders[0]?.id ?? null
@@ -35,9 +41,15 @@ export default function CustomerTrackingPanel() {
 
   const driver = drivers.find((d) => d.id === order.driverId)
   const vehicle = vehicles.find((v) => v.id === order.vehicleId)
-  const isDispatched = order.status !== 'NEW' && order.status !== 'CANCELLED'
+  const isDispatched = !['NEW', 'PENDING_DRIVER_RESPONSE', 'CANCELLED'].includes(order.status)
   const isDone = order.status === 'COMPLETED'
   const isCancelled = order.status === 'CANCELLED'
+  const isPendingDriver = order.status === 'PENDING_DRIVER_RESPONSE'
+  const activeAttempt = order.dispatchAttempts[order.dispatchAttempts.length - 1]
+
+  const customerProfile =
+    customerProfiles.find((p) => p.phone === order.customer.phone) ?? customerProfiles.find((p) => p.name === order.customer.name) ?? null
+  const customerLiveOrders = orders.filter((o) => o.customer.phone === order.customer.phone || o.customer.name === order.customer.name)
 
   const activeLeg =
     order.status === 'EN_ROUTE_TO_PICKUP' || order.status === 'ASSIGNED' || order.status === 'NEW' ? order.routeToPickup : order.routeToDropoff
@@ -64,6 +76,30 @@ export default function CustomerTrackingPanel() {
       </div>
 
       <div className="mx-auto mt-4 max-w-2xl px-4">
+        <div className="flex gap-1.5 rounded-xl bg-slate-100 p-1">
+          {(['TRACKING', 'HISTORY'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              data-testid={`customer-tab-${t.toLowerCase()}`}
+              className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
+                tab === t ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {t === 'TRACKING' ? 'Live Tracking' : 'My Bookings'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {tab === 'HISTORY' && (
+        <div className="mx-auto mt-4 max-w-2xl px-4">
+          <BookingHistoryCard profile={customerProfile} liveOrders={customerLiveOrders} />
+        </div>
+      )}
+
+      {tab === 'TRACKING' && (
+      <div className="mx-auto mt-4 max-w-2xl px-4">
         <div className="rounded-2xl bg-white p-5 shadow-xl shadow-slate-200/70 ring-1 ring-slate-100">
           <div className="flex items-center justify-between">
             <div>
@@ -81,10 +117,26 @@ export default function CustomerTrackingPanel() {
             </div>
           )}
 
-          {!isDispatched && !isCancelled && (
+          {order.status === 'NEW' && (
             <div className="mt-4 rounded-xl bg-amber-50 p-4 text-center text-sm text-amber-600">
               Your order has been received. The dispatch engine is finding the best available driver…
             </div>
+          )}
+
+          {isPendingDriver && activeAttempt && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4 flex items-center gap-3 rounded-xl bg-blue-50 p-3.5">
+              <CountdownRing sentAt={activeAttempt.sentAt} respondBy={activeAttempt.respondBy} tone={activeAttempt.stage === 2 ? 'amber' : 'cyan'} />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-700">
+                  {activeAttempt.stage === 2 ? 'Still confirming your driver…' : 'Contacting your driver…'}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {activeAttempt.channels.map((c) => (
+                    <ChannelBadge key={c} channel={c} compact />
+                  ))}
+                </div>
+              </div>
+            </motion.div>
           )}
 
           {isDispatched && driver && (
@@ -179,6 +231,7 @@ export default function CustomerTrackingPanel() {
           </button>
         </div>
       </div>
+      )}
     </div>
   )
 }
