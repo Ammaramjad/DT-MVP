@@ -13,6 +13,7 @@ import { CapacityCalendar } from '../components/control/CapacityCalendar'
 import { HourlyVolumeChart } from '../components/control/HourlyVolumeChart'
 import { DriverScheduleMatrix } from '../components/control/DriverScheduleMatrix'
 import { FleetRosterBreakdown } from '../components/control/FleetRosterBreakdown'
+import { AnalyticsDashboard } from '../components/control/AnalyticsDashboard'
 import { useLang } from '../i18n'
 
 type FilterKey = 'ACTIVE' | 'NEW' | 'IN_PROGRESS' | 'COMPLETED' | 'ALL'
@@ -25,9 +26,10 @@ const FILTERS: { key: FilterKey; labelKey: string }[] = [
   { key: 'ALL', labelKey: 'control.filter.all' },
 ]
 
-type CapacityTab = 'FORECAST' | 'SCHEDULE' | 'ROSTER'
+type CapacityTab = 'ANALYTICS' | 'FORECAST' | 'SCHEDULE' | 'ROSTER'
 
 const CAPACITY_TABS: { key: CapacityTab; labelKey: string }[] = [
+  { key: 'ANALYTICS', labelKey: 'control.tab.analytics' },
   { key: 'FORECAST', labelKey: 'control.tab.forecast' },
   { key: 'SCHEDULE', labelKey: 'control.tab.schedule' },
   { key: 'ROSTER', labelKey: 'control.tab.roster' },
@@ -45,7 +47,7 @@ export default function ControlCenterPanel() {
   const setFocusOrder = useFleetStore((s) => s.setFocusOrder)
 
   const [filter, setFilter] = useState<FilterKey>('ACTIVE')
-  const [capacityTab, setCapacityTab] = useState<CapacityTab>('FORECAST')
+  const [capacityTab, setCapacityTab] = useState<CapacityTab>('ANALYTICS')
 
   const kpis = useMemo(() => computeKpis(orders, drivers), [orders, drivers])
 
@@ -162,6 +164,11 @@ export default function ControlCenterPanel() {
           </div>
 
           <AnimatePresence mode="wait">
+            {capacityTab === 'ANALYTICS' && (
+              <motion.div key="analytics" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                <AnalyticsDashboard />
+              </motion.div>
+            )}
             {capacityTab === 'FORECAST' && (
               <motion.div key="forecast" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
                 <CapacityCalendar />
