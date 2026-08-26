@@ -14,7 +14,7 @@ export function haversineKm(aLat: number, aLng: number, bLat: number, bLng: numb
 
 // Deterministic PRNG (mulberry32) so routes look consistent across re-renders
 // but vary between different order/location pairs.
-function mulberry32(seed: number) {
+export function mulberry32(seed: number) {
   let a = seed
   return () => {
     a |= 0

@@ -1,8 +1,9 @@
-import type { AppNotification, Driver, Order, Vehicle } from '../types'
+import type { AppNotification, CustomerProfile, Driver, DriverStats, Order, Vehicle } from '../types'
 import { getLocation } from './locations'
 import { buildRoutePath, evaluateRoute } from '../lib/geo'
 import { estimateDurationMin, estimateFare, genId } from '../lib/pricing'
 import { lookupFlight } from '../lib/flight'
+import { buildShiftSchedule } from '../lib/capacity'
 
 function iso(daysFromNow: number, hour: number, minute = 0): string {
   const d = new Date()
@@ -21,7 +22,7 @@ export const SEED_VEHICLES: Vehicle[] = [
   { id: 'veh-7', plate: 'AJX-1138', type: 'SUV', colorHex: '#fb923c', capacity: 5, driverId: 'drv-7' },
 ]
 
-const BASE_DRIVERS: Omit<Driver, 'status' | 'lat' | 'lng' | 'svgX' | 'svgY'>[] = [
+const BASE_DRIVERS: Omit<Driver, 'status' | 'lat' | 'lng' | 'svgX' | 'svgY' | 'stats' | 'shiftSchedule' | 'unresponsiveFlagUntil' | 'unresponsiveOrderNo'>[] = [
   {
     id: 'drv-1',
     name: 'Chih-Ming Chen',
@@ -136,6 +137,35 @@ const BASE_DRIVERS: Omit<Driver, 'status' | 'lat' | 'lng' | 'svgX' | 'svgY'>[] =
   },
 ]
 
+function buildDriverStats(driverId: string, completedTrips: number): DriverStats {
+  // Deterministic per-driver pseudo-random split so the numbers feel real
+  // but stay stable across reloads.
+  const seed = driverId.split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 9973, 7)
+  const declineRate = 0.03 + ((seed % 11) / 11) * 0.05
+  const missRate = 0.01 + ((seed % 7) / 7) * 0.03
+  const totalAllTime = completedTrips + Math.round(completedTrips * (declineRate + missRate))
+  const declinedAllTime = Math.round(totalAllTime * declineRate)
+  const missedAllTime = Math.round(totalAllTime * missRate)
+  const acceptedAllTime = Math.max(0, totalAllTime - declinedAllTime - missedAllTime)
+  const totalToday = 1 + (seed % 5)
+  const totalWeek = totalToday + 6 + (seed % 12)
+  const declinedToday = seed % 3 === 0 ? 1 : 0
+  const missedToday = seed % 5 === 0 ? 1 : 0
+  const acceptedToday = Math.max(0, totalToday - declinedToday - missedToday)
+
+  return {
+    totalAllTime,
+    totalToday,
+    totalWeek,
+    acceptedToday,
+    declinedToday,
+    missedToday,
+    acceptedAllTime,
+    declinedAllTime,
+    missedAllTime,
+  }
+}
+
 function buildOrderBase(params: {
   id: string
   orderNo: string
@@ -191,10 +221,92 @@ function buildOrderBase(params: {
     legProgress: 0,
     currentPos: null,
     pickedUpAt: null,
+    pendingDriverId: null,
+    dispatchAttempts: [],
+    escalationStage: 0,
+    unresponsiveDriverIds: [],
+    demoForceNoResponse: false,
   }
 }
 
-export function createSeedState(): { orders: Order[]; drivers: Driver[]; notifications: AppNotification[] } {
+function buildCustomerProfiles(): CustomerProfile[] {
+  const historyFor = (
+    entries: { pickupId: string; dropoffId: string; daysAgo: number; type: Order['type']; price: number; status?: 'COMPLETED' | 'CANCELLED' }[],
+  ) =>
+    entries.map((e, i) => ({
+      id: genId('hist'),
+      pickupName: getLocation(e.pickupId).name,
+      dropoffName: getLocation(e.dropoffId).name,
+      type: e.type,
+      scheduledTime: iso(-e.daysAgo, 9 + (i % 6)),
+      status: e.status ?? ('COMPLETED' as const),
+      priceEstimate: e.price,
+    }))
+
+  return [
+    {
+      id: 'cust-isabelle',
+      name: 'Isabelle Laurent',
+      phone: '+33 6 12 34 56 78',
+      email: 'isabelle.l@example.com',
+      memberSince: iso(-170, 9),
+      historicalOrders: historyFor([
+        { pickupId: 'tpe-airport', dropoffId: 'grand-hyatt', daysAgo: 168, type: 'AIRPORT_PICKUP', price: 1450 },
+        { pickupId: 'grand-hyatt', dropoffId: 'jiufen', daysAgo: 150, type: 'TOUR_CHARTER', price: 3800 },
+        { pickupId: 'ximending', dropoffId: 'tpe-airport', daysAgo: 132, type: 'AIRPORT_DROPOFF', price: 1500 },
+        { pickupId: 'tpe-airport', dropoffId: 'w-hotel', daysAgo: 94, type: 'AIRPORT_PICKUP', price: 1600 },
+        { pickupId: 'w-hotel', dropoffId: 'beitou', daysAgo: 80, type: 'TOUR_CHARTER', price: 2600 },
+        { pickupId: 'tpe-airport', dropoffId: 'ximending', daysAgo: 45, type: 'AIRPORT_PICKUP', price: 1450 },
+        { pickupId: 'ximending', dropoffId: 'yehliu', daysAgo: 30, type: 'TOUR_CHARTER', price: 3200 },
+        { pickupId: 'tpe-airport', dropoffId: 'grand-hyatt', daysAgo: 12, type: 'AIRPORT_PICKUP', price: 1450 },
+      ]),
+    },
+    {
+      id: 'cust-haruto',
+      name: 'Haruto Sasaki',
+      phone: '+81 90-1234-5678',
+      email: 'haruto.s@example.com',
+      memberSince: iso(-58, 9),
+      historicalOrders: historyFor([
+        { pickupId: 'tpe-airport', dropoffId: 'taipei-101', daysAgo: 56, type: 'AIRPORT_PICKUP', price: 1600 },
+        { pickupId: 'taipei-101', dropoffId: 'tpe-airport', daysAgo: 52, type: 'AIRPORT_DROPOFF', price: 1600 },
+      ]),
+    },
+    {
+      id: 'cust-marcus',
+      name: 'Marcus Webb',
+      phone: '+44 7700 900123',
+      email: 'marcus.webb@example.com',
+      memberSince: iso(-320, 9),
+      historicalOrders: historyFor([
+        { pickupId: 'tpe-airport', dropoffId: 'grand-hyatt', daysAgo: 300, type: 'AIRPORT_PICKUP', price: 2200 },
+        { pickupId: 'grand-hyatt', dropoffId: 'tpe-airport', daysAgo: 296, type: 'AIRPORT_DROPOFF', price: 2200 },
+        { pickupId: 'tpe-airport', dropoffId: 'taipei-main-station', daysAgo: 210, type: 'AIRPORT_PICKUP', price: 2000 },
+        { pickupId: 'taipei-main-station', dropoffId: 'neihu-business', daysAgo: 205, type: 'TOUR_CHARTER', price: 1400 },
+        { pickupId: 'neihu-business', dropoffId: 'tsa-airport', daysAgo: 202, type: 'AIRPORT_DROPOFF', price: 1100 },
+        { pickupId: 'tpe-airport', dropoffId: 'taipei-main-station', daysAgo: 90, type: 'AIRPORT_PICKUP', price: 2000 },
+        { pickupId: 'taipei-main-station', dropoffId: 'tpe-airport', daysAgo: 85, type: 'AIRPORT_DROPOFF', price: 2000 },
+        { pickupId: 'tpe-airport', dropoffId: 'w-hotel', daysAgo: 20, type: 'AIRPORT_PICKUP', price: 2100 },
+        { pickupId: 'w-hotel', dropoffId: 'tsa-airport', daysAgo: 16, type: 'AIRPORT_DROPOFF', price: 1300, status: 'CANCELLED' },
+      ]),
+    },
+    {
+      id: 'cust-sofia',
+      name: 'Sofia Alvarez',
+      phone: '+34 611 22 33 44',
+      email: 'sofia.a@example.com',
+      memberSince: iso(-20, 9),
+      historicalOrders: historyFor([{ pickupId: 'tpe-airport', dropoffId: 'taipei-101', daysAgo: 18, type: 'AIRPORT_PICKUP', price: 1600 }]),
+    },
+  ]
+}
+
+export function createSeedState(): {
+  orders: Order[]
+  drivers: Driver[]
+  notifications: AppNotification[]
+  customerProfiles: CustomerProfile[]
+} {
   const homeBaseIds = ['taipei-main-station', 'taipei-101', 'ximending', 'neihu-business']
 
   const drivers: Driver[] = BASE_DRIVERS.map((d, i) => {
@@ -208,6 +320,10 @@ export function createSeedState(): { orders: Order[]; drivers: Driver[]; notific
       svgX: homeLoc.svgX + (Math.random() - 0.5) * 40,
       svgY: homeLoc.svgY + (Math.random() - 0.5) * 40,
       vehicleId: vehicle.id,
+      stats: buildDriverStats(d.id, d.completedTrips),
+      shiftSchedule: buildShiftSchedule(d.id),
+      unresponsiveFlagUntil: null,
+      unresponsiveOrderNo: null,
     }
   })
 
@@ -383,5 +499,5 @@ export function createSeedState(): { orders: Order[]; drivers: Driver[]; notific
     },
   ]
 
-  return { orders, drivers, notifications }
+  return { orders, drivers, notifications, customerProfiles: buildCustomerProfiles() }
 }

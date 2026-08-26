@@ -2,6 +2,7 @@ export type OrderType = 'AIRPORT_PICKUP' | 'AIRPORT_DROPOFF' | 'TOUR_CHARTER'
 
 export type OrderStatus =
   | 'NEW'
+  | 'PENDING_DRIVER_RESPONSE'
   | 'ASSIGNED'
   | 'EN_ROUTE_TO_PICKUP'
   | 'ARRIVED_AT_PICKUP'
@@ -14,7 +15,45 @@ export type VehicleType = 'SEDAN' | 'SUV' | 'VAN' | 'LUXURY' | 'MINIBUS'
 
 export type DriverTier = 'OWNED_FLEET' | 'PAID_MEMBER' | 'OUTSIDE_CONTRACTOR'
 
-export type DriverStatus = 'AVAILABLE' | 'BUSY' | 'OFFLINE'
+export type DriverStatus = 'AVAILABLE' | 'PENDING_RESPONSE' | 'BUSY' | 'OFFLINE'
+
+/** Phase 2 multi-channel driver notification module. */
+export type NotificationChannel = 'IN_APP' | 'LINE' | 'EMAIL' | 'PHONE_CALL'
+
+export type DispatchAttemptStatus = 'AWAITING_RESPONSE' | 'ACCEPTED' | 'DECLINED' | 'TIMED_OUT'
+
+/** One escalation "rung" of the driver-notification ladder for a given order. */
+export interface DispatchAttempt {
+  id: string
+  orderId: string
+  stage: 1 | 2
+  driverId: string
+  driverName: string
+  channels: NotificationChannel[]
+  sentAt: number
+  respondBy: number
+  status: DispatchAttemptStatus
+  resolvedAt: number | null
+  simulateNoResponse: boolean
+}
+
+export interface ShiftDay {
+  date: string
+  shift: 'DAY' | 'NIGHT' | 'OFF'
+  adjusted?: boolean
+}
+
+export interface DriverStats {
+  totalAllTime: number
+  totalToday: number
+  totalWeek: number
+  acceptedToday: number
+  declinedToday: number
+  missedToday: number
+  acceptedAllTime: number
+  declinedAllTime: number
+  missedAllTime: number
+}
 
 export type BookingChannel = 'Website' | 'LINE@' | 'KKday' | 'Booking.com' | 'Klook' | 'Phone / Agent'
 
@@ -68,6 +107,10 @@ export interface Driver {
     license: DocumentRecord
     insurance: DocumentRecord
   }
+  stats: DriverStats
+  shiftSchedule: ShiftDay[]
+  unresponsiveFlagUntil: number | null
+  unresponsiveOrderNo: string | null
 }
 
 export interface Vehicle {
@@ -126,6 +169,13 @@ export interface Order {
   legProgress: number
   currentPos: { lat: number; lng: number; x: number; y: number } | null
   pickedUpAt: number | null
+
+  /** Multi-channel notification + escalation ladder audit trail (Phase 2). */
+  pendingDriverId: string | null
+  dispatchAttempts: DispatchAttempt[]
+  escalationStage: 0 | 1 | 2
+  unresponsiveDriverIds: string[]
+  demoForceNoResponse: boolean
 }
 
 export interface BookingInput {
@@ -150,4 +200,36 @@ export interface AppNotification {
   title: string
   message: string
   orderId?: string
+  channels?: NotificationChannel[]
+  driverId?: string
+}
+
+/** A completed/cancelled trip recorded against a customer for booking-frequency analytics. */
+export interface CustomerHistoryEntry {
+  id: string
+  pickupName: string
+  dropoffName: string
+  type: OrderType
+  scheduledTime: string
+  status: 'COMPLETED' | 'CANCELLED'
+  priceEstimate: number
+}
+
+export interface CustomerProfile {
+  id: string
+  name: string
+  phone: string
+  email: string
+  memberSince: string
+  historicalOrders: CustomerHistoryEntry[]
+}
+
+export interface CapacityDay {
+  date: string
+  orderCount: number
+  scheduledDrivers: number
+  onLeave: number
+  isPeak: boolean
+  isToday: boolean
+  isPast: boolean
 }

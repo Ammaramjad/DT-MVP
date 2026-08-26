@@ -94,6 +94,11 @@ export default function BookingPanel() {
       legProgress: 0,
       currentPos: null,
       pickedUpAt: null,
+      pendingDriverId: null,
+      dispatchAttempts: [],
+      escalationStage: 0,
+      unresponsiveDriverIds: [],
+      demoForceNoResponse: false,
     }),
     [channel, orderType, scheduledTime, name, phone, email, pickup, dropoff, vehicleType, passengers, luggage, notes, flightNumber, flightPreview, fare, routePreview, duration],
   )

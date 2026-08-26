@@ -57,6 +57,8 @@ export function orderStatusLabel(status: string): string {
   switch (status) {
     case 'NEW':
       return 'New'
+    case 'PENDING_DRIVER_RESPONSE':
+      return 'Notifying Driver'
     case 'ASSIGNED':
       return 'Assigned'
     case 'EN_ROUTE_TO_PICKUP':
@@ -74,6 +76,26 @@ export function orderStatusLabel(status: string): string {
     default:
       return status
   }
+}
+
+export function notificationChannelLabel(channel: string): string {
+  switch (channel) {
+    case 'IN_APP':
+      return 'In-App Push'
+    case 'LINE':
+      return 'LINE Message'
+    case 'EMAIL':
+      return 'Email'
+    case 'PHONE_CALL':
+      return 'Phone Call'
+    default:
+      return channel
+  }
+}
+
+export function countdownLabel(msRemaining: number): string {
+  const s = Math.max(0, Math.ceil(msRemaining / 1000))
+  return `${s}s`
 }
 
 export function driverTierLabel(tier: string): string {
