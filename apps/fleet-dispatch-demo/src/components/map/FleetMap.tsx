@@ -1,0 +1,86 @@
+import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
+import { useFleetStore } from '../../store/useFleetStore'
+import { LOCATIONS, MAP_CENTER } from '../../data/locations'
+import { vehicleDivIcon, pinDivIcon } from './mapIcons'
+import { TierBadge, StatusBadge } from '../ui/OrderBadges'
+import { driverTierLabel } from '../../lib/format'
+
+const TIER_COLOR: Record<string, string> = {
+  OWNED_FLEET: '#22d3ee',
+  PAID_MEMBER: '#a855f7',
+  OUTSIDE_CONTRACTOR: '#fbbf24',
+}
+
+export function FleetMap({ height = '100%' }: { height?: string | number }) {
+  const drivers = useFleetStore((s) => s.drivers)
+  const orders = useFleetStore((s) => s.orders)
+  const activeOrders = orders.filter((o) => !['COMPLETED', 'CANCELLED', 'NEW'].includes(o.status))
+
+  return (
+    <div style={{ height }} className="overflow-hidden rounded-2xl">
+      <MapContainer center={MAP_CENTER} zoom={11} className="h-full w-full" zoomControl={false} attributionControl={false}>
+        <TileLayer
+          className="map-tiles-dark"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          subdomains={['a', 'b', 'c']}
+        />
+
+        {LOCATIONS.map((loc) => (
+          <Marker key={loc.id} position={[loc.lat, loc.lng]} icon={pinDivIcon(loc.isAirport ? '#f472b6' : '#475569')}>
+            <Popup>
+              <div className="text-xs">
+                <p className="font-semibold">{loc.name}</p>
+                <p className="text-slate-400">{loc.nameZh}</p>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {activeOrders.map((order) => {
+          const path =
+            order.status === 'EN_ROUTE_TO_PICKUP' || order.status === 'ASSIGNED' ? order.routeToPickup : order.routeToDropoff
+          if (!path) return null
+          return (
+            <Polyline
+              key={`route-${order.id}`}
+              positions={path.points.map((p) => [p.lat, p.lng])}
+              pathOptions={{ color: '#22d3ee', weight: 3, opacity: 0.45, dashArray: '1 8' }}
+            />
+          )
+        })}
+
+        {drivers.map((driver) => {
+          const order = orders.find((o) => o.driverId === driver.id && !['COMPLETED', 'CANCELLED'].includes(o.status))
+          const isMoving = order?.status === 'EN_ROUTE_TO_PICKUP' || order?.status === 'IN_TRANSIT'
+          return (
+            <Marker
+              key={driver.id}
+              position={[driver.lat, driver.lng]}
+              icon={vehicleDivIcon(TIER_COLOR[driver.tier], { pulse: isMoving })}
+            >
+              <Popup>
+                <div className="min-w-[180px] text-xs">
+                  <p className="font-semibold text-slate-900">
+                    {driver.name} <span className="text-slate-500">· {driver.nameZh}</span>
+                  </p>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <TierBadge tier={driver.tier} />
+                  </div>
+                  <p className="mt-1 text-slate-500">{driverTierLabel(driver.tier)} · ⭐ {driver.rating.toFixed(1)}</p>
+                  {order ? (
+                    <div className="mt-2 border-t border-slate-200 pt-2">
+                      <p className="font-medium text-slate-800">Order {order.orderNo}</p>
+                      <div className="mt-1"><StatusBadge status={order.status} /></div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 border-t border-slate-200 pt-2 text-emerald-600">Available</p>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          )
+        })}
+      </MapContainer>
+    </div>
+  )
+}
