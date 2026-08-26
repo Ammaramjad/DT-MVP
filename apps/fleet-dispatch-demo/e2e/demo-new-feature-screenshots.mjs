@@ -12,7 +12,10 @@ const OUT = '/opt/cursor/artifacts'
 const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } })
 const wait = (ms) => page.waitForTimeout(ms)
+// Cross-app links now live inside the collapsed DemoModeSwitcher menu, so
+// open it first — it auto-closes again once a link is clicked.
 const nav = async (label) => {
+  await page.click('[data-testid="demo-switcher-toggle"]')
   await page.getByRole('link', { name: label, exact: false }).first().click()
   await wait(700)
 }

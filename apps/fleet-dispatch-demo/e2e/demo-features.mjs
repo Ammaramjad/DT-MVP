@@ -17,7 +17,10 @@ const browser = await chromium.launch({ headless: false, args: ['--window-positi
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } })
 
 const wait = (ms) => page.waitForTimeout(ms)
+// Cross-app links now live inside the collapsed DemoModeSwitcher menu, so
+// open it first — it auto-closes again once a link is clicked.
 const nav = async (label) => {
+  await page.click('[data-testid="demo-switcher-toggle"]')
   await page.getByRole('link', { name: label, exact: false }).first().click()
   await wait(700)
 }
@@ -115,9 +118,11 @@ console.log("11. Today's job list + updated stats…")
 await page.evaluate(() => window.scrollTo({ top: 500, behavior: 'instant' }))
 await wait(2200)
 
-console.log('12. Customer Tracking — live tracking view…')
-await nav('Track Ride')
+console.log('12. Customer App — live tracking view (Activity tab)…')
+await nav('Customer App')
 await wait(1000)
+await page.click('[data-testid="customer-tab-activity"]')
+await wait(400)
 const orderSelect = page.locator('[data-testid="customer-order-select"]')
 if (await orderSelect.count()) {
   const optValue = await orderSelect.locator('option', { hasText: orderNo }).first().getAttribute('value')
@@ -125,8 +130,7 @@ if (await orderSelect.count()) {
 }
 await wait(2400)
 
-console.log('13. Customer booking history / profile tab (new customer — first booking)…')
-await page.click('[data-testid="customer-tab-history"]')
+console.log('13. Customer booking history / profile (new customer — first booking)…')
 await wait(2400)
 
 console.log('14. Switching to a repeat customer to show booking-frequency analytics…')

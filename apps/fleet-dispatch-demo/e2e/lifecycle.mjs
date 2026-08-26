@@ -1,6 +1,6 @@
 // End-to-end lifecycle test: books a new order, watches it get auto-dispatched
 // in the Control Center, drives it through the Driver App, and confirms the
-// live state is mirrored in the Customer Tracking panel until completion.
+// live state is mirrored in the standalone Customer App until completion.
 // Requires the dev server to be running first: `npm run dev`.
 // Usage: node e2e/lifecycle.mjs [port]
 import { chromium } from 'playwright'
@@ -31,6 +31,15 @@ const shot = async (name) => {
 
 const log = (msg) => console.log(`\n=== ${msg} ===`)
 
+// All cross-app navigation must go through the in-SPA DemoModeSwitcher (not
+// page.goto) so the shared Zustand store state — the whole point of this
+// test — survives the "hop" between the three standalone apps.
+const gotoApp = async (routeSlug) => {
+  await page.click('[data-testid="demo-switcher-toggle"]')
+  await page.click(`[data-testid="demo-link-${routeSlug}"]`)
+  await page.waitForTimeout(400)
+}
+
 try {
   log('1. Open Booking Panel')
   await page.goto(BASE + '/booking', { waitUntil: 'networkidle' })
@@ -48,6 +57,13 @@ try {
   await page.fill('input[placeholder="+886 912-345-678"]', '+1 415-555-0142')
   await page.fill('input[placeholder="jane@example.com"]', 'emily.carter@example.com')
   await shot('02_booking_filled')
+
+  // Sanity check for the vehicle-photo-cropping fix: the SUV card's photo
+  // should render at its natural 3:2 aspect ratio with no crop, and the
+  // large preview panel should already reflect SEDAN (the default) before
+  // we even pick a different vehicle type.
+  const previewPhoto = page.locator('[data-testid="vehicle-preview-photo"]')
+  await previewPhoto.waitFor({ state: 'visible' })
 
   log('3. Submit booking')
   await page.click('button:has-text("Confirm Booking")')
@@ -96,12 +112,17 @@ try {
   console.log('Assigned driver:', driverName, driverId)
 
   log('7. Navigate to Driver App')
-  await page.click('a[href="/driver"]')
-  await page.waitForSelector('text=Driver App')
+  await gotoApp('driver')
+  await page.waitForSelector('[data-testid="driver-app-header"]')
   await page.waitForTimeout(500)
 
   if (driverId) {
+    // The demo driver switcher now lives on the Driver App's own Account tab
+    // (Uber-style tab bar), not directly on the home screen.
+    await page.click('[data-testid="driver-tab-account"]')
+    await page.waitForSelector('[data-testid="driver-select"]')
     await page.selectOption('[data-testid="driver-select"]', driverId)
+    await page.click('[data-testid="driver-tab-home"]')
     await page.waitForTimeout(500)
   }
   await shot('06_driver_panel_assigned_job')
@@ -112,20 +133,21 @@ try {
   await shot('07_driver_en_route')
 
   log('9. Switch to Control Center to see live fleet map movement')
-  await page.click('a[href="/control"]')
+  await gotoApp('control')
   await page.waitForTimeout(2000)
   await shot('08_control_center_vehicle_moving')
 
-  log('10. Switch to Customer Tracking to see mirrored live marker')
-  await page.click('a[href="/customer"]')
-  await page.waitForSelector('text=Track Your Ride')
+  log('10. Switch to the Customer App to see mirrored live marker')
+  await gotoApp('customer')
+  await page.waitForSelector('[data-testid="customer-app-shell"]')
+  await page.click('[data-testid="customer-tab-activity"]')
   await page.waitForTimeout(500)
-  await page.waitForSelector(`text=${orderNo}`)
+  await page.waitForSelector(`[data-testid="customer-current-trip"] >> text=${orderNo}`)
   await page.waitForTimeout(2000)
   await shot('09_customer_tracking_en_route')
 
   log('11. Back to driver app, wait for arrival')
-  await page.click('a[href="/driver"]')
+  await gotoApp('driver')
   await page.waitForSelector('button:has-text("Confirm Passenger Picked Up")', { timeout: 40000 })
   await shot('10_driver_arrived_at_pickup')
 
@@ -134,25 +156,27 @@ try {
   await page.waitForTimeout(2500)
   await shot('11_driver_in_transit')
 
-  log('13. Check customer tracking mirrors in-transit state')
-  await page.click('a[href="/customer"]')
+  log('13. Check Customer App activity feed mirrors in-transit state')
+  await gotoApp('customer')
+  await page.click('[data-testid="customer-tab-activity"]')
   await page.waitForTimeout(1500)
   await shot('12_customer_in_transit')
 
   log('14. Back to driver, wait for trip completion')
-  await page.click('a[href="/driver"]')
+  await gotoApp('driver')
   await page.waitForSelector('text=Trip Completed!', { timeout: 40000 })
   await shot('13_driver_trip_completed')
 
   log('15. Confirm control center shows order completed')
-  await page.click('a[href="/control"]')
+  await gotoApp('control')
   await page.click('button:has-text("Completed")')
   await page.waitForTimeout(800)
   await shot('14_control_center_completed')
 
-  log('16. Confirm customer tracking shows completed state')
-  await page.click('a[href="/customer"]')
-  await page.waitForSelector(`text=${orderNo}`)
+  log('16. Confirm Customer App activity feed shows completed state')
+  await gotoApp('customer')
+  await page.click('[data-testid="customer-tab-activity"]')
+  await page.waitForSelector(`[data-testid="customer-current-trip"] >> text=${orderNo}`)
   await page.waitForTimeout(1000)
   await shot('15_customer_completed')
 

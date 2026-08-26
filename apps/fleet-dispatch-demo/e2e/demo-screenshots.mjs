@@ -13,7 +13,10 @@ const OUT = '/opt/cursor/artifacts'
 const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } })
 const wait = (ms) => page.waitForTimeout(ms)
+// Cross-app links now live inside the collapsed DemoModeSwitcher menu, so
+// open it first — it auto-closes again once a link is clicked.
 const nav = async (label) => {
+  await page.click('[data-testid="demo-switcher-toggle"]')
   await page.getByRole('link', { name: label, exact: false }).first().click()
   await wait(700)
 }
@@ -102,14 +105,14 @@ await nav('Driver App')
 await wait(1000)
 await page.screenshot({ path: `${OUT}/screenshot_driver_app_stats_header.png` })
 
-console.log('Customer Tracking booking history…')
-await nav('Track Ride')
+console.log('Customer App — Activity tab booking history…')
+await nav('Customer App')
 await wait(1000)
+await page.click('[data-testid="customer-tab-activity"]')
+await wait(400)
 const custOrderSelect = page.locator('[data-testid="customer-order-select"]')
 const isabelleValue = await custOrderSelect.locator('option', { hasText: 'Isabelle Laurent' }).first().getAttribute('value')
 if (isabelleValue) await custOrderSelect.selectOption(isabelleValue)
-await wait(600)
-await page.click('[data-testid="customer-tab-history"]')
 await wait(1000)
 await page.screenshot({ path: `${OUT}/screenshot_customer_booking_history_profile.png` })
 
