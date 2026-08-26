@@ -8,7 +8,7 @@ import { RouteMapFallback } from './RouteMapFallback'
  * the client visually verify the dynamic-routing integration live. */
 function RouteSourceBadge({ order }: { order: Order }) {
   const activeLeg =
-    order.status === 'EN_ROUTE_TO_PICKUP' || order.status === 'ASSIGNED' || order.status === 'NEW'
+    order.status === 'DRIVER_EN_ROUTE' || order.status === 'ASSIGNED' || order.status === 'CONFIRMED'
       ? order.routeToPickup
       : order.routeToDropoff
   const source = (activeLeg ?? order.routeToDropoff)?.source

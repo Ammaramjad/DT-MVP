@@ -3,12 +3,12 @@ import { evaluateRoute } from '../../lib/geo'
 
 export function RouteMapFallback({ order, height = '100%' }: { order: Order; height?: string | number }) {
   const activeLeg =
-    order.status === 'EN_ROUTE_TO_PICKUP' || order.status === 'ASSIGNED' || order.status === 'NEW'
+    order.status === 'DRIVER_EN_ROUTE' || order.status === 'ASSIGNED' || order.status === 'CONFIRMED'
       ? order.routeToPickup
       : order.routeToDropoff
   const path = activeLeg ?? order.routeToDropoff
   const current = path ? evaluateRoute(path, order.legProgress) : null
-  const isMoving = order.status === 'EN_ROUTE_TO_PICKUP' || order.status === 'IN_TRANSIT'
+  const isMoving = order.status === 'DRIVER_EN_ROUTE' || order.status === 'PASSENGER_ONBOARD'
   const d = path ? path.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') : ''
 
   const xs = path ? path.points.map((p) => p.x) : [0]

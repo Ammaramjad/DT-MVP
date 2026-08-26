@@ -9,6 +9,7 @@ import {
   Phone,
   Plane,
   Power,
+  ShieldAlert,
   Star,
   Users,
 } from 'lucide-react'
@@ -30,7 +31,7 @@ import { formatClock, ticksToMinutesLabel } from '../lib/format'
 import { remainingDistanceKm } from '../lib/geo'
 import { useLang } from '../i18n'
 
-const ACTIVE_STATUSES = ['ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'PICKED_UP', 'IN_TRANSIT']
+const ACTIVE_STATUSES = ['ASSIGNED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'PASSENGER_ONBOARD']
 
 export default function DriverPanel() {
   const { t, lang } = useLang()
@@ -40,18 +41,21 @@ export default function DriverPanel() {
   const focusDriverId = useFleetStore((s) => s.focusDriverId)
   const setFocusDriver = useFleetStore((s) => s.setFocusDriver)
   const startTrip = useFleetStore((s) => s.startTrip)
-  const markPickedUp = useFleetStore((s) => s.markPickedUp)
+  const verifyPickupPin = useFleetStore((s) => s.verifyPickupPin)
+  const reportNoShow = useFleetStore((s) => s.reportNoShow)
   const setDriverAvailability = useFleetStore((s) => s.setDriverAvailability)
 
   const [tab, setTab] = useState<DriverTab>('HOME')
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null)
+  const [pinInput, setPinInput] = useState('')
+  const [pinError, setPinError] = useState(false)
 
   const activeDriverId = focusDriverId ?? drivers[0]?.id ?? null
   const driver = drivers.find((d) => d.id === activeDriverId) ?? drivers[0]
   const vehicle = vehicles.find((v) => v.id === driver?.vehicleId)
 
   const activeOrder = orders.find((o) => o.driverId === driver?.id && ACTIVE_STATUSES.includes(o.status))
-  const incomingRequest = orders.find((o) => o.status === 'PENDING_DRIVER_RESPONSE' && o.pendingDriverId === driver?.id)
+  const incomingRequest = orders.find((o) => o.status === 'DRIVER_MATCHING' && o.pendingDriverId === driver?.id)
 
   const recentlyCompleted = orders.find((o) => o.id === justCompletedId && o.status === 'COMPLETED')
 
@@ -63,15 +67,20 @@ export default function DriverPanel() {
   }, [activeOrder, recentlyCompleted])
 
   useEffect(() => {
-    if (activeOrder?.status === 'IN_TRANSIT' && activeOrder.legProgress > 0.85) {
+    if (activeOrder?.status === 'PASSENGER_ONBOARD' && activeOrder.legProgress > 0.85) {
       setJustCompletedId(activeOrder.id)
     }
   }, [activeOrder])
 
+  useEffect(() => {
+    setPinInput('')
+    setPinError(false)
+  }, [activeOrder?.id, activeOrder?.status])
+
   if (!driver) return null
 
   const activeLeg =
-    activeOrder?.status === 'EN_ROUTE_TO_PICKUP' || activeOrder?.status === 'ASSIGNED'
+    activeOrder?.status === 'DRIVER_EN_ROUTE' || activeOrder?.status === 'ASSIGNED'
       ? activeOrder.routeToPickup
       : activeOrder?.routeToDropoff
   const remainingKm = activeLeg ? remainingDistanceKm(activeLeg, activeOrder!.legProgress) : 0
@@ -131,7 +140,19 @@ export default function DriverPanel() {
                     remainingKm={remainingKm}
                     remainingTicks={remainingTicks}
                     onStart={() => startTrip(activeOrder.id)}
-                    onPickup={() => markPickedUp(activeOrder.id)}
+                    pinInput={pinInput}
+                    onPinChange={setPinInput}
+                    pinError={pinError}
+                    onVerifyPin={() => {
+                      const ok = verifyPickupPin(activeOrder.id, pinInput)
+                      if (!ok) {
+                        setPinError(true)
+                        window.setTimeout(() => setPinError(false), 1600)
+                      } else {
+                        setPinInput('')
+                      }
+                    }}
+                    onNoShow={() => reportNoShow(activeOrder.id)}
                   />
                 ) : (
                   <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-6 text-center">
@@ -221,13 +242,21 @@ function TripInProgress({
   remainingKm,
   remainingTicks,
   onStart,
-  onPickup,
+  pinInput,
+  onPinChange,
+  pinError,
+  onVerifyPin,
+  onNoShow,
 }: {
   order: Order
   remainingKm: number
   remainingTicks: number
   onStart: () => void
-  onPickup: () => void
+  pinInput: string
+  onPinChange: (v: string) => void
+  pinError: boolean
+  onVerifyPin: () => void
+  onNoShow: () => void
 }) {
   const { t, lang } = useLang()
   return (
@@ -283,26 +312,63 @@ function TripInProgress({
       </div>
 
       <div className="space-y-3 p-4">
-        {(order.status === 'EN_ROUTE_TO_PICKUP' || order.status === 'IN_TRANSIT') && (
+        {(order.status === 'DRIVER_EN_ROUTE' || order.status === 'PASSENGER_ONBOARD') && (
           <div>
             <div className="mb-1 flex items-center justify-between text-[11px] text-slate-400">
               <span className="flex items-center gap-1">
                 <Navigation className="h-3 w-3" />
-                {order.status === 'EN_ROUTE_TO_PICKUP' ? t('driver.drivingToPickup') : t('driver.drivingToDest')}
+                {order.status === 'DRIVER_EN_ROUTE' ? t('driver.drivingToPickup') : t('driver.drivingToDest')}
               </span>
               <span>{t('driver.kmEta', { km: remainingKm.toFixed(1), eta: ticksToMinutesLabel(remainingTicks, lang) })}</span>
             </div>
-            <ProgressBar progress={order.legProgress} tone={order.status === 'IN_TRANSIT' ? 'amber' : 'cyan'} />
+            <ProgressBar progress={order.legProgress} tone={order.status === 'PASSENGER_ONBOARD' ? 'amber' : 'cyan'} />
           </div>
         )}
 
-        <ActionButton status={order.status} onStart={onStart} onPickup={onPickup} />
+        {order.status === 'ARRIVED' && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3.5" data-testid="driver-pin-entry">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t('driver.enterPickupPin')}</p>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                value={pinInput}
+                onChange={(e) => onPinChange(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                inputMode="numeric"
+                maxLength={4}
+                data-testid="driver-pin-input"
+                placeholder="\u2022\u2022\u2022\u2022"
+                className={`w-full rounded-lg border bg-slate-950/60 px-3 py-2.5 text-center font-mono text-lg tracking-[0.5em] text-white outline-none ${
+                  pinError ? 'border-red-400/60 ring-2 ring-red-400/30' : 'border-white/10 focus:border-cyan-400/50'
+                }`}
+              />
+            </div>
+            {pinError && <p className="mt-1.5 text-[11px] text-red-300">{t('driver.pinIncorrect')}</p>}
+            <button
+              onClick={onNoShow}
+              data-testid="driver-report-no-show"
+              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-[11px] font-medium text-amber-300 hover:bg-amber-400/10"
+            >
+              <ShieldAlert className="h-3.5 w-3.5" /> {t('driver.reportNoShow')}
+            </button>
+          </div>
+        )}
+
+        <ActionButton status={order.status} onStart={onStart} onVerifyPin={onVerifyPin} pinReady={pinInput.length === 4} />
       </div>
     </motion.div>
   )
 }
 
-function ActionButton({ status, onStart, onPickup }: { status: string; onStart: () => void; onPickup: () => void }) {
+function ActionButton({
+  status,
+  onStart,
+  onVerifyPin,
+  pinReady,
+}: {
+  status: string
+  onStart: () => void
+  onVerifyPin: () => void
+  pinReady: boolean
+}) {
   const { t } = useLang()
   if (status === 'ASSIGNED') {
     return (
@@ -311,21 +377,21 @@ function ActionButton({ status, onStart, onPickup }: { status: string; onStart: 
       </Button>
     )
   }
-  if (status === 'ARRIVED_AT_PICKUP') {
+  if (status === 'ARRIVED') {
     return (
-      <Button fullWidth size="lg" variant="success" onClick={onPickup}>
+      <Button fullWidth size="lg" variant="success" onClick={onVerifyPin} disabled={!pinReady} data-testid="driver-verify-pin-button">
         <CheckCircle2 className="h-4 w-4" /> {t('driver.confirmPickup')}
       </Button>
     )
   }
-  if (status === 'EN_ROUTE_TO_PICKUP') {
+  if (status === 'DRIVER_EN_ROUTE') {
     return (
       <Button fullWidth size="lg" variant="secondary" disabled>
         {t('driver.arriving')}
       </Button>
     )
   }
-  if (status === 'IN_TRANSIT' || status === 'PICKED_UP') {
+  if (status === 'PASSENGER_ONBOARD') {
     return (
       <Button fullWidth size="lg" variant="secondary" disabled>
         {t('driver.enRouteDest')}

@@ -1,9 +1,15 @@
-import type { LocationRef } from '../types'
+import type { LocationRef, TaiwanRegion } from '../types'
 
 // Real-world approximate coordinates around Taipei / Taoyuan (Taiwan) so the
 // live Leaflet map looks geographically authentic. svgX/svgY place the same
 // locations on an abstract 1000x600 "stylized city" canvas used by the
-// offline SVG map fallback, so both renderers share one source of truth.
+// offline SVG map fallback (Taipei-metro focused, where the live simulation
+// actually animates), so both renderers share one source of truth. Locations
+// outside Greater Taipei/Taoyuan (Hsinchu southward) are placed off that
+// canvas — they're real, geographically-accurate points on the Leaflet map
+// and in the route-distance/fare math, but aren't expected to render on the
+// close-up stylized fallback map, which stays scoped to the live-simulated
+// metro area.
 export const LOCATIONS: LocationRef[] = [
   {
     id: 'tpe-airport',
@@ -15,6 +21,7 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 110,
     svgY: 470,
     isAirport: true,
+    region: 'TAOYUAN',
   },
   {
     id: 'tsa-airport',
@@ -26,6 +33,7 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 660,
     svgY: 150,
     isAirport: true,
+    region: 'TAIPEI',
   },
   {
     id: 'taipei-main-station',
@@ -37,6 +45,7 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 560,
     svgY: 300,
     isAirport: false,
+    region: 'TAIPEI',
   },
   {
     id: 'taipei-101',
@@ -48,6 +57,7 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 720,
     svgY: 370,
     isAirport: false,
+    region: 'TAIPEI',
   },
   {
     id: 'ximending',
@@ -59,6 +69,7 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 520,
     svgY: 340,
     isAirport: false,
+    region: 'TAIPEI',
   },
   {
     id: 'grand-hyatt',
@@ -70,6 +81,7 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 705,
     svgY: 350,
     isAirport: false,
+    region: 'TAIPEI',
   },
   {
     id: 'beitou',
@@ -81,6 +93,7 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 540,
     svgY: 90,
     isAirport: false,
+    region: 'TAIPEI',
   },
   {
     id: 'yehliu',
@@ -92,6 +105,7 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 880,
     svgY: 40,
     isAirport: false,
+    region: 'NEW_TAIPEI',
   },
   {
     id: 'jiufen',
@@ -103,6 +117,7 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 980,
     svgY: 140,
     isAirport: false,
+    region: 'NEW_TAIPEI',
   },
   {
     id: 'danshui',
@@ -114,6 +129,7 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 400,
     svgY: 60,
     isAirport: false,
+    region: 'NEW_TAIPEI',
   },
   {
     id: 'neihu-business',
@@ -125,6 +141,7 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 750,
     svgY: 230,
     isAirport: false,
+    region: 'TAIPEI',
   },
   {
     id: 'w-hotel',
@@ -136,6 +153,266 @@ export const LOCATIONS: LocationRef[] = [
     svgX: 715,
     svgY: 330,
     isAirport: false,
+    region: 'TAIPEI',
+  },
+  {
+    id: 'banqiao-station',
+    name: 'Banqiao Station',
+    nameZh: '板橋車站',
+    address: 'Xinzhan Rd, Banqiao Dist., New Taipei City',
+    lat: 25.0142,
+    lng: 121.4626,
+    svgX: 470,
+    svgY: 420,
+    isAirport: false,
+    region: 'NEW_TAIPEI',
+  },
+  {
+    id: 'tamsui-fisherman-wharf',
+    name: 'Fisherman\u2019s Wharf, Tamsui',
+    nameZh: '淡水漁人碼頭',
+    address: 'Tamsui Dist., New Taipei City',
+    lat: 25.1783,
+    lng: 121.4106,
+    svgX: 330,
+    svgY: 30,
+    isAirport: false,
+    region: 'NEW_TAIPEI',
+  },
+  {
+    id: 'taoyuan-hsr',
+    name: 'Taoyuan HSR Station',
+    nameZh: '高鐵桃園站',
+    address: 'Zhongping Rd, Zhongli Dist., Taoyuan City',
+    lat: 25.0011,
+    lng: 121.2158,
+    svgX: 60,
+    svgY: 540,
+    isAirport: false,
+    region: 'TAOYUAN',
+  },
+  {
+    id: 'xiaoying-national-baseball',
+    name: 'Taoyuan City Center',
+    nameZh: '桃園市區',
+    address: 'Zhongzheng Rd, Taoyuan Dist., Taoyuan City',
+    lat: 24.9936,
+    lng: 121.301,
+    svgX: 150,
+    svgY: 540,
+    isAirport: false,
+    region: 'TAOYUAN',
+  },
+
+  // --- Expanded Taiwan-wide coverage (client brief: Hsinchu, Taichung,
+  // Tainan, Kaohsiung, Hualien, Taitung, Nantou) — real geographic coordinates
+  // used for the Leaflet map, marketplace intercity routes, Fleet OS regional
+  // stats, and seeded historical/completed orders. Placed off the close-up
+  // Taipei-metro SVG fallback canvas (see file header) since they are not
+  // part of the live-animated simulation area.
+  {
+    id: 'hsinchu-hsr',
+    name: 'Hsinchu HSR Station',
+    nameZh: '高鐵新竹站',
+    address: 'Liujia Dist., Hsinchu County',
+    lat: 24.7838,
+    lng: 121.0407,
+    svgX: -160,
+    svgY: 620,
+    isAirport: false,
+    region: 'HSINCHU',
+  },
+  {
+    id: 'hsinchu-science-park',
+    name: 'Hsinchu Science Park',
+    nameZh: '新竹科學園區',
+    address: 'East Dist., Hsinchu City',
+    lat: 24.7875,
+    lng: 120.9977,
+    svgX: -200,
+    svgY: 640,
+    isAirport: false,
+    region: 'HSINCHU',
+  },
+  {
+    id: 'taichung-hsr',
+    name: 'Taichung HSR Station',
+    nameZh: '高鐵台中站',
+    address: 'Wuri Dist., Taichung City',
+    lat: 24.1121,
+    lng: 120.6151,
+    svgX: -420,
+    svgY: 760,
+    isAirport: false,
+    region: 'TAICHUNG',
+  },
+  {
+    id: 'taichung-gaomei-wetlands',
+    name: 'Gaomei Wetlands',
+    nameZh: '高美濕地',
+    address: 'Qingshui Dist., Taichung City',
+    lat: 24.2989,
+    lng: 120.5535,
+    svgX: -450,
+    svgY: 720,
+    isAirport: false,
+    region: 'TAICHUNG',
+  },
+  {
+    id: 'taichung-downtown',
+    name: 'Taichung City Center',
+    nameZh: '台中市區',
+    address: 'West Dist., Taichung City',
+    lat: 24.1477,
+    lng: 120.6736,
+    svgX: -400,
+    svgY: 780,
+    isAirport: false,
+    region: 'TAICHUNG',
+  },
+  {
+    id: 'sun-moon-lake',
+    name: 'Sun Moon Lake',
+    nameZh: '日月潭',
+    address: 'Yuchi Township, Nantou County',
+    lat: 23.8631,
+    lng: 120.9153,
+    svgX: -300,
+    svgY: 860,
+    isAirport: false,
+    region: 'NANTOU',
+  },
+  {
+    id: 'nantou-puli',
+    name: 'Puli Township',
+    nameZh: '南投埔里',
+    address: 'Puli Township, Nantou County',
+    lat: 23.9631,
+    lng: 120.9694,
+    svgX: -280,
+    svgY: 830,
+    isAirport: false,
+    region: 'NANTOU',
+  },
+  {
+    id: 'tainan-hsr',
+    name: 'Tainan HSR Station',
+    nameZh: '高鐵台南站',
+    address: 'Guiren Dist., Tainan City',
+    lat: 22.9253,
+    lng: 120.2856,
+    svgX: -560,
+    svgY: 980,
+    isAirport: false,
+    region: 'TAINAN',
+  },
+  {
+    id: 'tainan-anping',
+    name: 'Anping Old Fort',
+    nameZh: '安平古堡',
+    address: 'Anping Dist., Tainan City',
+    lat: 23.0011,
+    lng: 120.1611,
+    svgX: -610,
+    svgY: 940,
+    isAirport: false,
+    region: 'TAINAN',
+  },
+  {
+    id: 'kaohsiung-airport',
+    name: 'Kaohsiung Intl. Airport (KHH)',
+    nameZh: '高雄國際機場',
+    address: 'Xiaogang Dist., Kaohsiung City',
+    lat: 22.5771,
+    lng: 120.3497,
+    svgX: -580,
+    svgY: 1080,
+    isAirport: true,
+    region: 'KAOHSIUNG',
+  },
+  {
+    id: 'kaohsiung-hsr',
+    name: 'Kaohsiung Zuoying HSR Station',
+    nameZh: '高鐵左營站',
+    address: 'Zuoying Dist., Kaohsiung City',
+    lat: 22.6873,
+    lng: 120.3084,
+    svgX: -610,
+    svgY: 1040,
+    isAirport: false,
+    region: 'KAOHSIUNG',
+  },
+  {
+    id: 'kaohsiung-pier2',
+    name: 'Pier-2 Art Center',
+    nameZh: '駁二藝術特區',
+    address: 'Yancheng Dist., Kaohsiung City',
+    lat: 22.6193,
+    lng: 120.2822,
+    svgX: -630,
+    svgY: 1090,
+    isAirport: false,
+    region: 'KAOHSIUNG',
+  },
+  {
+    id: 'hualien-airport',
+    name: 'Hualien Airport (HUN)',
+    nameZh: '花蓮機場',
+    address: 'Xincheng Township, Hualien County',
+    lat: 24.0231,
+    lng: 121.6161,
+    svgX: 40,
+    svgY: 880,
+    isAirport: true,
+    region: 'HUALIEN',
+  },
+  {
+    id: 'taroko-gorge',
+    name: 'Taroko Gorge',
+    nameZh: '太魯閣峽谷',
+    address: 'Xiulin Township, Hualien County',
+    lat: 24.1588,
+    lng: 121.62,
+    svgX: 30,
+    svgY: 830,
+    isAirport: false,
+    region: 'HUALIEN',
+  },
+  {
+    id: 'hualien-city',
+    name: 'Hualien City',
+    nameZh: '花蓮市區',
+    address: 'Hualien City, Hualien County',
+    lat: 23.9769,
+    lng: 121.6044,
+    svgX: 50,
+    svgY: 910,
+    isAirport: false,
+    region: 'HUALIEN',
+  },
+  {
+    id: 'taitung-airport',
+    name: 'Taitung Airport (TTT)',
+    nameZh: '台東機場',
+    address: 'Taitung City, Taitung County',
+    lat: 22.7549,
+    lng: 121.1015,
+    svgX: -150,
+    svgY: 1120,
+    isAirport: true,
+    region: 'TAITUNG',
+  },
+  {
+    id: 'taitung-city',
+    name: 'Taitung City',
+    nameZh: '台東市區',
+    address: 'Taitung City, Taitung County',
+    lat: 22.7583,
+    lng: 121.1444,
+    svgX: -130,
+    svgY: 1140,
+    isAirport: false,
+    region: 'TAITUNG',
   },
 ]
 
@@ -148,5 +425,25 @@ export const getLocation = (id: string): LocationRef => {
 export const AIRPORTS = LOCATIONS.filter((l) => l.isAirport)
 export const NON_AIRPORTS = LOCATIONS.filter((l) => !l.isAirport)
 
+/** Greater-Taipei/Taoyuan locations that live inside the close-up SVG
+ * fallback canvas and take part in the live-animated simulation. */
+export const METRO_LOCATIONS = LOCATIONS.filter((l) => l.region === 'TAIPEI' || l.region === 'NEW_TAIPEI' || l.region === 'TAOYUAN')
+export const METRO_AIRPORTS = METRO_LOCATIONS.filter((l) => l.isAirport)
+export const METRO_NON_AIRPORTS = METRO_LOCATIONS.filter((l) => !l.isAirport)
+
+export const REGIONS: { key: TaiwanRegion; label: string; labelZh: string }[] = [
+  { key: 'TAIPEI', label: 'Taipei', labelZh: '台北' },
+  { key: 'NEW_TAIPEI', label: 'New Taipei', labelZh: '新北' },
+  { key: 'TAOYUAN', label: 'Taoyuan', labelZh: '桃園' },
+  { key: 'HSINCHU', label: 'Hsinchu', labelZh: '新竹' },
+  { key: 'TAICHUNG', label: 'Taichung', labelZh: '台中' },
+  { key: 'NANTOU', label: 'Nantou', labelZh: '南投' },
+  { key: 'TAINAN', label: 'Tainan', labelZh: '台南' },
+  { key: 'KAOHSIUNG', label: 'Kaohsiung', labelZh: '高雄' },
+  { key: 'HUALIEN', label: 'Hualien', labelZh: '花蓮' },
+  { key: 'TAITUNG', label: 'Taitung', labelZh: '台東' },
+]
+
 export const MAP_CENTER: [number, number] = [25.06, 121.46]
+export const TAIWAN_MAP_CENTER: [number, number] = [23.6, 120.9]
 export const SVG_VIEWBOX = { width: 1000, height: 600 }

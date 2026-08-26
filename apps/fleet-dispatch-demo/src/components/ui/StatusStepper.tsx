@@ -4,18 +4,20 @@ import type { OrderStatus } from '../../types'
 import { useLang } from '../../i18n'
 
 const STEPS: { key: OrderStatus; labelKey: string }[] = [
-  { key: 'NEW', labelKey: 'stepper.orderPlaced' },
+  { key: 'CONFIRMED', labelKey: 'stepper.orderPlaced' },
   { key: 'ASSIGNED', labelKey: 'stepper.driverAssigned' },
-  { key: 'EN_ROUTE_TO_PICKUP', labelKey: 'stepper.enRoute' },
-  { key: 'ARRIVED_AT_PICKUP', labelKey: 'stepper.arrived' },
-  { key: 'IN_TRANSIT', labelKey: 'stepper.inTransit' },
+  { key: 'DRIVER_EN_ROUTE', labelKey: 'stepper.enRoute' },
+  { key: 'ARRIVED', labelKey: 'stepper.arrived' },
+  { key: 'PASSENGER_ONBOARD', labelKey: 'stepper.inTransit' },
   { key: 'COMPLETED', labelKey: 'stepper.completed' },
 ]
 
+const PRE_CONFIRMED_STATUSES = new Set<OrderStatus>(['DRAFT', 'PENDING_PAYMENT', 'PAID', 'SUPPLIER_PENDING', 'DRIVER_MATCHING'])
+
 export function StatusStepper({ status }: { status: OrderStatus }) {
   const { t } = useLang()
-  const normalized = status === 'PENDING_DRIVER_RESPONSE' ? 'NEW' : status
-  const effectiveIndex = STEPS.findIndex((s) => s.key === normalized || (s.key === 'IN_TRANSIT' && normalized === 'PICKED_UP'))
+  const normalized = PRE_CONFIRMED_STATUSES.has(status) ? 'CONFIRMED' : status
+  const effectiveIndex = STEPS.findIndex((s) => s.key === normalized)
   const currentIndex = effectiveIndex === -1 ? 0 : effectiveIndex
 
   return (

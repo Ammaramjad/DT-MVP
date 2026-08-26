@@ -51,14 +51,14 @@ export function ActivityScreen({
     return () => window.clearTimeout(timer)
   }, [messaged])
 
-  const isDispatched = !['NEW', 'PENDING_DRIVER_RESPONSE', 'CANCELLED'].includes(order.status)
+  const isDispatched = !['NEW', 'DRIVER_MATCHING', 'CANCELLED'].includes(order.status)
   const isDone = order.status === 'COMPLETED'
   const isCancelled = order.status === 'CANCELLED'
-  const isPendingDriver = order.status === 'PENDING_DRIVER_RESPONSE'
+  const isPendingDriver = order.status === 'DRIVER_MATCHING'
   const activeAttempt = order.dispatchAttempts[order.dispatchAttempts.length - 1]
 
   const activeLeg =
-    order.status === 'EN_ROUTE_TO_PICKUP' || order.status === 'ASSIGNED' || order.status === 'NEW' ? order.routeToPickup : order.routeToDropoff
+    order.status === 'DRIVER_EN_ROUTE' || order.status === 'ASSIGNED' || order.status === 'CONFIRMED' ? order.routeToPickup : order.routeToDropoff
   const remainingKm = activeLeg ? remainingDistanceKm(activeLeg, order.legProgress) : order.distanceKm
   const remainingTicks = activeLeg ? activeLeg.durationTicks * (1 - order.legProgress) : 0
 
@@ -104,7 +104,7 @@ export function ActivityScreen({
           </div>
         )}
 
-        {order.status === 'NEW' && (
+        {order.status === 'CONFIRMED' && (
           <div className="mt-4 rounded-xl bg-amber-50 p-4 text-center text-sm text-amber-600">{t('customer.orderReceived')}</div>
         )}
 
@@ -178,10 +178,10 @@ export function ActivityScreen({
           </div>
         )}
 
-        {(order.status === 'EN_ROUTE_TO_PICKUP' || order.status === 'IN_TRANSIT') && (
+        {(order.status === 'DRIVER_EN_ROUTE' || order.status === 'PASSENGER_ONBOARD') && (
           <div className="mt-4 flex items-center justify-between rounded-xl bg-blue-50 p-3.5">
             <div>
-              <p className="text-xs text-blue-500">{order.status === 'EN_ROUTE_TO_PICKUP' ? t('customer.arrivingIn') : t('customer.arrivingDestIn')}</p>
+              <p className="text-xs text-blue-500">{order.status === 'DRIVER_EN_ROUTE' ? t('customer.arrivingIn') : t('customer.arrivingDestIn')}</p>
               <p className="text-lg font-bold text-blue-700">{ticksToMinutesLabel(remainingTicks, lang)}</p>
             </div>
             <div className="text-right text-xs text-blue-500">{t('customer.kmRemaining', { km: remainingKm.toFixed(1) })}</div>

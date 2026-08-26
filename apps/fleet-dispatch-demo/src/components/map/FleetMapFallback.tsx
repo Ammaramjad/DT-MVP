@@ -30,7 +30,7 @@ export function FleetMapFallback({ height = '100%' }: { height?: string | number
   const { lang } = useLang()
   const drivers = useFleetStore((s) => s.drivers)
   const orders = useFleetStore((s) => s.orders)
-  const activeOrders = orders.filter((o) => !['COMPLETED', 'CANCELLED', 'NEW'].includes(o.status))
+  const activeOrders = orders.filter((o) => !['COMPLETED', 'CANCELLED', 'CONFIRMED'].includes(o.status))
 
   return (
     <div style={{ height }} className="relative overflow-hidden rounded-2xl bg-[#070b18]">
@@ -69,7 +69,7 @@ export function FleetMapFallback({ height = '100%' }: { height?: string | number
 
         {activeOrders.map((order) => {
           const path =
-            order.status === 'EN_ROUTE_TO_PICKUP' || order.status === 'ASSIGNED' ? order.routeToPickup : order.routeToDropoff
+            order.status === 'DRIVER_EN_ROUTE' || order.status === 'ASSIGNED' ? order.routeToPickup : order.routeToDropoff
           if (!path) return null
           const d = path.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
           return <path key={order.id} d={d} fill="none" stroke="#22d3ee" strokeWidth={2} strokeDasharray="2 8" opacity={0.6} />
@@ -92,7 +92,7 @@ export function FleetMapFallback({ height = '100%' }: { height?: string | number
 
         {drivers.map((driver) => {
           const order = orders.find((o) => o.driverId === driver.id && !['COMPLETED', 'CANCELLED'].includes(o.status))
-          const isMoving = order?.status === 'EN_ROUTE_TO_PICKUP' || order?.status === 'IN_TRANSIT'
+          const isMoving = order?.status === 'DRIVER_EN_ROUTE' || order?.status === 'PASSENGER_ONBOARD'
           const isFlagged = !!driver.unresponsiveFlagUntil && driver.unresponsiveFlagUntil > Date.now()
           const color = isFlagged ? '#ef4444' : TIER_COLOR[driver.tier]
           return (

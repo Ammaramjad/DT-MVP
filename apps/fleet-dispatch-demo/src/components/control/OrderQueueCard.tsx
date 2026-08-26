@@ -23,7 +23,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
   const activeAttempt = order.dispatchAttempts[order.dispatchAttempts.length - 1]
   const lastUnresponsiveId = order.unresponsiveDriverIds[order.unresponsiveDriverIds.length - 1]
   const lastUnresponsiveDriver = drivers.find((d) => d.id === lastUnresponsiveId)
-  const isFreshArrival = order.status === 'NEW' && Date.now() - order.createdAt < 3200
+  const isFreshArrival = order.status === 'CONFIRMED' && Date.now() - order.createdAt < 3200
 
   const pickupName = lang === 'zh' ? order.pickup.nameZh : order.pickup.name
   const dropoffName = lang === 'zh' ? order.dropoff.nameZh : order.dropoff.name
@@ -96,7 +96,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
         </div>
       )}
 
-      {order.status === 'PENDING_DRIVER_RESPONSE' && pendingDriver && activeAttempt && (
+      {order.status === 'DRIVER_MATCHING' && pendingDriver && activeAttempt && (
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -118,7 +118,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
         </motion.div>
       )}
 
-      {order.status === 'NEW' && lastUnresponsiveDriver && (
+      {order.status === 'CONFIRMED' && lastUnresponsiveDriver && (
         <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-2.5 flex items-center gap-2 rounded-lg border border-red-400/30 bg-red-400/[0.08] px-2.5 py-2 text-[11px] text-red-300">
           <AlertOctagon className="h-3.5 w-3.5 shrink-0" />
           <span>{t('control.unresponsiveBanner', { name: lastUnresponsiveDriver.name })}</span>
@@ -129,7 +129,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
       <StatusHistoryTimeline history={order.statusHistory} />
 
       <div className="mt-2.5 flex items-center justify-between border-t border-white/5 pt-2.5">
-        {order.status === 'NEW' && suggestedDriver ? (
+        {order.status === 'CONFIRMED' && suggestedDriver ? (
           <div className="flex w-full items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
               <Wand2 className="h-3 w-3 text-purple-300" />
@@ -147,7 +147,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
               <Zap className="h-3 w-3" /> {lastUnresponsiveDriver ? t('control.reassign') : t('control.assign')}
             </Button>
           </div>
-        ) : order.status === 'NEW' ? (
+        ) : order.status === 'CONFIRMED' ? (
           <span className="text-[11px] text-red-400">{t('control.noAvailableDriver')}</span>
         ) : assignedDriver ? (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
@@ -158,7 +158,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
           <span className="text-[11px] text-slate-500">—</span>
         )}
 
-        {(order.status === 'NEW' || order.status === 'ASSIGNED') && (
+        {(order.status === 'CONFIRMED' || order.status === 'ASSIGNED') && (
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -172,7 +172,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
         )}
       </div>
 
-      {(order.status === 'NEW' || order.status === 'PENDING_DRIVER_RESPONSE') && (
+      {(order.status === 'CONFIRMED' || order.status === 'DRIVER_MATCHING') && (
         <button
           data-testid="demo-no-response-toggle"
           onClick={(e) => {

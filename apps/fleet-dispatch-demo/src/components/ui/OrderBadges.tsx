@@ -29,20 +29,29 @@ export function OrderTypeBadge({ type }: { type: Order['type'] }) {
 }
 
 const STATUS_TONE: Record<OrderStatus, 'cyan' | 'purple' | 'pink' | 'amber' | 'lime' | 'slate' | 'red' | 'green'> = {
-  NEW: 'amber',
-  PENDING_DRIVER_RESPONSE: 'pink',
+  DRAFT: 'slate',
+  PENDING_PAYMENT: 'amber',
+  PAID: 'lime',
+  SUPPLIER_PENDING: 'amber',
+  CONFIRMED: 'cyan',
+  DRIVER_MATCHING: 'pink',
   ASSIGNED: 'cyan',
-  EN_ROUTE_TO_PICKUP: 'purple',
-  ARRIVED_AT_PICKUP: 'pink',
-  PICKED_UP: 'pink',
-  IN_TRANSIT: 'purple',
+  DRIVER_EN_ROUTE: 'purple',
+  ARRIVED: 'pink',
+  PASSENGER_ONBOARD: 'purple',
   COMPLETED: 'green',
+  CANCELLATION_REQUESTED: 'amber',
   CANCELLED: 'red',
+  REFUND_PENDING: 'amber',
+  REFUNDED: 'slate',
+  FAILED: 'red',
 }
+
+const PULSE_STATUSES = new Set<OrderStatus>(['DRIVER_EN_ROUTE', 'PASSENGER_ONBOARD', 'DRIVER_MATCHING', 'CONFIRMED', 'SUPPLIER_PENDING', 'CANCELLATION_REQUESTED', 'REFUND_PENDING'])
 
 export function StatusBadge({ status }: { status: OrderStatus }) {
   const { lang } = useLang()
-  const pulse = status === 'EN_ROUTE_TO_PICKUP' || status === 'IN_TRANSIT' || status === 'NEW' || status === 'PENDING_DRIVER_RESPONSE'
+  const pulse = PULSE_STATUSES.has(status)
   return (
     <Badge tone={STATUS_TONE[status]} pulse={pulse}>
       {orderStatusLabel(status, lang)}
@@ -55,6 +64,7 @@ const CHANNEL_ICON: Record<NotificationChannel, typeof Bell> = {
   LINE: MessageCircle,
   EMAIL: Mail,
   PHONE_CALL: PhoneCall,
+  SMS: MessageCircle,
 }
 
 const CHANNEL_TONE: Record<NotificationChannel, 'cyan' | 'green' | 'purple' | 'amber'> = {
@@ -62,6 +72,7 @@ const CHANNEL_TONE: Record<NotificationChannel, 'cyan' | 'green' | 'purple' | 'a
   LINE: 'green',
   EMAIL: 'purple',
   PHONE_CALL: 'amber',
+  SMS: 'green',
 }
 
 export function ChannelBadge({ channel, compact = false }: { channel: NotificationChannel; compact?: boolean }) {

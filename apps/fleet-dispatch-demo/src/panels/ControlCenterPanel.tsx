@@ -55,15 +55,15 @@ export default function ControlCenterPanel() {
     const sorted = [...orders].sort((a, b) => b.createdAt - a.createdAt)
     switch (filter) {
       case 'NEW':
-        return sorted.filter((o) => o.status === 'NEW')
+        return sorted.filter((o) => o.status === 'CONFIRMED')
       case 'IN_PROGRESS':
         return sorted.filter((o) =>
-          ['PENDING_DRIVER_RESPONSE', 'ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'PICKED_UP', 'IN_TRANSIT'].includes(o.status),
+          ['DRIVER_MATCHING', 'ASSIGNED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'PASSENGER_ONBOARD'].includes(o.status),
         )
       case 'COMPLETED':
-        return sorted.filter((o) => o.status === 'COMPLETED' || o.status === 'CANCELLED')
+        return sorted.filter((o) => o.status === 'COMPLETED' || o.status === 'CANCELLED' || o.status === 'REFUNDED' || o.status === 'FAILED')
       case 'ACTIVE':
-        return sorted.filter((o) => !['COMPLETED', 'CANCELLED'].includes(o.status))
+        return sorted.filter((o) => !['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED'].includes(o.status))
       default:
         return sorted
     }

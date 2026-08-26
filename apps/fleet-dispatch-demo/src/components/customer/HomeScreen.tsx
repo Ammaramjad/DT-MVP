@@ -29,7 +29,7 @@ export function HomeScreen({
   const navigate = useNavigate()
 
   const activeLeg =
-    activeOrder && (activeOrder.status === 'EN_ROUTE_TO_PICKUP' || activeOrder.status === 'ASSIGNED' || activeOrder.status === 'NEW')
+    activeOrder && (activeOrder.status === 'DRIVER_EN_ROUTE' || activeOrder.status === 'ASSIGNED' || activeOrder.status === 'CONFIRMED')
       ? activeOrder.routeToPickup
       : activeOrder?.routeToDropoff
   const remainingTicks = activeOrder && activeLeg ? activeLeg.durationTicks * (1 - activeOrder.legProgress) : 0
@@ -90,7 +90,7 @@ export function HomeScreen({
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-2 text-sm font-bold">
-              {activeOrder.status === 'PENDING_DRIVER_RESPONSE' || activeOrder.status === 'NEW'
+              {activeOrder.status === 'DRIVER_MATCHING' || activeOrder.status === 'CONFIRMED'
                 ? t('customer.home.activeTripWaiting')
                 : t('customer.home.activeTripTitle')}
             </span>

@@ -16,7 +16,7 @@ export function FleetMap({ height = '100%' }: { height?: string | number }) {
   const { t, lang } = useLang()
   const drivers = useFleetStore((s) => s.drivers)
   const orders = useFleetStore((s) => s.orders)
-  const activeOrders = orders.filter((o) => !['COMPLETED', 'CANCELLED', 'NEW'].includes(o.status))
+  const activeOrders = orders.filter((o) => !['COMPLETED', 'CANCELLED', 'CONFIRMED'].includes(o.status))
 
   return (
     <div style={{ height }} className="overflow-hidden rounded-2xl">
@@ -40,7 +40,7 @@ export function FleetMap({ height = '100%' }: { height?: string | number }) {
 
         {activeOrders.map((order) => {
           const path =
-            order.status === 'EN_ROUTE_TO_PICKUP' || order.status === 'ASSIGNED' ? order.routeToPickup : order.routeToDropoff
+            order.status === 'DRIVER_EN_ROUTE' || order.status === 'ASSIGNED' ? order.routeToPickup : order.routeToDropoff
           if (!path) return null
           return (
             <Polyline
@@ -53,7 +53,7 @@ export function FleetMap({ height = '100%' }: { height?: string | number }) {
 
         {drivers.map((driver) => {
           const order = orders.find((o) => o.driverId === driver.id && !['COMPLETED', 'CANCELLED'].includes(o.status))
-          const isMoving = order?.status === 'EN_ROUTE_TO_PICKUP' || order?.status === 'IN_TRANSIT'
+          const isMoving = order?.status === 'DRIVER_EN_ROUTE' || order?.status === 'PASSENGER_ONBOARD'
           const isFlagged = !!driver.unresponsiveFlagUntil && driver.unresponsiveFlagUntil > Date.now()
           return (
             <Marker

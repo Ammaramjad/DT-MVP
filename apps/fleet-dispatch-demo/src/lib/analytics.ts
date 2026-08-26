@@ -24,14 +24,16 @@ export interface DailyAnalytics {
   byType: Record<OrderType, number>
 }
 
-const ORDER_TYPES: OrderType[] = ['AIRPORT_PICKUP', 'AIRPORT_DROPOFF', 'TOUR_CHARTER']
+const ORDER_TYPES: OrderType[] = ['AIRPORT_PICKUP', 'AIRPORT_DROPOFF', 'TOUR_CHARTER', 'INTERCITY_TRANSFER', 'HOURLY_CHARTER']
 
 // Relative demand weights — airport pickups/drop-offs dominate an airport
-// transfer fleet, tour charters are the smaller "extra" revenue line.
+// transfer fleet, tour charters/intercity/hourly are the smaller "extra" revenue lines.
 const ORDER_TYPE_WEIGHTS: Record<OrderType, number> = {
-  AIRPORT_PICKUP: 0.42,
-  AIRPORT_DROPOFF: 0.36,
-  TOUR_CHARTER: 0.22,
+  AIRPORT_PICKUP: 0.36,
+  AIRPORT_DROPOFF: 0.3,
+  TOUR_CHARTER: 0.14,
+  INTERCITY_TRANSFER: 0.12,
+  HOURLY_CHARTER: 0.08,
 }
 
 const VEHICLE_WEIGHTS: Record<VehicleType, number> = {
@@ -232,6 +234,8 @@ export function buildOrderTypeBreakdown(days: DailyAnalytics[]): OrderTypeBreakd
     AIRPORT_PICKUP: { orders: 0, revenue: 0 },
     AIRPORT_DROPOFF: { orders: 0, revenue: 0 },
     TOUR_CHARTER: { orders: 0, revenue: 0 },
+    INTERCITY_TRANSFER: { orders: 0, revenue: 0 },
+    HOURLY_CHARTER: { orders: 0, revenue: 0 },
   }
   for (const d of days) {
     const revenueByType = d.revenue / Math.max(1, d.orders)
