@@ -98,6 +98,98 @@ All of this is deterministic (seeded with `mulberry32`) so numbers stay stable a
 real operational data, and it's wired into the same KPI row (`Unassigned`, `Anomalies`, `On Leave Today`) at the top
 of the panel.
 
+## Bilingual UI: English + 繁體中文
+
+The whole app is bilingual — every user-facing string across all 5 panels/routes is translated into natural,
+professional Traditional Chinese (not machine-literal), using terminology consistent with the client's own blueprint
+(機場接送, 派車, 司機, 訂單, 即時位置, 車隊, etc.). The brand name 走瘋派車 is kept as-is in both languages.
+
+- **How it works**: a lightweight custom i18n layer (no `react-i18next` dependency needed) — `src/i18n/translations.ts`
+  holds a flat, dot-namespaced `{ en: {...}, zh: {...} }` dictionary with `{varName}` placeholder interpolation,
+  `src/i18n/LanguageContext.tsx` provides a `LanguageProvider` + `useLang()` hook (`{ t, lang, setLang }`) that wraps
+  the whole app in `App.tsx`. Every component calls `useLang()` directly rather than having `lang` prop-drilled
+  through the tree.
+- **Switching languages**: a visible `EN` / `中文` toggle sits in the persistent bottom nav bar
+  (`PersonaSwitcher`, `data-testid="language-switcher"`), reachable from every panel. The current language is
+  written to `localStorage` (`fleet-dispatch-lang`) on every change and re-read on load, so it survives a full page
+  refresh and stays consistent as you navigate between routes (confirmed live in
+  `e2e/demo-i18n-vehicles.mjs`).
+- Location names, driver/customer names, weekday labels, dates, relative time, and coupon descriptions all carry a
+  parallel `nameZh`/`descriptionZh` field and are chosen at render time based on the active language, so switching
+  languages mid-session re-labels real data (not just static UI chrome) everywhere it appears.
+
+## Realistic vehicle fleet
+
+Every vehicle shown in the app is a real-sounding **make + model** entry from a small catalog
+(`src/data/vehicleCatalog.ts`), not a generic/emoji placeholder:
+
+| Type | Brand & model | Seats |
+|---|---|---|
+| Sedan | Toyota Camry | up to 3 |
+| SUV | Honda CR-V | up to 5 |
+| Van / MPV | Toyota Hiace | up to 7 |
+| Luxury Sedan | Mercedes-Benz E-Class | up to 3 |
+| Tour Coach | Toyota Coaster | up to 12 |
+
+Each entry has a clean, three-quarter-angle studio-style product photo — generated once with Cursor's `GenerateImage`
+tool (white/neutral background, consistent style across the set, so there are no stock-photo licensing concerns and
+the demo works fully offline/reproducibly) and checked into `src/assets/vehicles/`. The shared `VehicleCard`
+component (`src/components/vehicles/VehicleCard.tsx`) renders the photo + localized type label + brand/model +
+seating capacity, and is reused in all three places the client asked for:
+
+- the **Booking panel**'s vehicle-type selector,
+- the **Driver App**'s "My Vehicle" card, and
+- the **Control Center**'s Fleet Roster tab (one card per driver's assigned vehicle).
+
+## Dynamic, road-snapped map routes
+
+Routes between pickup and drop-off are now genuine road-following paths, not straight-line/synthetic waypoint
+interpolation:
+
+- `src/lib/routing.ts` calls the free, no-API-key **OSRM public demo server**
+  (`https://router.project-osrm.org/route/v1/driving/...`) once per distinct pickup/drop-off pair, requesting a full
+  GeoJSON geometry. The result is cached in-memory (`getCachedRoute` / `resolveDynamicRoute`) so any later order
+  between the same two points reuses the same fetch instantly, and de-dupes concurrent requests for the same pair.
+- Because the interactive maps are drawn on a stylized SVG canvas (not raw lat/lng), a similarity transform
+  (`buildSimilarityTransform`) is derived from each leg's two known geo↔canvas endpoint pairs, so every intermediate
+  OSRM coordinate can be projected onto the same canvas the synthetic curves use — both renderers stay driven by the
+  exact same real polyline.
+- **Fallback**: if the routing service is unreachable (timeout, network error, offline sandbox), `fetchOsrmRoute`
+  resolves to `null` instead of throwing, and every caller falls back to the existing synthetic Catmull-Rom curve
+  generator in `src/lib/geo.ts` — so the demo never breaks. A small `RouteSourceBadge` overlay on every route map
+  (`data-testid="route-source-badge"`, `data-source="OSRM"|"SYNTHETIC"`) makes it possible to see at a glance (and to
+  assert in tests) which path source is actually active. For QA, `window.__setRoutingOffline(true)` (exposed by
+  `routing.ts`) forces the synthetic fallback on demand without needing to sever real network access.
+- The resolved OSRM route is used for both the **static preview map** (the Booking panel resolves/upgrades to OSRM
+  live as the customer picks locations) and the **live-tracking marker's path** for the order once it's created
+  (`useFleetStore`'s `scheduleRouteHydration` re-resolves and hot-swaps in the real route the moment it's ready,
+  with zero risk to the synchronous booking flow if the network is slow).
+
+## OTA-plan enrichment (judiciously scoped)
+
+From the broader Transport OTA implementation plan, a few concrete, judgment-scoped depth items were added because
+they reinforce the single-fleet dispatch story without diluting it:
+
+- **Itemized fare breakdown** — the Booking panel and every order now carry a `FareBreakdown` (base fare + distance
+  cost + time cost + airport surcharge + waiting fee → subtotal → coupon discount → total), shown to the customer
+  at quotation time rather than a single opaque number (`src/lib/pricing.ts`).
+- **Quotation expiry/versioning** — each quote has a `quotedAt` timestamp and a `quotationVersion` counter that
+  increments whenever the trip's pickup/drop-off/vehicle type changes; a live countdown (`data-testid="quote-countdown"`)
+  shows time remaining and disables booking once the quote expires, with a one-click "refresh quote" action.
+- **Status history / audit timeline** — every order carries a `statusHistory: StatusHistoryEntry[]` (status, actor,
+  timestamp) appended on every transition, rendered as a collapsible **Status Audit Timeline** on each order card in
+  the Control Center (`src/components/control/StatusHistoryTimeline.tsx`, `data-testid="status-history"`).
+- **QR-code e-voucher** — after a booking is confirmed, a client-side QR code (via `qrcode.react`, no server needed)
+  encoding the order number, pickup/drop-off, and scheduled time is shown as the customer's "ticket," alongside a
+  simple printable trip-sheet summary (also available from the "My Bookings" → Voucher tab in Customer Tracking).
+- **Coupon / promo codes** — a coupon field at checkout validates against a couple of seeded demo codes
+  (`FLYHIGH10` = 10% off, `NT100OFF` / `WELCOME50` = fixed NT$ off) and applies the discount to the fare breakdown
+  client-side.
+
+Deliberately **not** added, per the client's own exclusion list (this is a single-fleet ground-transport dispatch
+demo, not a multi-category OTA): member registration/login, hotels/attractions, multi-supplier/multi-currency,
+native app links, loyalty points, or a separate supplier portal.
+
 ## Tech stack
 
 - **Vite + React 19 + TypeScript**
@@ -110,6 +202,11 @@ of the panel.
 - **react-leaflet + OpenStreetMap tiles** for real maps (no API key required). If tile access is unavailable, the
   app automatically falls back to a fully offline, stylized SVG/canvas map (`FleetMapFallback` /
   `RouteMapFallback`) so the demo always looks intentional and keeps working — see `useMapHealthCheck`.
+- **OSRM public demo server** for real, road-snapped route geometry between pickup/drop-off, with an automatic
+  fallback to the app's own synthetic route generator if it's unreachable (see "Dynamic, road-snapped map routes"
+  above).
+- **`qrcode.react`** for client-side QR-code e-voucher generation (no server/backend needed).
+- A lightweight custom **i18n context** (`src/i18n/`) for the English / 繁體中文 bilingual UI (see above).
 
 ## Running it
 
@@ -140,13 +237,16 @@ waits for a real driver to accept the dispatch (working through the multi-channe
 starts the trip in the Driver App, and confirms the same live position + status is mirrored in the Customer Tracking
 panel until the order reaches `Completed`.
 
-There are also three demo/recording helper scripts (not part of CI, but handy for re-generating walkthrough
-artifacts or exploring a flow yourself) — these open a **real, visible** browser window rather than running headless:
+There are also several demo/recording helper scripts (not part of CI, but handy for re-generating walkthrough
+artifacts or exploring a flow yourself). Unless noted "headless", these open a **real, visible** browser window:
 
 ```bash
-npm run demo:escalation   # books a ride, forces "driver won't respond", plays out the full escalation ladder
-npm run demo:features     # tours the enriched Control Center, accepts a live request in the Driver App, then customer history
-npm run demo:screenshots  # headless — captures PNGs of each key new UI surface into /opt/cursor/artifacts
+npm run demo:escalation    # books a ride, forces "driver won't respond", plays out the full escalation ladder
+npm run demo:features      # tours the enriched Control Center, accepts a live request in the Driver App, then customer history
+npm run demo:screenshots   # headless — captures PNGs of each key Phase-2 UI surface into /opt/cursor/artifacts
+node e2e/demo-i18n-vehicles.mjs [port]           # toggles EN <-> 中文 across panels, confirms localStorage persistence, tours vehicle cards
+node e2e/demo-booking-ota.mjs [port]              # booking flow: OSRM live-route badge, fare breakdown, coupon, QR voucher, status audit timeline, and the forced-offline synthetic-fallback check
+node e2e/demo-new-feature-screenshots.mjs [port]  # headless — captures PNGs of this round's new UI (vehicle cards, Chinese Control Center, QR voucher, status timeline) into /opt/cursor/artifacts
 ```
 
 ## What's simulated vs. what would be real integrations
