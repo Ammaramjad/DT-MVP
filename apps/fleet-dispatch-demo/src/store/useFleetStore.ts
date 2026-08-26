@@ -10,15 +10,16 @@ import type {
   NotificationChannel,
   NotificationKind,
   Order,
+  StatusActor,
   Vehicle,
 } from '../types'
 import { createSeedState, SEED_VEHICLES } from '../data/seed'
 import { AIRPORTS, getLocation, NON_AIRPORTS } from '../data/locations'
 import { buildRoutePath, evaluateRoute } from '../lib/geo'
+import { getCachedRoute, resolveDynamicRoute } from '../lib/routing'
 import { driftFlightStatus, lookupFlight, randomFlightNumber } from '../lib/flight'
-import { estimateDurationMin, estimateFare, genId, nextOrderNo } from '../lib/pricing'
+import { computeFareBreakdown, estimateDurationMin, genId, nextOrderNo } from '../lib/pricing'
 import { suggestDriver } from '../lib/dispatch'
-import { notificationChannelLabel } from '../lib/format'
 import { buildCapacityForecast } from '../lib/capacity'
 
 const MAX_NOTIFICATIONS = 60
@@ -59,20 +60,29 @@ interface FleetState {
   setFocusDriver: (id: string | null) => void
   dismissNotification: (id: string) => void
   setDriverAvailability: (driverId: string, status: 'AVAILABLE' | 'OFFLINE') => void
+  hydrateSeedRoutes: () => void
   tick: () => void
 }
 
 function pushNotification(
   notifications: AppNotification[],
   kind: NotificationKind,
-  title: string,
-  message: string,
+  titleKey: string,
+  messageKey: string,
+  params?: Record<string, string | number>,
   orderId?: string,
   channels?: NotificationChannel[],
   driverId?: string,
 ): AppNotification[] {
-  const next: AppNotification = { id: genId('ntf'), timestamp: Date.now(), kind, title, message, orderId, channels, driverId }
+  const next: AppNotification = { id: genId('ntf'), timestamp: Date.now(), kind, titleKey, messageKey, params, orderId, channels, driverId }
   return [next, ...notifications].slice(0, MAX_NOTIFICATIONS)
+}
+
+function appendHistory(order: Order, actor: StatusActor): Order {
+  return {
+    ...order,
+    statusHistory: [...order.statusHistory, { id: genId('hist'), status: order.status, at: Date.now(), actor }],
+  }
 }
 
 function randomTimeoutMs(): number {
@@ -105,6 +115,7 @@ function startDispatchAttempt(
   driver: Driver,
   stage: 1 | 2,
   notifications: AppNotification[],
+  actor: StatusActor = 'SYSTEM',
 ): { order: Order; notifications: AppNotification[] } {
   const channels: NotificationChannel[] = stage === 1 ? ['IN_APP'] : ['LINE', 'PHONE_CALL']
   const now = Date.now()
@@ -121,23 +132,42 @@ function startDispatchAttempt(
     resolvedAt: null,
     simulateNoResponse: order.demoForceNoResponse,
   }
-  const channelText = channels.map(notificationChannelLabel).join(' + ')
-  const title = stage === 1 ? 'Dispatch Sent to Driver' : 'Escalating — No Response via In-App'
-  const message =
-    stage === 1
-      ? `Order ${order.orderNo}: notified ${driver.name} (${driver.nameZh}) via ${channelText}. Awaiting response…`
-      : `Order ${order.orderNo}: ${driver.name} did not respond in time. Escalating via ${channelText}.`
 
-  return {
-    order: {
+  const updatedOrder = appendHistory(
+    {
       ...order,
       status: 'PENDING_DRIVER_RESPONSE',
       pendingDriverId: driver.id,
       escalationStage: stage,
       dispatchAttempts: [...order.dispatchAttempts, attempt],
     },
-    notifications: pushNotification(notifications, stage === 1 ? 'INFO' : 'WARNING', title, message, order.id, channels, driver.id),
-  }
+    actor,
+  )
+
+  const nextNotifications =
+    stage === 1
+      ? pushNotification(
+          notifications,
+          'INFO',
+          'notif.dispatchSent.title',
+          'notif.dispatchSent.message',
+          { orderNo: order.orderNo, driverName: driver.name, driverNameZh: driver.nameZh },
+          order.id,
+          channels,
+          driver.id,
+        )
+      : pushNotification(
+          notifications,
+          'WARNING',
+          'notif.escalating.title',
+          'notif.escalating.message',
+          { orderNo: order.orderNo, driverName: driver.name },
+          order.id,
+          channels,
+          driver.id,
+        )
+
+  return { order: updatedOrder, notifications: nextNotifications }
 }
 
 export function classifyOrderType(pickupId: string, dropoffId: string): Order['type'] {
@@ -153,8 +183,20 @@ function buildOrderFromInput(input: BookingInput): Order {
   const dropoff = getLocation(input.dropoffId)
   const type = classifyOrderType(input.pickupId, input.dropoffId)
   const id = genId('ord')
-  const routeToDropoff = buildRoutePath(pickup, dropoff, `${id}-leg2`)
+  // Reuse an already-resolved real road route for this exact pickup/dropoff
+  // pair if one exists in the cache; otherwise fall back to the synthetic
+  // generator immediately and let the caller kick off a real-route fetch.
+  const routeToDropoff = getCachedRoute(pickup, dropoff) ?? buildRoutePath(pickup, dropoff, `${id}-leg2`)
   const flightInfo = input.flightNumber ? lookupFlight(input.flightNumber, input.scheduledTime) : null
+  const isAirport = pickup.isAirport || dropoff.isAirport
+  const waitingMinutes = flightInfo?.status === 'DELAYED' && pickup.isAirport ? flightInfo.delayMinutes : 0
+  const durationMin = estimateDurationMin(routeToDropoff.distanceKm)
+  const fareBreakdown = computeFareBreakdown(routeToDropoff.distanceKm, durationMin, input.vehicleType, isAirport, {
+    waitingMinutes,
+    couponCode: input.couponCode,
+  })
+
+  const now = Date.now()
 
   return {
     id,
@@ -162,7 +204,7 @@ function buildOrderFromInput(input: BookingInput): Order {
     channel: input.channel,
     type,
     status: 'NEW',
-    createdAt: Date.now(),
+    createdAt: now,
     scheduledTime: input.scheduledTime,
     customer: input.customer,
     pickup,
@@ -176,9 +218,10 @@ function buildOrderFromInput(input: BookingInput): Order {
     driverId: null,
     vehicleId: null,
     suggestedDriverId: null,
-    priceEstimate: estimateFare(routeToDropoff.distanceKm, input.vehicleType, pickup.isAirport || dropoff.isAirport),
+    priceEstimate: fareBreakdown.total,
+    fareBreakdown,
     distanceKm: routeToDropoff.distanceKm,
-    durationMin: estimateDurationMin(routeToDropoff.distanceKm),
+    durationMin,
     routeToPickup: null,
     routeToDropoff,
     legProgress: 0,
@@ -189,6 +232,9 @@ function buildOrderFromInput(input: BookingInput): Order {
     escalationStage: 0,
     unresponsiveDriverIds: [],
     demoForceNoResponse: false,
+    quotationVersion: input.quotationVersion ?? 1,
+    quotedAt: now,
+    statusHistory: [{ id: genId('hist'), status: 'NEW', at: now, actor: 'CUSTOMER' }],
   }
 }
 
@@ -255,12 +301,17 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       notifications: pushNotification(
         state.notifications,
         'INFO',
-        'New Order Received',
-        `Order ${withSuggestion.orderNo} received via ${withSuggestion.channel} \u2014 ${withSuggestion.pickup.name} \u2192 ${withSuggestion.dropoff.name}.`,
+        'notif.orderReceived.title',
+        'notif.orderReceived.message',
+        { orderNo: withSuggestion.orderNo, channel: withSuggestion.channel, pickup: withSuggestion.pickup.name, dropoff: withSuggestion.dropoff.name },
         withSuggestion.id,
       ),
       focusOrderId: withSuggestion.id,
     }))
+
+    if (withSuggestion.routeToDropoff?.source === 'SYNTHETIC') {
+      scheduleRouteHydration(withSuggestion.id, 'routeToDropoff', withSuggestion.pickup, withSuggestion.dropoff)
+    }
 
     return withSuggestion
   },
@@ -277,7 +328,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     const driver = state.drivers.find((d) => d.id === chosenDriverId)
     if (!driver || driver.status !== 'AVAILABLE') return
 
-    const { order: updatedOrder, notifications } = startDispatchAttempt(order, driver, 1, state.notifications)
+    const { order: updatedOrder, notifications } = startDispatchAttempt(order, driver, 1, state.notifications, 'DISPATCHER')
 
     set((s) => ({
       orders: s.orders.map((o) => (o.id === orderId ? updatedOrder : o)),
@@ -299,54 +350,59 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     const attempts: DispatchAttempt[] = order.dispatchAttempts.map((a, i) =>
       i === lastIndex ? { ...a, status: accept ? 'ACCEPTED' : 'DECLINED', resolvedAt: Date.now() } : a,
     )
-    const channelText = (lastAttempt?.channels ?? ['IN_APP']).map(notificationChannelLabel).join(' + ')
 
     if (accept) {
       const vehicle = state.vehicles.find((v) => v.id === driver.vehicleId)
-      const routeToPickup = buildRoutePath(driverAsLocation(driver), order.pickup, `${order.id}-leg1-${driver.id}`)
+      const driverLoc = driverAsLocation(driver)
+      const routeToPickup = getCachedRoute(driverLoc, order.pickup) ?? buildRoutePath(driverLoc, order.pickup, `${order.id}-leg1-${driver.id}`)
+      const updatedOrder = appendHistory(
+        {
+          ...order,
+          status: 'ASSIGNED',
+          driverId: driver.id,
+          vehicleId: vehicle?.id ?? null,
+          pendingDriverId: null,
+          routeToPickup,
+          legProgress: 0,
+          dispatchAttempts: attempts,
+        },
+        'DRIVER',
+      )
       set((s) => ({
-        orders: s.orders.map((o) =>
-          o.id === orderId
-            ? {
-                ...o,
-                status: 'ASSIGNED',
-                driverId: driver.id,
-                vehicleId: vehicle?.id ?? null,
-                pendingDriverId: null,
-                routeToPickup,
-                legProgress: 0,
-                dispatchAttempts: attempts,
-              }
-            : o,
-        ),
+        orders: s.orders.map((o) => (o.id === orderId ? updatedOrder : o)),
         drivers: s.drivers.map((d) => (d.id === driver.id ? { ...d, status: 'BUSY', stats: bumpStats(d.stats, 'accepted') } : d)),
         notifications: pushNotification(
           s.notifications,
           'SUCCESS',
-          'Driver Accepted',
-          `${driver.name} (${driver.nameZh}) accepted order ${order.orderNo} via ${channelText}.`,
+          'notif.driverAccepted.title',
+          'notif.driverAccepted.message',
+          { driverName: driver.name, driverNameZh: driver.nameZh, orderNo: order.orderNo },
           order.id,
           lastAttempt?.channels,
           driver.id,
         ),
       }))
+      if (routeToPickup.source === 'SYNTHETIC') {
+        scheduleRouteHydration(order.id, 'routeToPickup', driverLoc, order.pickup)
+      }
       return
     }
 
     const freedDrivers = state.drivers.map((d) => (d.id === driver.id ? { ...d, status: 'AVAILABLE' as const, stats: bumpStats(d.stats, 'declined') } : d))
     const nextSuggestion = suggestDriver({ ...order, driverId: null }, freedDrivers, state.vehicles, order.unresponsiveDriverIds)
+    const updatedOrder = appendHistory(
+      { ...order, status: 'NEW', pendingDriverId: null, dispatchAttempts: attempts, escalationStage: 0, suggestedDriverId: nextSuggestion },
+      'DRIVER',
+    )
     set((s) => ({
-      orders: s.orders.map((o) =>
-        o.id === orderId
-          ? { ...o, status: 'NEW', pendingDriverId: null, dispatchAttempts: attempts, escalationStage: 0, suggestedDriverId: nextSuggestion }
-          : o,
-      ),
+      orders: s.orders.map((o) => (o.id === orderId ? updatedOrder : o)),
       drivers: freedDrivers,
       notifications: pushNotification(
         s.notifications,
         'WARNING',
-        'Driver Declined',
-        `${driver.name} declined order ${order.orderNo} via ${channelText}. Re-suggesting next available driver…`,
+        'notif.driverDeclined.title',
+        'notif.driverDeclined.message',
+        { driverName: driver.name, orderNo: order.orderNo },
         order.id,
         lastAttempt?.channels,
         driver.id,
@@ -364,21 +420,15 @@ export const useFleetStore = create<FleetState>((set, get) => ({
 
   startTrip: (orderId) => {
     set((s) => ({
-      orders: s.orders.map((o) => (o.id === orderId && o.status === 'ASSIGNED' ? { ...o, status: 'EN_ROUTE_TO_PICKUP', legProgress: 0 } : o)),
-      notifications: pushNotification(
-        s.notifications,
-        'INFO',
-        'Driver En Route',
-        'Driver has started the trip toward the pickup location.',
-        orderId,
-      ),
+      orders: s.orders.map((o) => (o.id === orderId && o.status === 'ASSIGNED' ? appendHistory({ ...o, status: 'EN_ROUTE_TO_PICKUP', legProgress: 0 }, 'DRIVER') : o)),
+      notifications: pushNotification(s.notifications, 'INFO', 'notif.driverEnRoute.title', 'notif.driverEnRoute.message', undefined, orderId),
     }))
   },
 
   markPickedUp: (orderId) => {
     set((s) => ({
-      orders: s.orders.map((o) => (o.id === orderId && o.status === 'ARRIVED_AT_PICKUP' ? { ...o, status: 'PICKED_UP', pickedUpAt: Date.now() } : o)),
-      notifications: pushNotification(s.notifications, 'SUCCESS', 'Passenger Picked Up', 'Passenger confirmed onboard. Heading to destination.', orderId),
+      orders: s.orders.map((o) => (o.id === orderId && o.status === 'ARRIVED_AT_PICKUP' ? appendHistory({ ...o, status: 'PICKED_UP', pickedUpAt: Date.now() }, 'DRIVER') : o)),
+      notifications: pushNotification(s.notifications, 'SUCCESS', 'notif.passengerPickedUp.title', 'notif.passengerPickedUp.message', undefined, orderId),
     }))
   },
 
@@ -386,9 +436,9 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     set((s) => {
       const order = s.orders.find((o) => o.id === orderId)
       return {
-        orders: s.orders.map((o) => (o.id === orderId ? { ...o, status: 'CANCELLED' } : o)),
+        orders: s.orders.map((o) => (o.id === orderId ? appendHistory({ ...o, status: 'CANCELLED' }, 'DISPATCHER') : o)),
         drivers: order?.driverId ? s.drivers.map((d) => (d.id === order.driverId ? { ...d, status: 'AVAILABLE' } : d)) : s.drivers,
-        notifications: pushNotification(s.notifications, 'WARNING', 'Order Cancelled', `Order ${order?.orderNo ?? ''} was cancelled.`, orderId),
+        notifications: pushNotification(s.notifications, 'WARNING', 'notif.orderCancelled.title', 'notif.orderCancelled.message', { orderNo: order?.orderNo ?? '' }, orderId),
       }
     })
   },
@@ -403,6 +453,22 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     set((s) => ({
       drivers: s.drivers.map((d) => (d.id === driverId && d.status !== 'BUSY' && d.status !== 'PENDING_RESPONSE' ? { ...d, status } : d)),
     })),
+
+  // Fetches real OSRM routes for every seeded "already in progress" order
+  // once on app load, so the demo shows genuine road-snapped routes even
+  // for orders that were never freshly booked in this session.
+  hydrateSeedRoutes: () => {
+    const state = get()
+    for (const order of state.orders) {
+      if (order.routeToDropoff && order.routeToDropoff.source === 'SYNTHETIC') {
+        scheduleRouteHydration(order.id, 'routeToDropoff', order.pickup, order.dropoff)
+      }
+      if (order.routeToPickup && order.routeToPickup.source === 'SYNTHETIC' && order.driverId) {
+        const driver = state.drivers.find((d) => d.id === order.driverId)
+        if (driver) scheduleRouteHydration(order.id, 'routeToPickup', driverAsLocation(driver), order.pickup)
+      }
+    }
+  },
 
   tick: () => {
     const s = get()
@@ -422,10 +488,14 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       notifications = pushNotification(
         notifications,
         'INFO',
-        'New Order Received',
-        `Order ${withSuggestion.orderNo} received via ${withSuggestion.channel} \u2014 ${withSuggestion.pickup.name} \u2192 ${withSuggestion.dropoff.name}.`,
+        'notif.orderReceived.title',
+        'notif.orderReceived.message',
+        { orderNo: withSuggestion.orderNo, channel: withSuggestion.channel, pickup: withSuggestion.pickup.name, dropoff: withSuggestion.dropoff.name },
         withSuggestion.id,
       )
+      if (withSuggestion.routeToDropoff?.source === 'SYNTHETIC') {
+        scheduleRouteHydration(withSuggestion.id, 'routeToDropoff', withSuggestion.pickup, withSuggestion.dropoff)
+      }
     }
 
     let drivers = s.drivers
@@ -443,7 +513,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
         const driver = drivers.find((d) => d.id === order.suggestedDriverId)
         if (!driver || driver.status !== 'AVAILABLE') continue
 
-        const { order: updatedOrder, notifications: nextNotifications } = startDispatchAttempt(order, driver, 1, notifications)
+        const { order: updatedOrder, notifications: nextNotifications } = startDispatchAttempt(order, driver, 1, notifications, 'SYSTEM')
         orders = orders.map((o) => (o.id === order.id ? updatedOrder : o))
         drivers = drivers.map((d) => (d.id === driver.id ? { ...d, status: 'PENDING_RESPONSE' } : d))
         notifications = nextNotifications
@@ -466,35 +536,42 @@ export const useFleetStore = create<FleetState>((set, get) => ({
 
       if (shouldAutoAccept) {
         const vehicle = s.vehicles.find((v) => v.id === driver.vehicleId)
-        const routeToPickup = buildRoutePath(driverAsLocation(driver), order.pickup, `${order.id}-leg1-${driver.id}`)
-        const channelText = attempt.channels.map(notificationChannelLabel).join(' + ')
+        const driverLoc = driverAsLocation(driver)
+        const routeToPickup = getCachedRoute(driverLoc, order.pickup) ?? buildRoutePath(driverLoc, order.pickup, `${order.id}-leg1-${driver.id}`)
         drivers = drivers.map((d) => (d.id === driver.id ? { ...d, status: 'BUSY', stats: bumpStats(d.stats, 'accepted') } : d))
         notifications = pushNotification(
           notifications,
           'SUCCESS',
-          'Driver Accepted',
-          `${driver.name} (${driver.nameZh}) accepted order ${order.orderNo} via ${channelText}.`,
+          'notif.driverAccepted.title',
+          'notif.driverAccepted.message',
+          { driverName: driver.name, driverNameZh: driver.nameZh, orderNo: order.orderNo },
           order.id,
           attempt.channels,
           driver.id,
         )
-        return {
-          ...order,
-          status: 'ASSIGNED',
-          driverId: driver.id,
-          vehicleId: vehicle?.id ?? null,
-          pendingDriverId: null,
-          routeToPickup,
-          legProgress: 0,
-          dispatchAttempts: order.dispatchAttempts.map((a, i) => (i === attemptIndex ? { ...a, status: 'ACCEPTED', resolvedAt: now } : a)),
+        if (routeToPickup.source === 'SYNTHETIC') {
+          scheduleRouteHydration(order.id, 'routeToPickup', driverLoc, order.pickup)
         }
+        return appendHistory(
+          {
+            ...order,
+            status: 'ASSIGNED',
+            driverId: driver.id,
+            vehicleId: vehicle?.id ?? null,
+            pendingDriverId: null,
+            routeToPickup,
+            legProgress: 0,
+            dispatchAttempts: order.dispatchAttempts.map((a, i) => (i === attemptIndex ? { ...a, status: 'ACCEPTED', resolvedAt: now } : a)),
+          },
+          'DRIVER',
+        )
       }
 
       if (!timedOut) return order
 
       if (attempt.stage === 1) {
         const resolvedAttempts = order.dispatchAttempts.map((a, i) => (i === attemptIndex ? { ...a, status: 'TIMED_OUT' as const, resolvedAt: now } : a))
-        const { order: escalated, notifications: nextNotifications } = startDispatchAttempt({ ...order, dispatchAttempts: resolvedAttempts }, driver, 2, notifications)
+        const { order: escalated, notifications: nextNotifications } = startDispatchAttempt({ ...order, dispatchAttempts: resolvedAttempts }, driver, 2, notifications, 'SYSTEM')
         notifications = nextNotifications
         return escalated
       }
@@ -512,21 +589,25 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       notifications = pushNotification(
         notifications,
         'ERROR',
-        'Driver Unresponsive — Reassigning',
-        `${driver.name} (${driver.nameZh}) did not respond to order ${order.orderNo} via any channel. Flagged as unresponsive; reassigning to next available driver.`,
+        'notif.driverUnresponsive.title',
+        'notif.driverUnresponsive.message',
+        { driverName: driver.name, driverNameZh: driver.nameZh, orderNo: order.orderNo },
         order.id,
         attempt.channels,
         driver.id,
       )
-      return {
-        ...order,
-        status: 'NEW',
-        pendingDriverId: null,
-        escalationStage: 0,
-        unresponsiveDriverIds,
-        suggestedDriverId: nextSuggestion,
-        dispatchAttempts: order.dispatchAttempts.map((a, i) => (i === attemptIndex ? { ...a, status: 'TIMED_OUT' as const, resolvedAt: now } : a)),
-      }
+      return appendHistory(
+        {
+          ...order,
+          status: 'NEW',
+          pendingDriverId: null,
+          escalationStage: 0,
+          unresponsiveDriverIds,
+          suggestedDriverId: nextSuggestion,
+          dispatchAttempts: order.dispatchAttempts.map((a, i) => (i === attemptIndex ? { ...a, status: 'TIMED_OUT' as const, resolvedAt: now } : a)),
+        },
+        'SYSTEM',
+      )
     })
 
     // Movement + lifecycle progression for active orders.
@@ -535,10 +616,10 @@ export const useFleetStore = create<FleetState>((set, get) => ({
         const step = 1 / order.routeToPickup.durationTicks
         const nextProgress = order.legProgress + step
         if (nextProgress >= 1) {
-          notifications = pushNotification(notifications, 'SUCCESS', 'Driver Arrived', `Driver arrived at pickup for order ${order.orderNo}.`, order.id)
+          notifications = pushNotification(notifications, 'SUCCESS', 'notif.driverArrived.title', 'notif.driverArrived.message', { orderNo: order.orderNo }, order.id)
           const pos = { lat: order.pickup.lat, lng: order.pickup.lng, x: order.pickup.svgX, y: order.pickup.svgY }
           drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, lat: pos.lat, lng: pos.lng, svgX: pos.x, svgY: pos.y } : d))
-          return { ...order, status: 'ARRIVED_AT_PICKUP', legProgress: 1, currentPos: pos }
+          return appendHistory({ ...order, status: 'ARRIVED_AT_PICKUP', legProgress: 1, currentPos: pos }, 'SYSTEM')
         }
         const pos = evaluateRoute(order.routeToPickup, nextProgress)
         drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, lat: pos.lat, lng: pos.lng, svgX: pos.x, svgY: pos.y } : d))
@@ -546,17 +627,17 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       }
 
       if (order.status === 'PICKED_UP') {
-        return { ...order, status: 'IN_TRANSIT', legProgress: 0 }
+        return appendHistory({ ...order, status: 'IN_TRANSIT', legProgress: 0 }, 'SYSTEM')
       }
 
       if (order.status === 'IN_TRANSIT' && order.routeToDropoff) {
         const step = 1 / order.routeToDropoff.durationTicks
         const nextProgress = order.legProgress + step
         if (nextProgress >= 1) {
-          notifications = pushNotification(notifications, 'SUCCESS', 'Trip Completed', `Order ${order.orderNo} completed successfully.`, order.id)
+          notifications = pushNotification(notifications, 'SUCCESS', 'notif.tripCompleted.title', 'notif.tripCompleted.message', { orderNo: order.orderNo }, order.id)
           drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, status: 'AVAILABLE' } : d))
           const pos = { lat: order.dropoff.lat, lng: order.dropoff.lng, x: order.dropoff.svgX, y: order.dropoff.svgY }
-          return { ...order, status: 'COMPLETED', legProgress: 1, currentPos: pos }
+          return appendHistory({ ...order, status: 'COMPLETED', legProgress: 1, currentPos: pos }, 'SYSTEM')
         }
         const pos = evaluateRoute(order.routeToDropoff, nextProgress)
         drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, lat: pos.lat, lng: pos.lng, svgX: pos.x, svgY: pos.y } : d))
@@ -569,8 +650,9 @@ export const useFleetStore = create<FleetState>((set, get) => ({
           notifications = pushNotification(
             notifications,
             drifted.status === 'DELAYED' ? 'WARNING' : 'INFO',
-            'Flight Status Updated',
-            `Flight ${drifted.flightNumber}: now ${drifted.status.replace('_', ' ')}${drifted.status === 'DELAYED' ? ` (+${drifted.delayMinutes}m)` : ''}.`,
+            'notif.flightUpdated.title',
+            'notif.flightUpdated.message',
+            { flightNumber: drifted.flightNumber, status: drifted.status.replace('_', ' '), delay: drifted.status === 'DELAYED' ? ` (+${drifted.delayMinutes}m)` : '' },
             order.id,
           )
         }
@@ -583,3 +665,20 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     set({ orders, drivers, notifications, tickCount: s.tickCount + 1 })
   },
 }))
+
+/** Resolves (and, once resolved, patches into the store) a real road-snapped
+ * OSRM route for one order leg — called after the order/leg is created with
+ * its synthetic fallback so the UI updates in place the moment the routing
+ * service responds, with zero risk to the synchronous booking flow if the
+ * network is slow or unavailable. */
+function scheduleRouteHydration(orderId: string, leg: 'routeToPickup' | 'routeToDropoff', from: LocationRef, to: LocationRef): void {
+  resolveDynamicRoute(from, to).then((route) => {
+    if (!route) return
+    const state = useFleetStore.getState()
+    const order = state.orders.find((o) => o.id === orderId)
+    if (!order || order[leg]?.source === 'OSRM') return
+    useFleetStore.setState({
+      orders: state.orders.map((o) => (o.id === orderId ? { ...o, [leg]: route } : o)),
+    })
+  })
+}

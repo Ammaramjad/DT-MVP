@@ -129,10 +129,40 @@ export interface RoutePoint {
   y: number
 }
 
+/** Where a route's polyline came from — surfaced in the UI so the dynamic
+ * OSRM routing integration (and its offline fallback) can be verified live. */
+export type RouteSource = 'OSRM' | 'SYNTHETIC'
+
 export interface RoutePath {
   points: RoutePoint[]
   distanceKm: number
   durationTicks: number
+  source: RouteSource
+}
+
+/** Itemized fare breakdown shown to the customer at quotation/booking time
+ * (Phase 1 depth item: "visible fare breakdown with named surcharges"). */
+export interface FareBreakdown {
+  baseFare: number
+  distanceCost: number
+  timeCost: number
+  airportSurcharge: number
+  waitingFee: number
+  subtotal: number
+  discount: number
+  couponCode: string | null
+  total: number
+}
+
+export type StatusActor = 'SYSTEM' | 'DISPATCHER' | 'DRIVER' | 'CUSTOMER'
+
+/** One entry in an order's full amendment/status audit trail, rendered as a
+ * timeline in the Control Center (Phase 1 depth item: audit trail). */
+export interface StatusHistoryEntry {
+  id: string
+  status: OrderStatus
+  at: number
+  actor: StatusActor
 }
 
 export interface CustomerInfo {
@@ -162,6 +192,7 @@ export interface Order {
   vehicleId: string | null
   suggestedDriverId: string | null
   priceEstimate: number
+  fareBreakdown: FareBreakdown
   distanceKm: number
   durationMin: number
   routeToPickup: RoutePath | null
@@ -176,6 +207,11 @@ export interface Order {
   escalationStage: 0 | 1 | 2
   unresponsiveDriverIds: string[]
   demoForceNoResponse: boolean
+
+  /** Quotation versioning + full status audit trail (Phase 1 depth items). */
+  quotationVersion: number
+  quotedAt: number
+  statusHistory: StatusHistoryEntry[]
 }
 
 export interface BookingInput {
@@ -189,16 +225,22 @@ export interface BookingInput {
   customer: CustomerInfo
   flightNumber: string
   notes: string
+  couponCode?: string | null
+  quotationVersion?: number
 }
 
 export type NotificationKind = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR'
 
+/** Notifications carry i18n keys + interpolation params (rather than
+ * pre-rendered text) so the same live feed renders correctly in whichever
+ * language is currently active, including for older entries. */
 export interface AppNotification {
   id: string
   timestamp: number
   kind: NotificationKind
-  title: string
-  message: string
+  titleKey: string
+  messageKey: string
+  params?: Record<string, string | number>
   orderId?: string
   channels?: NotificationChannel[]
   driverId?: string

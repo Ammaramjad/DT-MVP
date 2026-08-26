@@ -6,9 +6,12 @@ import { OrderTypeBadge, StatusBadge, FlightBadge, TierBadge, ChannelBadge } fro
 import { Button } from '../ui/Button'
 import { CountdownRing } from '../ui/CountdownRing'
 import { DispatchLog } from './DispatchLog'
+import { StatusHistoryTimeline } from './StatusHistoryTimeline'
 import { formatTWD, formatClock } from '../../lib/format'
+import { useLang } from '../../i18n'
 
 export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focused: boolean; onFocus: () => void }) {
+  const { t, lang } = useLang()
   const drivers = useFleetStore((s) => s.drivers)
   const assignOrder = useFleetStore((s) => s.assignOrder)
   const cancelOrder = useFleetStore((s) => s.cancelOrder)
@@ -21,6 +24,9 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
   const lastUnresponsiveId = order.unresponsiveDriverIds[order.unresponsiveDriverIds.length - 1]
   const lastUnresponsiveDriver = drivers.find((d) => d.id === lastUnresponsiveId)
   const isFreshArrival = order.status === 'NEW' && Date.now() - order.createdAt < 3200
+
+  const pickupName = lang === 'zh' ? order.pickup.nameZh : order.pickup.name
+  const dropoffName = lang === 'zh' ? order.dropoff.nameZh : order.dropoff.name
 
   return (
     <motion.div
@@ -62,9 +68,9 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
       </div>
 
       <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-300">
-        <span className="truncate">{order.pickup.name}</span>
+        <span className="truncate">{pickupName}</span>
         <span className="text-slate-600">→</span>
-        <span className="truncate">{order.dropoff.name}</span>
+        <span className="truncate">{dropoffName}</span>
       </div>
 
       <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
@@ -77,14 +83,14 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
         <span className="flex items-center gap-1">
           <Luggage className="h-3 w-3" /> {order.luggage}
         </span>
-        <span>{formatClock(order.scheduledTime)}</span>
+        <span>{formatClock(order.scheduledTime, lang)}</span>
         <span className="font-semibold text-slate-300">{formatTWD(order.priceEstimate)}</span>
       </div>
 
       {order.flightInfo && (
         <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-white/[0.03] px-2 py-1.5 text-[11px] text-slate-400">
           <Plane className="h-3 w-3 text-cyan-300" />
-          {order.flightInfo.flightNumber} · Gate {order.flightInfo.gate}
+          {order.flightInfo.flightNumber} · {t('booking.gate', { gate: order.flightInfo.gate })}
           {order.flightInfo.delayMinutes > 0 && <span className="text-amber-300">+{order.flightInfo.delayMinutes}m</span>}
         </div>
       )}
@@ -100,7 +106,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
           <CountdownRing sentAt={activeAttempt.sentAt} respondBy={activeAttempt.respondBy} tone={activeAttempt.stage === 2 ? 'amber' : 'cyan'} size={38} />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium text-slate-200">
-              {activeAttempt.stage === 2 ? 'Escalated — awaiting' : 'Notifying'} <span className="text-slate-100">{pendingDriver.name}</span>
+              {activeAttempt.stage === 2 ? t('dispatch.escalatedAwaiting') : t('dispatch.notifying')} <span className="text-slate-100">{pendingDriver.name}</span>
             </p>
             <div className="mt-1 flex flex-wrap gap-1">
               {activeAttempt.channels.map((c) => (
@@ -114,20 +120,19 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
       {order.status === 'NEW' && lastUnresponsiveDriver && (
         <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-2.5 flex items-center gap-2 rounded-lg border border-red-400/30 bg-red-400/[0.08] px-2.5 py-2 text-[11px] text-red-300">
           <AlertOctagon className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            <span className="font-semibold">{lastUnresponsiveDriver.name}</span> was unresponsive on all channels — reassign to next available driver.
-          </span>
+          <span>{t('control.unresponsiveBanner', { name: lastUnresponsiveDriver.name })}</span>
         </motion.div>
       )}
 
       <DispatchLog attempts={order.dispatchAttempts} />
+      <StatusHistoryTimeline history={order.statusHistory} />
 
       <div className="mt-2.5 flex items-center justify-between border-t border-white/5 pt-2.5">
         {order.status === 'NEW' && suggestedDriver ? (
           <div className="flex w-full items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
               <Wand2 className="h-3 w-3 text-purple-300" />
-              Suggested: <span className="font-medium text-slate-200">{suggestedDriver.name}</span>
+              {t('control.suggested')} <span className="font-medium text-slate-200">{suggestedDriver.name}</span>
               <TierBadge tier={suggestedDriver.tier} />
             </div>
             <Button
@@ -138,14 +143,14 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
                 assignOrder(order.id)
               }}
             >
-              <Zap className="h-3 w-3" /> {lastUnresponsiveDriver ? 'Reassign' : 'Assign'}
+              <Zap className="h-3 w-3" /> {lastUnresponsiveDriver ? t('control.reassign') : t('control.assign')}
             </Button>
           </div>
         ) : order.status === 'NEW' ? (
-          <span className="text-[11px] text-red-400">No available driver — waiting for one to free up.</span>
+          <span className="text-[11px] text-red-400">{t('control.noAvailableDriver')}</span>
         ) : assignedDriver ? (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-            Driver: <span className="font-medium text-slate-200">{assignedDriver.name}</span>
+            {t('control.driverLabel')} <span className="font-medium text-slate-200">{assignedDriver.name}</span>
             <TierBadge tier={assignedDriver.tier} />
           </div>
         ) : (
@@ -159,7 +164,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
               cancelOrder(order.id)
             }}
             className="ml-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-red-500/10 hover:text-red-400"
-            title="Cancel order"
+            title={t('control.cancelOrder')}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -181,7 +186,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
           }`}
         >
           <FlaskConical className="h-3 w-3" />
-          {order.demoForceNoResponse ? 'Demo: driver will NOT respond' : 'Demo: simulate driver not responding'}
+          {order.demoForceNoResponse ? t('control.demoNoResponseOn') : t('control.demoNoResponseOff')}
         </button>
       )}
     </motion.div>

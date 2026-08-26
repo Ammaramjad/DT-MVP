@@ -1,7 +1,7 @@
 import type { AppNotification, CustomerProfile, Driver, DriverStats, Order, Vehicle } from '../types'
 import { getLocation } from './locations'
 import { buildRoutePath, evaluateRoute } from '../lib/geo'
-import { estimateDurationMin, estimateFare, genId } from '../lib/pricing'
+import { computeFareBreakdown, estimateDurationMin, genId } from '../lib/pricing'
 import { lookupFlight } from '../lib/flight'
 import { buildShiftSchedule } from '../lib/capacity'
 
@@ -192,6 +192,10 @@ function buildOrderBase(params: {
   const routeToDropoff = buildRoutePath(pickup, dropoff, `${params.id}-leg2`)
 
   const flightInfo = params.flightNumber ? lookupFlight(params.flightNumber, params.scheduledTime) : null
+  const isAirport = pickup.isAirport || dropoff.isAirport
+  const durationMin = estimateDurationMin(routeToDropoff.distanceKm)
+  const fareBreakdown = computeFareBreakdown(routeToDropoff.distanceKm, durationMin, params.vehicleType, isAirport)
+  const now = Date.now()
 
   return {
     id: params.id,
@@ -199,7 +203,7 @@ function buildOrderBase(params: {
     channel: params.channel,
     type,
     status: 'NEW',
-    createdAt: Date.now(),
+    createdAt: now,
     scheduledTime: params.scheduledTime,
     customer: params.customer,
     pickup,
@@ -213,9 +217,10 @@ function buildOrderBase(params: {
     driverId: null,
     vehicleId: null,
     suggestedDriverId: null,
-    priceEstimate: estimateFare(routeToDropoff.distanceKm, params.vehicleType, pickup.isAirport || dropoff.isAirport),
+    priceEstimate: fareBreakdown.total,
+    fareBreakdown,
     distanceKm: routeToDropoff.distanceKm,
-    durationMin: estimateDurationMin(routeToDropoff.distanceKm),
+    durationMin,
     routeToPickup,
     routeToDropoff,
     legProgress: 0,
@@ -226,6 +231,9 @@ function buildOrderBase(params: {
     escalationStage: 0,
     unresponsiveDriverIds: [],
     demoForceNoResponse: false,
+    quotationVersion: 1,
+    quotedAt: now,
+    statusHistory: [{ id: genId('hist'), status: 'NEW', at: now, actor: 'CUSTOMER' }],
   }
 }
 
@@ -365,6 +373,7 @@ export function createSeedState(): {
   o2.status = 'ASSIGNED'
   o2.driverId = 'drv-3'
   o2.vehicleId = 'veh-3'
+  o2.statusHistory = [...o2.statusHistory, { id: genId('hist'), status: 'ASSIGNED', at: Date.now() - 6 * 60_000, actor: 'DISPATCHER' }]
   orders.push(o2)
 
   // 3. Driver en route to pickup an airport drop-off passenger — mid-flight.
@@ -386,6 +395,11 @@ export function createSeedState(): {
   o3.driverId = 'drv-1'
   o3.vehicleId = 'veh-1'
   o3.legProgress = 0.38
+  o3.statusHistory = [
+    ...o3.statusHistory,
+    { id: genId('hist'), status: 'ASSIGNED', at: Date.now() - 9 * 60_000, actor: 'DISPATCHER' },
+    { id: genId('hist'), status: 'EN_ROUTE_TO_PICKUP', at: Date.now() - 2 * 60_000, actor: 'DRIVER' },
+  ]
   orders.push(o3)
 
   // 4. Passenger already picked up, in transit to airport for departure.
@@ -408,6 +422,14 @@ export function createSeedState(): {
   o4.vehicleId = 'veh-4'
   o4.legProgress = 0.62
   o4.pickedUpAt = Date.now() - 5 * 60_000
+  o4.statusHistory = [
+    ...o4.statusHistory,
+    { id: genId('hist'), status: 'ASSIGNED', at: Date.now() - 20 * 60_000, actor: 'DISPATCHER' },
+    { id: genId('hist'), status: 'EN_ROUTE_TO_PICKUP', at: Date.now() - 15 * 60_000, actor: 'DRIVER' },
+    { id: genId('hist'), status: 'ARRIVED_AT_PICKUP', at: Date.now() - 6 * 60_000, actor: 'SYSTEM' },
+    { id: genId('hist'), status: 'PICKED_UP', at: Date.now() - 5 * 60_000, actor: 'DRIVER' },
+    { id: genId('hist'), status: 'IN_TRANSIT', at: Date.now() - 5 * 60_000, actor: 'SYSTEM' },
+  ]
   orders.push(o4)
 
   // 5. Completed earlier today.
@@ -429,6 +451,15 @@ export function createSeedState(): {
   o5.driverId = 'drv-6'
   o5.vehicleId = 'veh-6'
   o5.legProgress = 1
+  o5.statusHistory = [
+    ...o5.statusHistory,
+    { id: genId('hist'), status: 'ASSIGNED', at: Date.now() - 200 * 60_000, actor: 'DISPATCHER' },
+    { id: genId('hist'), status: 'EN_ROUTE_TO_PICKUP', at: Date.now() - 190 * 60_000, actor: 'DRIVER' },
+    { id: genId('hist'), status: 'ARRIVED_AT_PICKUP', at: Date.now() - 180 * 60_000, actor: 'SYSTEM' },
+    { id: genId('hist'), status: 'PICKED_UP', at: Date.now() - 178 * 60_000, actor: 'DRIVER' },
+    { id: genId('hist'), status: 'IN_TRANSIT', at: Date.now() - 178 * 60_000, actor: 'SYSTEM' },
+    { id: genId('hist'), status: 'COMPLETED', at: Date.now() - 155 * 60_000, actor: 'SYSTEM' },
+  ]
   orders.push(o5)
 
   // Apply live positions for active drivers to match their orders' progress.
@@ -470,32 +501,36 @@ export function createSeedState(): {
       id: genId('ntf'),
       timestamp: Date.now() - 2 * 60_000,
       kind: 'INFO',
-      title: 'Driver En Route',
-      message: `${findDriver('drv-1').name} is en route to pickup for order ${o3.orderNo}.`,
+      titleKey: 'notif.driverEnRoute.title',
+      messageKey: 'notif.seedEnRoute.message',
+      params: { driverName: findDriver('drv-1').name, orderNo: o3.orderNo },
       orderId: o3.id,
     },
     {
       id: genId('ntf'),
       timestamp: Date.now() - 5 * 60_000,
       kind: 'SUCCESS',
-      title: 'Passenger Picked Up',
-      message: `${findDriver('drv-4').name} picked up passenger for order ${o4.orderNo}, heading to TSA.`,
+      titleKey: 'notif.passengerPickedUp.title',
+      messageKey: 'notif.seedPickedUp.message',
+      params: { driverName: findDriver('drv-4').name, orderNo: o4.orderNo },
       orderId: o4.id,
     },
     {
       id: genId('ntf'),
       timestamp: Date.now() - 25 * 60_000,
       kind: 'SUCCESS',
-      title: 'Trip Completed',
-      message: `Order ${o5.orderNo} completed successfully. Customer rated 5 stars.`,
+      titleKey: 'notif.tripCompleted.title',
+      messageKey: 'notif.seedCompleted.message',
+      params: { orderNo: o5.orderNo },
       orderId: o5.id,
     },
     {
       id: genId('ntf'),
       timestamp: Date.now() - 1 * 60_000,
       kind: 'WARNING',
-      title: 'Document Expiring Soon',
-      message: `${findDriver('drv-2').name}'s driving license expires in 9 days. Please renew.`,
+      titleKey: 'notif.docExpiring.title',
+      messageKey: 'notif.docExpiring.message',
+      params: { driverName: findDriver('drv-2').name, days: 9 },
     },
   ]
 
