@@ -6,8 +6,8 @@ const TIER_PRIORITY: Driver['tier'][] = ['OWNED_FLEET', 'PAID_MEMBER', 'OUTSIDE_
 // Simulated "Automatic Dispatch Engine" priority logic: owned fleet first,
 // then paid members, then contracted outside drivers — within a tier prefer
 // an exact vehicle-type match and the closest available driver to pickup.
-export function suggestDriver(order: Order, drivers: Driver[], vehicles: Vehicle[]): string | null {
-  const available = drivers.filter((d) => d.status === 'AVAILABLE')
+export function suggestDriver(order: Order, drivers: Driver[], vehicles: Vehicle[], excludeDriverIds: string[] = []): string | null {
+  const available = drivers.filter((d) => d.status === 'AVAILABLE' && !excludeDriverIds.includes(d.id))
   if (available.length === 0) return null
 
   const scored = available.map((d) => {
