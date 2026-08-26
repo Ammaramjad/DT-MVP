@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, ClipboardList, Plane, Printer, Search, Tag, Users, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
@@ -29,16 +29,29 @@ const VEHICLE_COLOR: Record<VehicleType, string> = {
   MINIBUS: '#a3e635',
 }
 
+// Route-state presets handed off from the Customer App's Home-tab quick-action
+// shortcuts (see components/customer/HomeScreen.tsx) — lets tapping "Airport
+// Pickup" etc. genuinely pre-fill the trip type instead of opening a blank form.
+const PRESETS: Record<string, { pickupId: string; dropoffId: string; vehicleType?: VehicleType }> = {
+  AIRPORT_PICKUP: { pickupId: 'tpe-airport', dropoffId: 'taipei-101' },
+  AIRPORT_DROPOFF: { pickupId: 'taipei-101', dropoffId: 'tpe-airport' },
+  TOUR_CHARTER: { pickupId: 'taipei-101', dropoffId: 'beitou', vehicleType: 'VAN' },
+}
+
 export default function BookingPanel() {
   const createOrder = useFleetStore((s) => s.createOrder)
   const navigate = useNavigate()
+  const location = useLocation()
   const { t, lang } = useLang()
 
+  const preset = (location.state as { presetType?: string } | null)?.presetType
+  const presetConfig = preset ? PRESETS[preset] : undefined
+
   const [channel, setChannel] = useState<BookingInput['channel']>('Website')
-  const [pickupId, setPickupId] = useState('tpe-airport')
-  const [dropoffId, setDropoffId] = useState('taipei-main-station')
+  const [pickupId, setPickupId] = useState(presetConfig?.pickupId ?? 'tpe-airport')
+  const [dropoffId, setDropoffId] = useState(presetConfig?.dropoffId ?? 'taipei-main-station')
   const [scheduledTime, setScheduledTime] = useState(() => nowPlusMinutesISO(90).slice(0, 16))
-  const [vehicleType, setVehicleType] = useState<VehicleType>('SEDAN')
+  const [vehicleType, setVehicleType] = useState<VehicleType>(presetConfig?.vehicleType ?? 'SEDAN')
   const [passengers, setPassengers] = useState(2)
   const [luggage, setLuggage] = useState(2)
   const [name, setName] = useState('')
