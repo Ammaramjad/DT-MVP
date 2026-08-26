@@ -1,7 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CheckCircle2, ClipboardList, Plane, Printer, Search, Tag, Users, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  CalendarPlus,
+  CheckCircle2,
+  ClipboardList,
+  CreditCard,
+  Mail,
+  MessageCircle,
+  Plane,
+  Printer,
+  RefreshCw,
+  Search,
+  Tag,
+  Users,
+  XCircle,
+  X,
+} from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useFleetStore, classifyOrderType } from '../store/useFleetStore'
 import { LOCATIONS, getLocation } from '../data/locations'
@@ -21,6 +37,11 @@ import { RouteMapView } from '../components/map/RouteMapView'
 import { useLang } from '../i18n'
 
 const CHANNELS: BookingInput['channel'][] = ['Website', 'LINE@', 'KKday', 'Booking.com', 'Klook', 'Phone / Agent']
+const PAYMENT_METHODS: { key: string; labelKey: string }[] = [
+  { key: 'card', labelKey: 'checkout.paymentCard' },
+  { key: 'linepay', labelKey: 'checkout.paymentLinePay' },
+  { key: 'applepay', labelKey: 'checkout.paymentApplePay' },
+]
 const VEHICLE_COLOR: Record<VehicleType, string> = {
   SEDAN: '#22d3ee',
   SUV: '#a855f7',
@@ -40,6 +61,8 @@ const PRESETS: Record<string, { pickupId: string; dropoffId: string; vehicleType
 
 export default function BookingPanel() {
   const createOrder = useFleetStore((s) => s.createOrder)
+  const retryPayment = useFleetStore((s) => s.retryPayment)
+  const liveOrders = useFleetStore((s) => s.orders)
   const navigate = useNavigate()
   const location = useLocation()
   const { t, lang } = useLang()
@@ -72,6 +95,21 @@ export default function BookingPanel() {
   const [quotedAt, setQuotedAt] = useState(() => Date.now())
   const [quotationVersion, setQuotationVersion] = useState(1)
   const [now, setNow] = useState(() => Date.now())
+
+  // Checkout depth items from the client brief: special assistance, consent,
+  // payment-method selection, invoice type, and a demo-only "simulate a
+  // declined card" toggle so the payment success/failure/retry loop can be
+  // demonstrated end-to-end without a real payment gateway.
+  const [childSeat, setChildSeat] = useState(false)
+  const [wheelchair, setWheelchair] = useState(false)
+  const [specialAssistance, setSpecialAssistance] = useState('')
+  const [consent, setConsent] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<string>('card')
+  const [invoiceType, setInvoiceType] = useState<'PERSONAL' | 'COMPANY'>('PERSONAL')
+  const [simulateDecline, setSimulateDecline] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
+  const [lineSent, setLineSent] = useState(false)
+  const [calendarAdded, setCalendarAdded] = useState(false)
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000)
@@ -234,7 +272,9 @@ export default function BookingPanel() {
     ],
   )
 
-  const canSubmit = name.trim().length > 1 && phone.trim().length > 3 && pickupId !== dropoffId && !quoteExpired
+  const canSubmit = name.trim().length > 1 && phone.trim().length > 3 && pickupId !== dropoffId && !quoteExpired && consent
+
+  const liveCreatedOrder = createdOrder ? liveOrders.find((o) => o.id === createdOrder.id) ?? createdOrder : null
 
   const handleLookupFlight = () => {
     if (!flightNumber) return
@@ -248,6 +288,13 @@ export default function BookingPanel() {
 
   const handleSubmit = () => {
     if (!canSubmit) return
+    const tags = [
+      childSeat ? t('checkout.tagChildSeat') : null,
+      wheelchair ? t('checkout.tagWheelchair') : null,
+      specialAssistance.trim() ? `${t('checkout.tagAssistance')}: ${specialAssistance.trim()}` : null,
+    ].filter(Boolean)
+    const combinedNotes = [notes, ...tags].filter(Boolean).join(' · ')
+
     const order = createOrder({
       channel,
       pickupId,
@@ -258,16 +305,38 @@ export default function BookingPanel() {
       luggage,
       customer: { name, phone, email },
       flightNumber,
-      notes,
+      notes: combinedNotes,
       couponCode: appliedCoupon,
       quotationVersion,
+      childSeat,
+      wheelchair,
+      invoiceRequested: invoiceType === 'COMPANY',
+      simulateFailure: simulateDecline,
     })
     setCreatedOrder(order)
+    setEmailSent(false)
+    setLineSent(false)
+    setCalendarAdded(false)
   }
 
   const handlePrintVoucher = () => {
     window.print()
   }
+
+  // Once payment succeeds (initial confirm or after a retry), simulate the
+  // async email/LINE booking-confirmation notifications firing shortly after.
+  useEffect(() => {
+    if (!liveCreatedOrder || liveCreatedOrder.status === 'FAILED' || liveCreatedOrder.status === 'PENDING_PAYMENT') return
+    setEmailSent(false)
+    setLineSent(false)
+    const t1 = window.setTimeout(() => setEmailSent(true), 600)
+    const t2 = window.setTimeout(() => setLineSent(true), 1100)
+    return () => {
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveCreatedOrder?.id, liveCreatedOrder?.status])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-white pb-32 text-slate-900">
@@ -489,9 +558,95 @@ export default function BookingPanel() {
             {couponError && <p className="mt-1.5 text-xs text-red-500">{t('booking.couponInvalid')}</p>}
           </div>
 
-          <Button size="lg" fullWidth className="mt-6" disabled={!canSubmit} onClick={handleSubmit}>
+          {/* Special assistance — client brief: child seat, wheelchair, special assistance */}
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <label className="mb-2 block text-xs font-medium text-slate-600">{t('checkout.specialRequirements')}</label>
+            <div className="flex flex-wrap gap-3">
+              <label className="flex items-center gap-2 text-xs text-slate-600">
+                <input type="checkbox" checked={childSeat} onChange={(e) => setChildSeat(e.target.checked)} data-testid="checkout-child-seat" className="h-4 w-4 accent-blue-500" />
+                {t('checkout.childSeat')}
+              </label>
+              <label className="flex items-center gap-2 text-xs text-slate-600">
+                <input type="checkbox" checked={wheelchair} onChange={(e) => setWheelchair(e.target.checked)} data-testid="checkout-wheelchair" className="h-4 w-4 accent-blue-500" />
+                {t('checkout.wheelchair')}
+              </label>
+            </div>
+            <input
+              value={specialAssistance}
+              onChange={(e) => setSpecialAssistance(e.target.value)}
+              placeholder={t('checkout.assistancePlaceholder')}
+              data-testid="checkout-assistance-input"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          {/* Payment method + invoice selection */}
+          <div className="mt-4">
+            <label className="mb-2 block text-xs font-medium text-slate-600">{t('checkout.paymentMethod')}</label>
+            <div className="grid grid-cols-3 gap-2">
+              {PAYMENT_METHODS.map((pm) => (
+                <button
+                  key={pm.key}
+                  type="button"
+                  onClick={() => setPaymentMethod(pm.key)}
+                  data-testid={`checkout-payment-${pm.key}`}
+                  className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold ring-1 transition ${
+                    paymentMethod === pm.key ? 'bg-blue-500 text-white ring-blue-500' : 'bg-slate-50 text-slate-600 ring-slate-200'
+                  }`}
+                >
+                  <CreditCard className="h-3.5 w-3.5" /> {t(pm.labelKey)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="mb-2 block text-xs font-medium text-slate-600">{t('checkout.invoiceType')}</label>
+            <div className="flex gap-2">
+              {(['PERSONAL', 'COMPANY'] as const).map((it) => (
+                <button
+                  key={it}
+                  type="button"
+                  onClick={() => setInvoiceType(it)}
+                  data-testid={`checkout-invoice-${it.toLowerCase()}`}
+                  className={`flex-1 rounded-xl py-2 text-xs font-semibold ring-1 transition ${
+                    invoiceType === it ? 'bg-slate-800 text-white ring-slate-800' : 'bg-slate-50 text-slate-600 ring-slate-200'
+                  }`}
+                >
+                  {t(`checkout.invoice.${it}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="mt-4 flex items-start gap-2.5 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              data-testid="checkout-consent"
+              className="mt-0.5 h-4 w-4 accent-blue-500"
+            />
+            <span>{t('checkout.consentText')}</span>
+          </label>
+
+          <label className="mt-2 flex items-center gap-2.5 rounded-xl bg-amber-50 p-3 text-[11px] text-amber-700 ring-1 ring-amber-100">
+            <input
+              type="checkbox"
+              checked={simulateDecline}
+              onChange={(e) => setSimulateDecline(e.target.checked)}
+              data-testid="checkout-simulate-decline"
+              className="h-3.5 w-3.5 accent-amber-500"
+            />
+            <span className="flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5" /> {t('checkout.simulateDecline')}
+            </span>
+          </label>
+
+          <Button size="lg" fullWidth className="mt-4" disabled={!canSubmit} onClick={handleSubmit} data-testid="checkout-confirm-booking">
             <Users className="h-4 w-4" /> {t('booking.confirmBooking')} · {formatTWD(fareBreakdown.total)}
           </Button>
+          {!consent && <p className="mt-1.5 text-center text-[11px] text-slate-400">{t('checkout.consentRequired')}</p>}
         </div>
 
         <div className="flex flex-col gap-4">
@@ -616,7 +771,7 @@ export default function BookingPanel() {
       </div>
 
       <AnimatePresence>
-        {createdOrder && (
+        {liveCreatedOrder && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -628,75 +783,127 @@ export default function BookingPanel() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ type: 'spring', stiffness: 260, damping: 24 }}
               className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-6 text-center shadow-2xl print:max-h-none print:overflow-visible print:shadow-none"
+              data-testid="checkout-result-modal"
             >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.1, type: 'spring', stiffness: 300 }}
-                className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-500 print:hidden"
-              >
-                <CheckCircle2 className="h-8 w-8" />
-              </motion.div>
-              <h2 className="mt-4 text-lg font-bold text-slate-900">{t('booking.createdTitle', { orderNo: createdOrder.orderNo })}</h2>
-              <p className="mt-1 text-sm text-slate-500 print:hidden">{t('booking.createdDesc')}</p>
+              {liveCreatedOrder.status === 'FAILED' ? (
+                <>
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.1, type: 'spring', stiffness: 300 }}
+                    className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-500"
+                  >
+                    <XCircle className="h-8 w-8" />
+                  </motion.div>
+                  <h2 className="mt-4 text-lg font-bold text-slate-900" data-testid="checkout-payment-failed">
+                    {t('checkout.paymentFailedTitle')}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">{t('checkout.paymentFailedDesc')}</p>
+                  <div className="mt-4 rounded-xl bg-red-50 p-3 text-xs text-red-500">{t('checkout.paymentFailedReason')}</div>
+                  <div className="mt-5 flex flex-col gap-2">
+                    <Button fullWidth onClick={() => retryPayment(liveCreatedOrder.id)} data-testid="checkout-retry-payment">
+                      <RefreshCw className="h-4 w-4" /> {t('checkout.retryPayment')}
+                    </Button>
+                    <Button fullWidth variant="ghost" onClick={() => setCreatedOrder(null)}>
+                      <X className="h-3.5 w-3.5" /> {t('booking.bookAnother')}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.1, type: 'spring', stiffness: 300 }}
+                    className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-500 print:hidden"
+                  >
+                    <CheckCircle2 className="h-8 w-8" />
+                  </motion.div>
+                  <h2 className="mt-4 text-lg font-bold text-slate-900" data-testid="checkout-booking-confirmed">{t('booking.createdTitle', { orderNo: liveCreatedOrder.orderNo })}</h2>
+                  <p className="mt-1 text-sm text-slate-500 print:hidden">{t('booking.createdDesc')}</p>
 
-              <div className="mt-5 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('booking.voucherTitle')}</p>
-                <div className="mx-auto mt-3 flex h-32 w-32 items-center justify-center rounded-lg bg-white p-2 shadow-sm">
-                  <QRCodeSVG
-                    value={JSON.stringify({ orderNo: createdOrder.orderNo, pickup: createdOrder.pickup.name, dropoff: createdOrder.dropoff.name, scheduledTime: createdOrder.scheduledTime })}
-                    size={112}
-                  />
-                </div>
-                <p className="mt-2 font-mono text-sm font-bold text-slate-800">{createdOrder.orderNo}</p>
-                <p className="mt-1 text-[11px] text-slate-500">{t('booking.voucherHint')}</p>
-              </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 print:hidden">
+                    <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${emailSent ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`} data-testid="checkout-email-status">
+                      <Mail className="h-3 w-3" /> {emailSent ? t('checkout.emailSent') : t('checkout.emailSending')}
+                    </span>
+                    <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${lineSent ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`} data-testid="checkout-line-status">
+                      <MessageCircle className="h-3 w-3" /> {lineSent ? t('checkout.lineSent') : t('checkout.lineSending')}
+                    </span>
+                  </div>
 
-              <div className="mt-4 space-y-1 rounded-xl border border-dashed border-slate-200 p-4 text-left text-xs text-slate-600">
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t('trip.sheetTitle')}</p>
-                <div className="flex justify-between">
-                  <span>{t('trip.pickup')}</span>
-                  <span className="font-medium text-slate-800">{lang === 'zh' ? createdOrder.pickup.nameZh : createdOrder.pickup.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{t('trip.dropoff')}</span>
-                  <span className="font-medium text-slate-800">{lang === 'zh' ? createdOrder.dropoff.nameZh : createdOrder.dropoff.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{t('trip.total')}</span>
-                  <span className="font-semibold text-slate-900">{formatTWD(createdOrder.fareBreakdown.total)}</span>
-                </div>
-              </div>
+                  <div className="mt-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('booking.voucherTitle')}</p>
+                    <div className="mx-auto mt-3 flex h-32 w-32 items-center justify-center rounded-lg bg-white p-2 shadow-sm">
+                      <QRCodeSVG
+                        value={JSON.stringify({ orderNo: liveCreatedOrder.orderNo, pickup: liveCreatedOrder.pickup.name, dropoff: liveCreatedOrder.dropoff.name, scheduledTime: liveCreatedOrder.scheduledTime })}
+                        size={112}
+                      />
+                    </div>
+                    <p className="mt-2 font-mono text-sm font-bold text-slate-800">{liveCreatedOrder.orderNo}</p>
+                    <p className="mt-1 text-[11px] text-slate-500">{t('booking.voucherHint')}</p>
+                  </div>
 
-              <div className="mt-5 flex flex-col gap-2 print:hidden">
-                <Button fullWidth variant="secondary" onClick={handlePrintVoucher}>
-                  <Printer className="h-4 w-4" /> {t('booking.printVoucher')}
-                </Button>
-                <Button fullWidth onClick={() => navigate('/control')}>
-                  {t('booking.viewControl')}
-                </Button>
-                <Button fullWidth variant="secondary" onClick={() => navigate('/customer')}>
-                  {t('booking.trackRide')}
-                </Button>
-                <Button
-                  fullWidth
-                  variant="ghost"
-                  onClick={() => {
-                    setCreatedOrder(null)
-                    setName('')
-                    setPhone('')
-                    setEmail('')
-                    setNotes('')
-                    setFlightChecked(false)
-                    setFlightNumber('')
-                    setAppliedCoupon(null)
-                    setCouponInput('')
-                    refreshQuote()
-                  }}
-                >
-                  <X className="h-3.5 w-3.5" /> {t('booking.bookAnother')}
-                </Button>
-              </div>
+                  <div className="mt-4 space-y-1 rounded-xl border border-dashed border-slate-200 p-4 text-left text-xs text-slate-600">
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t('trip.sheetTitle')}</p>
+                    <div className="flex justify-between">
+                      <span>{t('trip.pickup')}</span>
+                      <span className="font-medium text-slate-800">{lang === 'zh' ? liveCreatedOrder.pickup.nameZh : liveCreatedOrder.pickup.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{t('trip.dropoff')}</span>
+                      <span className="font-medium text-slate-800">{lang === 'zh' ? liveCreatedOrder.dropoff.nameZh : liveCreatedOrder.dropoff.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{t('trip.total')}</span>
+                      <span className="font-semibold text-slate-900">{formatTWD(liveCreatedOrder.fareBreakdown.total)}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex flex-col gap-2 print:hidden">
+                    <Button
+                      fullWidth
+                      variant="secondary"
+                      onClick={() => setCalendarAdded(true)}
+                      data-testid="checkout-add-calendar"
+                      disabled={calendarAdded}
+                    >
+                      <CalendarPlus className="h-4 w-4" /> {calendarAdded ? t('checkout.calendarAdded') : t('checkout.addToCalendar')}
+                    </Button>
+                    <Button fullWidth variant="secondary" onClick={handlePrintVoucher}>
+                      <Printer className="h-4 w-4" /> {t('booking.printVoucher')}
+                    </Button>
+                    <Button fullWidth onClick={() => navigate('/control')}>
+                      {t('booking.viewControl')}
+                    </Button>
+                    <Button fullWidth variant="secondary" onClick={() => navigate('/customer')}>
+                      {t('booking.trackRide')}
+                    </Button>
+                    <Button
+                      fullWidth
+                      variant="ghost"
+                      onClick={() => {
+                        setCreatedOrder(null)
+                        setName('')
+                        setPhone('')
+                        setEmail('')
+                        setNotes('')
+                        setFlightChecked(false)
+                        setFlightNumber('')
+                        setAppliedCoupon(null)
+                        setCouponInput('')
+                        setChildSeat(false)
+                        setWheelchair(false)
+                        setSpecialAssistance('')
+                        setConsent(false)
+                        setSimulateDecline(false)
+                        refreshQuote()
+                      }}
+                    >
+                      <X className="h-3.5 w-3.5" /> {t('booking.bookAnother')}
+                    </Button>
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}

@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion'
-import { Clock3, Home, User } from 'lucide-react'
+import { Home, ShieldCheck, Ticket, User } from 'lucide-react'
 import { useLang } from '../../i18n'
 
-export type CustomerTab = 'HOME' | 'ACTIVITY' | 'ACCOUNT'
+export type CustomerTab = 'HOME' | 'TRIPS' | 'SAFETY' | 'ACCOUNT'
 
 const TABS: { key: CustomerTab; icon: typeof Home; labelKey: string }[] = [
   { key: 'HOME', icon: Home, labelKey: 'customer.tab.home' },
-  { key: 'ACTIVITY', icon: Clock3, labelKey: 'customer.tab.activity' },
+  { key: 'TRIPS', icon: Ticket, labelKey: 'customer.tab.trips' },
+  { key: 'SAFETY', icon: ShieldCheck, labelKey: 'customer.tab.safety' },
   { key: 'ACCOUNT', icon: User, labelKey: 'customer.tab.account' },
 ]
 

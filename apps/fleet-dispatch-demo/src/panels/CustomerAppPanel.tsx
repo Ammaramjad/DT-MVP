@@ -4,11 +4,12 @@ import { Car } from 'lucide-react'
 import { useFleetStore } from '../store/useFleetStore'
 import { CustomerTabBar, type CustomerTab } from '../components/customer/CustomerTabBar'
 import { HomeScreen } from '../components/customer/HomeScreen'
-import { ActivityScreen } from '../components/customer/ActivityScreen'
+import { TripsScreen } from '../components/customer/TripsScreen'
+import { SafetyScreen } from '../components/customer/SafetyScreen'
 import { AccountScreen } from '../components/customer/AccountScreen'
 import { useLang } from '../i18n'
 
-const ACTIVE_STATUSES = ['NEW', 'PENDING_DRIVER_RESPONSE', 'ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'PICKED_UP', 'IN_TRANSIT']
+const ACTIVE_STATUSES = ['CONFIRMED', 'DRIVER_MATCHING', 'ASSIGNED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'PASSENGER_ONBOARD']
 
 /**
  * The standalone Customer App shell — bright, friendly, consumer-grade, and
@@ -76,13 +77,13 @@ export default function CustomerAppPanel() {
       <AnimatePresence mode="wait">
         {tab === 'HOME' && (
           <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
-            <HomeScreen customerName={order.customer.name.split(' ')[0]} activeOrder={activeOrder} onViewActive={() => setTab('ACTIVITY')} />
+            <HomeScreen customerName={order.customer.name.split(' ')[0]} activeOrder={activeOrder} onViewActive={() => setTab('TRIPS')} />
           </motion.div>
         )}
 
-        {tab === 'ACTIVITY' && (
-          <motion.div key="activity" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
-            <ActivityScreen
+        {tab === 'TRIPS' && (
+          <motion.div key="trips" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
+            <TripsScreen
               order={order}
               orders={sortedOrders}
               onSelectOrder={setFocusOrder}
@@ -90,7 +91,14 @@ export default function CustomerAppPanel() {
               vehicle={vehicle}
               profile={customerProfile}
               liveOrders={customerLiveOrders}
+              onGoToSafety={() => setTab('SAFETY')}
             />
+          </motion.div>
+        )}
+
+        {tab === 'SAFETY' && (
+          <motion.div key="safety" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
+            <SafetyScreen order={activeOrder ?? order} />
           </motion.div>
         )}
 

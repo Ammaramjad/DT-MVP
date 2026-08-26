@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, ListTree, Luggage, MessageCircle, Phone, Plane, QrCode, ShieldCheck, Star, Users } from 'lucide-react'
+import { Copy, KeyRound, ListTree, Luggage, MessageCircle, MonitorSmartphone, Phone, Plane, QrCode, ShieldCheck, Star, Users, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { CustomerProfile, Driver, Order, Vehicle } from '../../types'
+import { useFleetStore } from '../../store/useFleetStore'
 import { StatusStepper } from '../ui/StatusStepper'
 import { OrderTypeBadge, FlightBadge, ChannelBadge } from '../ui/OrderBadges'
 import { CountdownRing } from '../ui/CountdownRing'
@@ -25,6 +26,7 @@ export function ActivityScreen({
   vehicle,
   profile,
   liveOrders,
+  onGoToSafety,
 }: {
   order: Order
   orders: Order[]
@@ -33,11 +35,14 @@ export function ActivityScreen({
   vehicle: Vehicle | undefined
   profile: CustomerProfile | null
   liveOrders: Order[]
+  onGoToSafety?: () => void
 }) {
   const { t, lang } = useLang()
+  const requestCancellation = useFleetStore((s) => s.requestCancellation)
   const [copied, setCopied] = useState(false)
   const [messaged, setMessaged] = useState(false)
   const [showVoucher, setShowVoucher] = useState(false)
+  const [cancelRequested, setCancelRequested] = useState(false)
 
   useEffect(() => {
     if (!copied) return
@@ -166,6 +171,48 @@ export function ActivityScreen({
           </motion.div>
         )}
 
+        {isDispatched && !isDone && !isCancelled && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="flex items-center justify-between rounded-xl bg-blue-50 p-3">
+              <span className="flex items-center gap-1.5 text-[11px] font-medium text-blue-600">
+                <KeyRound className="h-3.5 w-3.5" /> {t('customer.activity.pickupPin')}
+              </span>
+              <span className="font-mono text-base font-bold tracking-widest text-blue-700" data-testid="customer-pickup-pin">
+                {order.pickupPin}
+              </span>
+            </div>
+            <button
+              onClick={onGoToSafety}
+              data-testid="customer-activity-safety-cta"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 text-[11px] font-medium text-slate-600 hover:bg-slate-200"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" /> {t('customer.activity.safetyCenter')}
+            </button>
+          </div>
+        )}
+
+        {order.pickupInstructions && !isDone && !isCancelled && (
+          <div className="mt-3 rounded-xl bg-slate-50 p-3.5" data-testid="customer-pickup-instructions">
+            <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <MonitorSmartphone className="h-3 w-3" /> {t('customer.activity.pickupInstructions')}
+            </p>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div>
+                <p className="font-bold text-slate-700">{order.pickupInstructions.terminal}</p>
+                <p className="text-[10px] text-slate-400">{t('booking.terminal')}</p>
+              </div>
+              <div>
+                <p className="font-bold text-slate-700">{order.pickupInstructions.gate}</p>
+                <p className="text-[10px] text-slate-400">{t('booking.gateLabel')}</p>
+              </div>
+              <div>
+                <p className="font-bold text-slate-700">{order.pickupInstructions.meetAndGreetBoard}</p>
+                <p className="text-[10px] text-slate-400">{t('customer.activity.meetBoard')}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {vehicle && (
           <div className="mt-3">
             <VehicleCard type={vehicle.type} plate={vehicle.plate} size="sm" light />
@@ -267,6 +314,27 @@ export function ActivityScreen({
             <QrCode className="h-3.5 w-3.5" /> {showVoucher ? t('customer.activity.hideVoucher') : t('customer.activity.viewVoucher')}
           </button>
         </div>
+
+        {!isDone && !isCancelled && (
+          <div className="mt-2">
+            {cancelRequested || order.status === 'CANCELLATION_REQUESTED' ? (
+              <p className="rounded-xl bg-amber-50 py-2.5 text-center text-xs font-medium text-amber-600" data-testid="customer-cancel-requested-banner">
+                {t('customer.activity.cancelRequested')}
+              </p>
+            ) : (
+              <button
+                onClick={() => {
+                  requestCancellation(order.id, t('trips.cancelReasonDefault'))
+                  setCancelRequested(true)
+                }}
+                data-testid="customer-activity-cancel-change"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 py-2.5 text-xs font-medium text-red-500 hover:bg-red-100"
+              >
+                <X className="h-3.5 w-3.5" /> {t('customer.activity.cancelOrChange')}
+              </button>
+            )}
+          </div>
+        )}
 
         <AnimatePresence>
           {showVoucher && (
