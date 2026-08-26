@@ -87,7 +87,7 @@ export function AccountScreen({
           }
           noChevron
         />
-        <SettingsRow icon={<Bell className="h-4 w-4" />} label={t('customer.account.support')} />
+        <SettingsRow icon={<Bell className="h-4 w-4" />} label={t('customer.account.notifications')} />
         <SettingsRow icon={<Share2 className="h-4 w-4" />} label={t('customer.account.shareApp')} />
         <SettingsRow icon={<HelpCircle className="h-4 w-4" />} label={t('customer.account.support')} last />
       </div>
