@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Car,
   Gauge,
+  Globe2,
   Lock,
   MapPinned,
   Radar,
@@ -85,7 +86,7 @@ export default function LandingPanel() {
                 {t('landing.startDemo')} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </Link>
               <Link
-                to="/control"
+                to="/fleet-os"
                 className="inline-flex items-center gap-2 rounded-xl bg-white/8 px-5 py-3 text-sm font-semibold text-slate-100 ring-1 ring-white/15 transition hover:bg-white/14"
               >
                 {t('landing.jumpControl')}
@@ -137,9 +138,22 @@ export default function LandingPanel() {
             <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-400">{t('landing.threeApps.desc')}</p>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <AppShowcaseCard
-              to="/control"
+              to="/marketplace"
+              tone="marketplace"
+              badgeIcon={<Globe2 className="h-3 w-3" />}
+              badgeLabel={t('landing.app.marketplace.badge')}
+              icon={<Globe2 className="h-6 w-6" />}
+              title={t('landing.app.marketplace.title')}
+              zh={t('landing.app.marketplace.zh')}
+              desc={t('landing.app.marketplace.desc')}
+              cta={t('landing.app.marketplace.cta')}
+              bullets={[t('landing.app.marketplace.bullet1'), t('landing.app.marketplace.bullet2'), t('landing.app.marketplace.bullet3')]}
+              mock={<MarketplaceMock />}
+            />
+            <AppShowcaseCard
+              to="/fleet-os"
               tone="admin"
               badgeIcon={<Lock className="h-3 w-3" />}
               badgeLabel={t('landing.app.admin.badge')}
@@ -226,7 +240,11 @@ function LiveStat({ icon, value, label }: { icon: ReactNode; value: number; labe
   )
 }
 
-const TONE_STYLES: Record<'admin' | 'driver' | 'customer', { ring: string; glow: string; iconBg: string; badgeTone: 'cyan' | 'amber' | 'pink' }> = {
+const TONE_STYLES: Record<
+  'admin' | 'driver' | 'customer' | 'marketplace',
+  { ring: string; glow: string; iconBg: string; badgeTone: 'cyan' | 'amber' | 'pink' | 'purple' }
+> = {
+  marketplace: { ring: 'hover:ring-purple-400/40', glow: 'from-purple-500/15', iconBg: 'bg-purple-400/15 text-purple-300', badgeTone: 'purple' },
   admin: { ring: 'hover:ring-cyan-400/40', glow: 'from-cyan-500/15', iconBg: 'bg-cyan-400/15 text-cyan-300', badgeTone: 'cyan' },
   driver: { ring: 'hover:ring-amber-400/40', glow: 'from-amber-500/15', iconBg: 'bg-amber-400/15 text-amber-300', badgeTone: 'amber' },
   customer: { ring: 'hover:ring-pink-400/40', glow: 'from-pink-500/15', iconBg: 'bg-pink-400/15 text-pink-300', badgeTone: 'pink' },
@@ -246,7 +264,7 @@ function AppShowcaseCard({
   mock,
 }: {
   to: string
-  tone: 'admin' | 'driver' | 'customer'
+  tone: 'admin' | 'driver' | 'customer' | 'marketplace'
   badgeIcon: ReactNode
   badgeLabel: string
   icon: ReactNode
@@ -303,6 +321,23 @@ function PhoneFrame({ children, dark = true }: { children: ReactNode; dark?: boo
     <div className={`relative h-40 w-24 rounded-[16px] border-2 p-1.5 shadow-lg ${dark ? 'border-slate-700 bg-slate-950' : 'border-slate-300 bg-white'}`}>
       <div className="absolute left-1/2 top-1 h-1 w-6 -translate-x-1/2 rounded-full bg-black/40" />
       <div className="flex h-full w-full flex-col gap-1 overflow-hidden rounded-[10px]">{children}</div>
+    </div>
+  )
+}
+
+function MarketplaceMock() {
+  return (
+    <div className="flex w-full max-w-[220px] flex-col gap-1.5 rounded-xl border border-white/10 bg-slate-950/60 p-2.5">
+      <div className="flex gap-1">
+        <div className="h-4 w-10 rounded-full bg-purple-400/25" />
+        <div className="h-4 w-10 rounded-full bg-white/10" />
+        <div className="h-4 w-10 rounded-full bg-white/10" />
+      </div>
+      <div className="flex gap-1">
+        <div className="h-9 flex-1 rounded bg-white/5" />
+        <div className="h-9 flex-1 rounded bg-white/5" />
+      </div>
+      <div className="h-1.5 w-2/3 rounded-full bg-purple-400/50" />
     </div>
   )
 }

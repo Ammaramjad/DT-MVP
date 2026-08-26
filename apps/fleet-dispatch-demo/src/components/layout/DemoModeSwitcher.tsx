@@ -52,7 +52,12 @@ export function DemoModeSwitcher() {
             >
               <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('demo.switcherHint')}</p>
               {APPS.map((item) => {
-                const isActive = location.pathname === item.to
+                const isActive =
+                  item.to === '/'
+                    ? location.pathname === '/'
+                    : item.to === '/control'
+                      ? location.pathname.startsWith('/control') || location.pathname.startsWith('/fleet-os')
+                      : location.pathname.startsWith(item.to)
                 return (
                   <Link
                     key={item.to}

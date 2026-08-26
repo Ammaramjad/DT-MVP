@@ -872,7 +872,7 @@ export default function BookingPanel() {
                     <Button fullWidth variant="secondary" onClick={handlePrintVoucher}>
                       <Printer className="h-4 w-4" /> {t('booking.printVoucher')}
                     </Button>
-                    <Button fullWidth onClick={() => navigate('/control')}>
+                    <Button fullWidth onClick={() => navigate('/fleet-os')}>
                       {t('booking.viewControl')}
                     </Button>
                     <Button fullWidth variant="secondary" onClick={() => navigate('/customer')}>

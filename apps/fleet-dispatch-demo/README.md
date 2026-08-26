@@ -1,283 +1,266 @@
-# 走瘋派車 Fleet Dispatch — Live Prototype
+# 走瘋派車 Zhaofeng Travel — Fleet OS Live Prototype
 
-A polished, fully client-side **demo prototype** of the 走瘋派車 (Zou Feng Pai Che) airport-transfer & fleet-dispatch
-platform, built to show a client the end-to-end product vision. There is no real backend, no payments, and no live
-third-party APIs — every "live" data point (orders, drivers, GPS positions, flight status, notifications) is
-simulated in the browser by a single shared store, so the three apps below feel like one connected, real-time
-system, even though each one is designed and branded as a genuinely standalone product.
+A polished, fully client-side **demo prototype** of the Zhaofeng Travel (走瘋派車) Taiwan airport-transfer, city-ride,
+and private-charter platform, built around a central **Fleet OS**. There is no real backend, no payments, and no
+live third-party APIs — every "live" data point (orders, drivers, GPS positions, flight status, notifications,
+suppliers, campaigns, refunds…) is simulated in the browser by a single shared store, so every screen feels like one
+connected, real-time system even though each app is designed and branded as a genuinely standalone product.
 
-## Three separate, independently-branded apps — not one blended tool
+## Route map
 
-This prototype deliberately represents **three products that would ship independently in production**, sharing only
-the underlying simulated live data (orders, drivers, GPS positions):
-
-| App | Route(s) | Who it's for | What it shows |
+| Area | Canonical route(s) | Old route | Still works? |
 |---|---|---|---|
-| **Admin / Control Center** | `/control` (+ `/booking` as the order-creation entry point) | Internal ops staff only | The dispatch "mission control" — KPI counters, a filterable order queue with a per-order **multi-channel dispatch + escalation log**, a live fleet map, a detailed **Analytics & Reports** dashboard (see below), driver document/OCR alerts, a live notification feed, and a **Capacity Forecast / Driver Schedule / Fleet Roster** tab group. Deliberately dark, dense, "mission-control" styled — this is an internal ops tool and looks like one. |
-| **Driver App** | `/driver` | Drivers, from their own perspective | A standalone, Uber-Driver-style mobile app: a front-and-center **online/offline toggle**, a full-screen **incoming-request modal** with a countdown ring and Accept/Decline, an **Earnings** dashboard (today/week/all-time + a 7-day bar chart), a **trip-in-progress** screen with a turn-by-turn-style map and a single clear next-action button, an **Activity** (job history) tab, and an **Account** tab (profile, vehicle, documents). No admin chrome or branding leaks in anywhere. |
-| **Customer App** | `/customer` (booking itself starts at `/booking`) | Customers, from their own perspective | A standalone, Taiwan-ride-hailing-style consumer app: a bright **Home** tab (greeting, search-style "Book a Ride" CTA, quick-action chips for Airport Pickup/Drop-off/Tour Charter, an active-trip banner), an **Activity** tab combining live tracking (driver card with photo/rating/vehicle, live ETA, call/message buttons, live map, status stepper, e-Voucher) with ride history, and an **Account** tab (profile, trip/spend stats, settings). Visually distinct from the Control Center's dark theme — bright, friendly, consumer-grade. |
+| Landing / sales pitch | `/` | — | — |
+| **Marketplace** (OTA-style discovery) | `/marketplace` | — (new) | — |
+| Booking checkout | `/booking` | — | yes, canonical entry point for checkout |
+| **Fleet OS** — Orders & Dispatch (dashboard) | `/fleet-os`, `/fleet-os/orders` | `/control` | yes — `/control` **redirects** to `/fleet-os` (`<Navigate replace>`) so old bookmarks/links keep working |
+| Fleet OS — Suppliers | `/fleet-os/suppliers` | — (new) | — |
+| Fleet OS — Catalog & Inventory | `/fleet-os/catalog` | — (new) | — |
+| Fleet OS — Campaigns & Coupons | `/fleet-os/campaigns` | — (new) | — |
+| Fleet OS — Support | `/fleet-os/support` | — (new) | — |
+| Fleet OS — Refunds | `/fleet-os/refunds` | — (new) | — |
+| Fleet OS — Driver Roster | `/fleet-os/roster` | — (new) | — |
+| Fleet OS — Driver Compliance | `/fleet-os/compliance` | — (new) | — |
+| Fleet OS — Finance / Settlement | `/fleet-os/finance` | — (new) | — |
+| Fleet OS — Reports | `/fleet-os/reports` | — (new) | — |
+| Fleet OS — Administration (roles, privacy/audit, system health) | `/fleet-os/admin` | — (new) | — |
+| Driver App | `/driver` | — | — |
+| Customer App | `/customer` | — | — |
 
-The **Landing page** (`/`) is the "sales pitch" entry point: a premium 3D hero plus a dedicated showcase section that
-presents these three apps side by side as clearly distinct, independently-branded products with their own mock-up
-previews and feature lists — not a simple flat switcher list.
+Every `/fleet-os/*` screen shares one persistent header + a sticky **module nav strip** (`FleetOsNav`) so the whole
+back office reads as one cohesive command center rather than disconnected pages. A small, deliberately
+"out-of-universe" **`DemoModeSwitcher`** pill (top-right, collapsed by default) lets you jump between the Landing
+page, Marketplace, Booking, Fleet OS, Driver App and Customer App, and toggle EN/繁體中文, without that chrome ever
+reading as part of any one app's own navigation.
 
-Because this is a single demo build, a small **`DemoModeSwitcher`** — a collapsed pill fixed to the top-right,
-intentionally styled unlike any of the three apps' own navigation — lets you jump between apps and toggle
-EN/繁體中文 for the purposes of this walkthrough. Each app otherwise keeps its own real primary navigation (the
-Driver App's and Customer App's bottom tab bars, the Control Center's own header) with no shared/overlapping chrome.
+## The order-state machine (16 states)
+
+Every order moves through one explicit, client-brief-aligned state machine, threaded consistently through the
+Customer App, Driver App and Fleet OS (`src/types.ts`):
+
+```
+DRAFT → PENDING_PAYMENT → PAID → SUPPLIER_PENDING → CONFIRMED
+      → DRIVER_MATCHING → ASSIGNED → DRIVER_EN_ROUTE → ARRIVED
+      → PASSENGER_ONBOARD → COMPLETED
+
+Side branches at any point prior to COMPLETED:
+  CANCELLATION_REQUESTED → CANCELLED → REFUND_PENDING → REFUNDED
+  PENDING_PAYMENT → FAILED   (simulated payment decline)
+  SUPPLIER_PENDING → FAILED  (simulated supplier rejection)
+```
+
+| # | Status | Where it's visible |
+|---|---|---|
+| 1 | `DRAFT` | Order created before checkout finishes |
+| 2 | `PENDING_PAYMENT` | Customer checkout, awaiting simulated payment |
+| 3 | `PAID` | Payment captured (simulated) |
+| 4 | `SUPPLIER_PENDING` | Awaiting the source supplier's confirmation (Klook/KKday/ezTravel/Booking.com adapters) |
+| 5 | `CONFIRMED` | Supplier confirmed / booking guaranteed |
+| 6 | `DRIVER_MATCHING` | Fleet OS is running the multi-channel dispatch + escalation ladder |
+| 7 | `ASSIGNED` | A driver accepted; Driver App shows the trip, Fleet OS updates the queue |
+| 8 | `DRIVER_EN_ROUTE` | Driver tapped "Navigate to pickup"; live position streams to Customer App + Fleet OS map |
+| 9 | `ARRIVED` | Driver marked arrived; customer sees pickup PIN/instructions |
+| 10 | `PASSENGER_ONBOARD` | PIN verified, trip in progress toward drop-off |
+| 11 | `COMPLETED` | Trip finished; receipt, rating prompt, payout accrual |
+| 12 | `CANCELLATION_REQUESTED` | Customer requested cancellation; appears in Fleet OS Refunds/Support queue |
+| 13 | `CANCELLED` | Cancellation processed |
+| 14 | `REFUND_PENDING` | Refund queued in Fleet OS Finance/Refunds |
+| 15 | `REFUNDED` | Refund issued |
+| 16 | `FAILED` | Payment declined or supplier rejected |
+
+Every order carries a timestamped **`statusHistory`** (status, actor, timestamp, detail) appended on every
+transition — rendered as a collapsible **Status Audit Timeline** on order cards in Fleet OS, and summarized in the
+Customer App's Trips detail and the Driver App's job history. A global **audit log** (`auditLog` in the store) also
+records cross-cutting Fleet OS actions (supplier status changes, refund approvals, role/permission edits, etc.) for
+the Admin → Privacy/Audit module.
+
+## Module-by-module rundown
+
+### Marketplace (`/marketplace`) — OTA-style discovery
+
+The direct-B2C storefront that also demonstrates the multi-channel aggregation story: search across **Direct,
+Klook, KKday, ezTravel and Booking.com** inventory (`src/data/marketplaceSeed.ts`) with category filters (airport
+pickup/drop-off, hourly charter, intercity transfer, attraction routes), vehicle-type/source/sort filters, source
+badges on every result card, and a product-detail modal (photos-style info boxes, inclusions/exclusions, languages,
+cancellation policy, capacity, duration). "Book now" deep-links into `/booking` with the listing's route/vehicle/
+source pre-filled.
+
+### Customer App (`/customer`) — premium mobile-first product
+
+Bottom tab bar: **Home · Trips · Safety · Account**, all sharing one live store.
+
+- **Home** (`HomeScreen.tsx`) — greeting, search-style "Book a Ride" CTA, quick-action chips (Airport Pickup/
+  Drop-off/Tour Charter) that deep-link into booking, and a live-trip banner when an order is active.
+- **Live Ride** (inside `ActivityScreen.tsx`, reached from Home/Trips → Active) — driver ETA/live location, pickup
+  PIN, vehicle photo/type/plate, driver rating, call/chat actions, live route map, status stepper, and airport
+  pickup instructions (terminal, gate, meet-and-greet board, flight number/delay). Buttons: **Track driver, contact
+  driver, share trip, Safety Center, cancel/change booking** — every one updates real store state (cancellation
+  request, navigation to Safety, etc.).
+- **Trips** (`TripsScreen.tsx`) — Upcoming / Active / Completed / Cancelled / Refund segmented tabs. Each state has
+  real actions: change pickup time, change flight number, add a note, request cancellation/refund, rate the driver,
+  request invoice, "book again," and create a linked support ticket — all wired to store actions
+  (`rescheduleOrder`, `addOrderNote`, `updateFlightNumber`, `requestCancellation`, `requestInvoice`,
+  `createSupportTicket`).
+- **Account & Loyalty** (`AccountScreen.tsx`) — saved passengers/emergency contacts (add/remove), tokenized payment
+  methods (masked card display only, add/remove/set-default), coupon wallet + member tier/points, notification
+  preferences (email/LINE/SMS toggles), and a Privacy Center (consent toggle, data-download request,
+  delete-account request) — each backed by a real store mutation.
+- **Safety** (`SafetyScreen.tsx`) — SOS button, share-trip link, emergency contact, driver/vehicle verification,
+  trip PIN/order number display, and "report a concern," all clearly labelled as prototype UI (no real
+  emergency-service connectivity implied).
+- Checkout (`BookingPanel.tsx`) — special assistance (child seat, wheelchair, notes), payment method selection
+  (card/LINE Pay/Apple Pay), invoice type (personal/company), consent checkbox, a demo "simulate payment decline"
+  toggle with a retry flow, and simulated email/LINE notification + calendar-add confirmations once paid.
+
+### Driver App (`/driver`) — serious operations app
+
+Bottom tab bar: **Home · Earnings · Activity · Account**, dark/operational visual identity distinct from the
+Customer App.
+
+- **Home / Availability** — online/offline toggle, plus a dedicated **Availability & Preferences** card
+  (`DriverAvailabilityCard.tsx`): working mode (airport priority/city priority/any), current zone, shift timer
+  (auto-starts on going online), auto-accept toggle, airport preference, and live acceptance-rate readout.
+- **Trip Offer & Dispatch** (`IncomingRequestModal.tsx`) — full-screen offer with countdown ring, fare estimate,
+  passenger count/luggage/flight number, a simulated passenger rating, order notes, a **source badge** (which
+  channel the order came from), and Accept/Decline with a **decline-reason picker** (too far, low fare, vehicle
+  mismatch, off-shift, other). No response escalates through the existing multi-channel notification ladder (see
+  below) and reassigns.
+- **Active Trip Workflow** (`DriverPanel.tsx`) — explicit state progression Accept → Navigate to pickup → Arrived →
+  Verify pickup PIN → Passenger onboard → Navigate to destination → Complete, with a live route map, an
+  **Operator Support** button, and a persistent **Trip Completion** card (final amount, mock toll/parking-evidence
+  upload, passenger rating prompt, digital-receipt trigger) that stays on screen until the driver dismisses it.
+- **Earnings & Performance** (`EarningsScreen.tsx` + `src/lib/earnings.ts`) — Today/Week/Month/All-Time periods;
+  gross earnings, incentives, tips, adjustments, cancellation deductions, platform commission, net earnings; a
+  ride-type breakdown (airport transfer/city ride/charter); performance metrics (hours online, utilization,
+  acceptance rate, cancellation rate, customer rating, service-quality score); and recent payout records pulled
+  from Fleet OS Finance.
+- **Profile & Compliance** (`AccountScreen.tsx`) — vehicle profile (plate, capacity, insurance renewal countdown), a
+  **document center** (license/insurance/registration/inspection with expiry, mock OCR status, and a re-upload
+  action per document), plus accordion sections for **Incident Report**, **Support Center**, and **Training
+  Center**.
+- **Activity** (`ActivityScreen.tsx`) — searchable trip history (by order number/location) with a per-trip "report
+  an issue" action that files a real support ticket.
+
+### Fleet OS (`/fleet-os/*`) — advanced desktop command center
+
+- **Orders & Dispatch** (`/fleet-os`, `/fleet-os/orders`) — KPI row (active orders, unassigned queue, available
+  drivers, anomalies, revenue), a filterable order queue with the full 16-state badge set, per-order multi-channel
+  dispatch/escalation log and Status Audit Timeline, a live Taiwan map with animated driver markers, a notification
+  feed, driver-document expiry alerts, the Analytics & Reports dashboard, and Capacity Forecast / Driver Schedule /
+  Fleet Roster tabs.
+- **Suppliers** (`/fleet-os/suppliers`) — supplier list (Klook/KKday/ezTravel/Booking.com/Direct-style adapters)
+  with commission %, active orders, rating, avg. confirmation time, and pause/activate/suspend actions per
+  supplier — modeling the supplier-adapter pattern (product/availability/pricing/booking/status/cancellation).
+- **Catalog & Inventory** (`/fleet-os/catalog`) — product/route catalog with pricing and inventory controls.
+- **Campaigns & Coupons** (`/fleet-os/campaigns`) — fixed/percentage coupons, eligibility, validity windows, and
+  per-user limits.
+- **Support** (`/fleet-os/support`) — support tickets linked to orders (including ones customers create from Trips/
+  Activity), with status tracking.
+- **Refunds** (`/fleet-os/refunds`) — the queue that customer cancellation/refund requests land in, with
+  approve/reject actions that drive the order back through `CANCELLATION_REQUESTED → CANCELLED → REFUND_PENDING →
+  REFUNDED`.
+- **Driver Roster** (`/fleet-os/roster`) — fleet breakdown by tier (owned fleet/paid member/outside contractor) and
+  live unresponsive-driver flags.
+- **Driver Compliance** (`/fleet-os/compliance`) — document expiry/OCR review across the whole fleet (the Fleet OS
+  side of the Driver App's own document center).
+- **Finance / Settlement** (`/fleet-os/finance`) — payout records surfaced in the Driver App's Earnings screen.
+- **Reports** (`/fleet-os/reports`) — cross-cutting analytics/report exports.
+- **Administration** (`/fleet-os/admin`) — roles/permissions, privacy/audit log, and system health.
 
 ## How the "live system" illusion works
 
-All three apps read from and write to **one Zustand store** (`src/store/useFleetStore.ts`). Because navigation uses
-React Router's client-side routing (no full page reloads), the store stays alive in memory as you switch apps — so:
+All apps read from and write to **one Zustand store** (`src/store/useFleetStore.ts`). Because navigation uses React
+Router's client-side routing (no full page reloads), the store stays alive in memory as you switch apps — so:
 
-1. Booking a ride (the Customer App's entry point, `/booking`) pushes a new order into the shared store, instantly
-   visible (with a pulsing "fresh arrival" animation) in the **Control Center** queue.
-2. Dispatching a driver — either automatically via the priority-dispatch engine (owned fleet → paid members →
-   outside contractors) or manually with one click — doesn't instantly assign them. It starts a **multi-channel
-   notification + escalation attempt** (see below): the order enters `Notifying Driver`, the **Driver App** shows a
-   full-screen incoming-request modal, and the Control Center shows a live countdown and channel badges until the
-   driver responds (or the ladder escalates/times out).
-3. Once a driver accepts (via the Driver App's Accept button, or the simulated auto-accept chance each tick), the
-   order becomes `Assigned` and the driver's app shows it as a trip-in-progress screen.
-4. Starting the trip in the **Driver App** kicks off a simulation ticker (`useFleetStore.tick()`, every 1.5s) that
-   moves the vehicle along a generated route, one interpolated step at a time.
-5. That same position update is read by the **Control Center**'s fleet map and the **Customer App**'s Activity tab
-   live map — so the marker moves in all three places, in real time, from a single source of truth.
-6. The order status lifecycle (`New → Notifying Driver → Assigned → Driver En Route → Arrived → Picked Up → In
-   Transit → Completed`) advances automatically as the vehicle reaches each waypoint, firing simulated multi-channel
-   notifications along the way — visible in the Control Center's notification feed, the order's own dispatch log,
-   and (once completed) the customer's booking history.
+1. Booking a ride (Marketplace → Booking checkout, or Booking directly) pushes a new `DRAFT`/`PENDING_PAYMENT` order
+   into the shared store, instantly visible in the **Fleet OS** queue.
+2. Once paid, the order moves through `SUPPLIER_PENDING → CONFIRMED → DRIVER_MATCHING`, at which point dispatching a
+   driver — automatically via the priority-dispatch engine (owned fleet → paid members → outside contractors) or
+   manually — starts a **multi-channel notification + escalation attempt**: the **Driver App** shows a full-screen
+   incoming-request modal, and Fleet OS shows a live countdown and channel badges until the driver responds (or the
+   ladder escalates/times out).
+3. Once a driver accepts, the order becomes `ASSIGNED` and the Driver App shows the active-trip workflow.
+4. Starting the trip kicks off a simulation ticker (`useFleetStore.tick()`) that moves the vehicle along a generated
+   route, one interpolated step at a time — `DRIVER_EN_ROUTE → ARRIVED → PASSENGER_ONBOARD → COMPLETED`.
+5. That same position update is read by Fleet OS's live map and the Customer App's live-ride view, so the marker
+   moves in both places from a single source of truth, firing simulated notifications along the way.
+6. A customer cancellation/refund request (`requestCancellation`) immediately surfaces in Fleet OS's **Refunds**
+   and **Support** queues; approving/rejecting it there drives the order through the remaining side-branch states.
 
-The app seeds a handful of "already in progress" orders/drivers on load (see `src/data/seed.ts`) so the demo never
-starts empty, and the Control Center can optionally keep generating ambient incoming orders from other channels
-(KKday, Booking.com, LINE@, etc.) to simulate the cross-platform order-aggregation module.
+The app seeds a large set of "already in progress" orders/drivers on load (`src/data/seed.ts`), sized so Fleet OS
+shows **86 active rides** plus derived completed-ride counts for the last 3h/4h/today/week/month, and covering
+Taipei, New Taipei, Taoyuan, Hsinchu, Taichung, Tainan, Kaohsiung, Hualien, Taitung, Nantou and Jiufen.
 
 ## Multi-channel driver notification + escalation ladder
 
-This is the core Phase 2 workflow the client asked to see modeled with real depth, not just a happy path. When
-Fleet OS dispatches an order to a driver (`assignOrder` / the auto-dispatch engine in `useFleetStore.ts`), it starts
-a **dispatch attempt** rather than instantly assigning them:
+When Fleet OS dispatches an order to a driver (`assignOrder` / the auto-dispatch engine), it starts a **dispatch
+attempt** rather than instantly assigning them:
 
-1. **Stage 1 — In-App Push.** The order status becomes `PENDING_DRIVER_RESPONSE`. The Control Center's order card,
-   the Driver App's full-screen incoming-request modal, and the Customer App's Activity tab all show a live
-   countdown ring (8–15 simulated seconds) and an `In-App Push` channel badge. The driver can tap **Accept** or
-   **Decline** in the Driver App (or the simulation auto-accepts with some probability each tick, to keep the demo
-   moving on its own).
-2. **Escalation to Stage 2 — LINE Message + Phone Call.** If the driver doesn't respond before the countdown
-   expires, the attempt is marked `TIMED_OUT` and a new attempt starts on the same order — this time notifying via
-   **LINE Message** and **Phone Call** simultaneously (with its own countdown). Both the Control Center's
-   notification feed and the order's own dispatch log record this as `Escalating — No Response via In-App`.
-3. **Unresponsive + reassignment.** If stage 2 also times out, the driver is flagged **unresponsive** (a red pulsing
-   marker on the fleet map, a red banner on the order card, and an "Anomalies" KPI bump for
-   `UNRESPONSIVE_FLAG_MS` = 20s) and the order is requeued as `New` with a fresh driver suggestion and a **Reassign**
-   button, ready to be dispatched to the next available driver in priority order (owned fleet → paid members →
-   outside contractors).
+1. **Stage 1 — In-App Push.** The order enters `DRIVER_MATCHING`. Fleet OS's order card, the Driver App's
+   full-screen incoming-request modal, and the Customer App's live-ride view all show a live countdown ring (8–15
+   simulated seconds) and an `In-App Push` channel badge. The driver can tap **Accept**/**Decline** (with a reason)
+   in the Driver App, or the simulation auto-accepts with some probability each tick.
+2. **Escalation to Stage 2 — LINE Message + Phone Call.** If the driver doesn't respond in time, the attempt is
+   marked `TIMED_OUT` and a new attempt starts, notifying via **LINE Message** and **Phone Call** simultaneously.
+   Both Fleet OS's notification feed and the order's own dispatch log record this as `Escalating — No Response`.
+3. **Unresponsive + reassignment.** If stage 2 also times out, the driver is flagged **unresponsive** (a red
+   pulsing map marker, a red banner on the order card, an Anomalies KPI bump) and the order is requeued with a
+   fresh driver suggestion and a **Reassign** button.
 
-Every attempt — channels used, timestamps, and outcome — is kept on `order.dispatchAttempts` and rendered as a
-collapsible **Dispatch Log** on the order card, so the full audit trail survives even after the order resolves.
+Every attempt — channels used, timestamps, outcome — is kept on `order.dispatchAttempts` and rendered as a
+collapsible **Dispatch Log**, so the full audit trail survives even after the order resolves.
 
-## Vehicle photos: no more cropping, and a live-updating Booking preview
+## No dead buttons
 
-Two visual bugs reported after the first client review are fixed:
-
-- **Cropped vehicle photos.** `VehicleCard` (`src/components/vehicles/VehicleCard.tsx`) previously rendered each
-  catalog photo inside a fixed-height container with `object-cover`, which visually cropped the top/sides of the car
-  whenever the container's aspect ratio didn't match the photo's actual 3:2 ratio — most visibly on the Driver App's
-  "My Vehicle" card. The container now uses `aspect-[3/2]` (matching the photos' real aspect ratio) at every size, so
-  the full vehicle renders cleanly and consistently in all three places it appears: the Booking panel's vehicle-type
-  picker, the Driver App's "My Vehicle" card, and the Control Center's Fleet Roster.
-- **Stale Booking preview.** The large preview panel above the fare breakdown in `/booking` used to show a static,
-  generic 3D placeholder that never changed when a different vehicle card was selected. It now shows that vehicle's
-  actual catalog photo (with a soft radial glow in the vehicle's brand color behind it, and a Framer Motion
-  fade/scale transition), so clicking through Sedan/SUV/Van/Luxury/Coaster visibly swaps the preview every time.
-
-## Control Center: detailed sales/revenue analytics
-
-The Control Center's **Analytics & Reports** tab (`src/components/control/AnalyticsDashboard.tsx`, backed by
-`src/lib/analytics.ts`'s deterministic 90-day seeded dataset) goes beyond simple KPI cards:
-
-- A **revenue-over-time** chart with a **Daily / Weekly / Monthly** granularity toggle (`recharts` `AreaChart`).
-- An **order-volume trend** chart alongside it.
-- **Breakdown by vehicle type** and **breakdown by order type** (Airport Pickup / Drop-off / Tour Charter) as pie/bar
-  charts with legends and tooltips.
-- A **completion-rate / cancellation-rate trend** line chart over the same period.
-- A **this-week vs. last-week comparison** card row (revenue and order-count deltas).
-
-All charts are responsive, seeded with `mulberry32` for stable-but-realistic numbers across reloads, and share the
-Control Center's dark "mission control" visual language.
-
-## Driver App: Uber-Driver-style redesign
-
-The Driver App (`src/panels/DriverPanel.tsx` + `src/components/driver/`) was rebuilt around patterns from the real
-Uber Driver app, reusing the existing store/data model (no new data structures):
-
-- A **front-and-center online/offline toggle** (`data-testid="driver-online-toggle"`) in the header.
-- A **full-screen incoming-request modal** (`IncomingRequestModal.tsx`) with a countdown ring, fare estimate, trip
-  details, and Accept/Decline — replacing the old inline card, and building on the existing multi-channel
-  notification + escalation logic described above.
-- An **Earnings** tab (`EarningsScreen.tsx`) — today/this-week/all-time totals plus a 7-day bar chart
-  (`src/lib/earnings.ts` derives this deterministically from the existing `DriverStats`).
-- A **trip-in-progress** screen with a larger, turn-by-turn-style map focus and a single clear next-action button
-  (`Start Trip` → `Arrived` → `Confirm Pickup` → in transit).
-- An **Activity** tab (job history) and an **Account** tab (profile, vehicle, documents, demo driver switcher).
-- A **bottom tab bar** (`DriverTabBar.tsx`: Home / Earnings / Activity / Account), replacing the old single-screen
-  layout.
-
-## Customer App: Taiwan-ride-hailing-style redesign
-
-The standalone Customer App (`src/panels/CustomerAppPanel.tsx` + `src/components/customer/`, replacing the old
-"Customer Tracking" panel that read as part of the Control Center) draws on UI/UX patterns from **Uber Taiwan** and
-**Taiwan Taxi 55688 (台灣大車隊)** — bright, map-first booking entry, a prominent driver card with call/message
-actions during live tracking, and a simple bottom tab bar:
-
-- A **Home** tab (`HomeScreen.tsx`) — greeting, a search-bar-style "Book a Ride" CTA, quick-action chips for Airport
-  Pickup / Airport Drop-off / Tour Charter that deep-link into the booking flow with a pre-filled vehicle type, and a
-  banner for any currently-active trip.
-- An **Activity** tab (`ActivityScreen.tsx`) combining live tracking (status stepper, driver card with photo/rating/
-  vehicle, call/message buttons, live map, ETA, e-Voucher toggle) with the existing ride-history/"My Bookings" list,
-  so a customer never has to leave the app to see past trips.
-- An **Account** tab (`AccountScreen.tsx`) — profile, trip/spend stats, settings (payment method, language,
-  notifications, help & support), and a demo customer switcher.
-- A **bottom tab bar** (`CustomerTabBar.tsx`: Home / Activity / Account).
-
-### Demoing the "driver doesn't respond" path live
-
-Each order card in the Control Center (while it's `New` or `Notifying Driver`) has a **"Demo: simulate driver not
-responding"** toggle (`data-testid="demo-no-response-toggle"`). Turning it on before dispatching (or while a
-dispatch attempt is in flight) forces that order's driver to never auto-accept, so clicking **Assign** plays out the
-full escalation ladder above end-to-end — stage 1 timeout → stage 2 escalation → timeout → unresponsive/reassign —
-instead of resolving instantly. It's also useful to turn off the header's **Auto-Dispatch** toggle first, so ambient
-orders don't race the one you're demoing.
-
-## Control Center: capacity forecast, driver schedule & fleet roster
-
-The client referenced [zhaofeng.workhive.uk](https://zhaofeng.workhive.uk/) — a "Fleet OS" scheduling dashboard
-(排班總覽) whose core value is "today's ops status, 30-day capacity, and driver scheduling at a glance." Rather than
-cloning its exact visuals, the Control Center now surfaces the same *data concepts* against this app's own simulated
-data model, in a tabbed section below the live order queue and map:
-
-- **Capacity Forecast** — a 30-day heatmap calendar (`buildCapacityForecast` in `src/lib/capacity.ts`) showing
-  projected order volume per day (darker = busier, peak days flagged), scheduled drivers, and drivers on leave, plus
-  a same-day hourly order-volume chart.
-- **Driver Schedule** — a driver × day shift matrix (`buildShiftSchedule`) showing day/night/off shifts 14 days out,
-  with manually-adjusted shifts marked.
-- **Fleet Roster** — a breakdown of the driver fleet by tier (owned fleet / paid member / outside contractor) and a
-  live list of any drivers currently flagged unresponsive.
-
-All of this is deterministic (seeded with `mulberry32`) so numbers stay stable across reloads but still feel like
-real operational data, and it's wired into the same KPI row (`Unassigned`, `Anomalies`, `On Leave Today`) at the top
-of the panel.
+Every new interactive element added for this round of work updates real store state rather than being a static
+placeholder: cancellation/refund requests move an order into `CANCELLATION_REQUESTED`/`REFUND_PENDING` and appear in
+the Fleet OS Refunds/Support queues; adding/removing saved passengers, payment methods, and notification
+preferences mutate the customer's profile in the store; the driver's decline-reason picker, availability card,
+toll-evidence "upload," receipt trigger, and document re-upload all flip real local state (with a brief simulated
+"processing" delay where that adds realism, e.g. email/LINE notification sends). Supplier pause/suspend, refund
+approve/reject, and coupon/campaign toggles in Fleet OS are all wired to store actions rather than being inert rows.
 
 ## Bilingual UI: English + 繁體中文
 
-The whole app is bilingual — every user-facing string across all three apps/routes is translated into natural,
-professional Traditional Chinese (not machine-literal), using terminology consistent with the client's own blueprint
-(機場接送, 派車, 司機, 訂單, 即時位置, 車隊, etc.). The brand name 走瘋派車 is kept as-is in both languages.
+The whole app is bilingual — every user-facing string across all apps/routes is translated into natural,
+professional Traditional Chinese, using terminology consistent with the client's own blueprint (機場接送, 派車, 司機,
+訂單, 即時位置, 車隊, 供應商, 行銷活動, 退款, etc.). The brand name 走瘋派車 is kept as-is in both languages.
 
-- **How it works**: a lightweight custom i18n layer (no `react-i18next` dependency needed) — `src/i18n/translations.ts`
-  holds a flat, dot-namespaced `{ en: {...}, zh: {...} }` dictionary with `{varName}` placeholder interpolation,
-  `src/i18n/LanguageContext.tsx` provides a `LanguageProvider` + `useLang()` hook (`{ t, lang, setLang }`) that wraps
-  the whole app in `App.tsx`. Every component calls `useLang()` directly rather than having `lang` prop-drilled
-  through the tree.
-- **Switching languages**: a visible `EN` / `中文` toggle sits in the `DemoModeSwitcher` menu
-  (`data-testid="language-switcher"`) and in the Customer App's own Account tab, reachable from every app. The
-  current language is written to `localStorage` (`fleet-dispatch-lang`) on every change and re-read on load, so it
-  survives a full page refresh and stays consistent as you navigate between routes (confirmed live in
-  `e2e/demo-i18n-vehicles.mjs`).
-- Location names, driver/customer names, weekday labels, dates, relative time, and coupon descriptions all carry a
-  parallel `nameZh`/`descriptionZh` field and are chosen at render time based on the active language, so switching
-  languages mid-session re-labels real data (not just static UI chrome) everywhere it appears.
+- A lightweight custom i18n layer (`src/i18n/`, no `react-i18next` dependency) holds a flat, dot-namespaced
+  `{ en: {...}, zh: {...} }` dictionary with `{varName}` interpolation. Every component calls `useLang()` directly.
+- A visible `EN` / `中文` toggle sits in the `DemoModeSwitcher` menu (`data-testid="language-switcher"`) and in the
+  Customer App's own Account tab. The current language is written to `localStorage` and survives page refresh and
+  cross-route navigation.
 
-## Realistic vehicle fleet
+## Realistic vehicle fleet & Taiwan geography
 
-Every vehicle shown in the app is a real-sounding **make + model** entry from a small catalog
-(`src/data/vehicleCatalog.ts`), not a generic/emoji placeholder:
-
-| Type | Brand & model | Seats |
-|---|---|---|
-| Sedan | Toyota Camry | up to 3 |
-| SUV | Honda CR-V | up to 5 |
-| Van / MPV | Toyota Hiace | up to 7 |
-| Luxury Sedan | Mercedes-Benz E-Class | up to 3 |
-| Tour Coach | Toyota Coaster | up to 12 |
-
-Each entry has a clean, three-quarter-angle studio-style product photo — generated once with Cursor's `GenerateImage`
-tool (white/neutral background, consistent style across the set, so there are no stock-photo licensing concerns and
-the demo works fully offline/reproducibly) and checked into `src/assets/vehicles/`. The shared `VehicleCard`
-component (`src/components/vehicles/VehicleCard.tsx`) renders the photo + localized type label + brand/model +
-seating capacity, and is reused in all three places the client asked for:
-
-- the **Booking panel**'s vehicle-type selector,
-- the **Driver App**'s "My Vehicle" card, and
-- the **Control Center**'s Fleet Roster tab (one card per driver's assigned vehicle).
+Vehicles are real-sounding make + model entries (`src/data/vehicleCatalog.ts`: Toyota Camry, Honda CR-V, Toyota
+Hiace, Mercedes-Benz E-Class, Toyota Coaster) with studio-style product photos. Location seed data
+(`src/data/locations.ts`) spans Taipei, New Taipei, Taoyuan, Hsinchu, Taichung, Tainan, Kaohsiung, Hualien, Taitung,
+Nantou and Jiufen, with bilingual names and real-feeling coordinates for both the Leaflet map and the SVG map
+fallback.
 
 ## Dynamic, road-snapped map routes
 
-Routes between pickup and drop-off are now genuine road-following paths, not straight-line/synthetic waypoint
-interpolation:
-
-- `src/lib/routing.ts` calls the free, no-API-key **OSRM public demo server**
-  (`https://router.project-osrm.org/route/v1/driving/...`) once per distinct pickup/drop-off pair, requesting a full
-  GeoJSON geometry. The result is cached in-memory (`getCachedRoute` / `resolveDynamicRoute`) so any later order
-  between the same two points reuses the same fetch instantly, and de-dupes concurrent requests for the same pair.
-- Because the interactive maps are drawn on a stylized SVG canvas (not raw lat/lng), a similarity transform
-  (`buildSimilarityTransform`) is derived from each leg's two known geo↔canvas endpoint pairs, so every intermediate
-  OSRM coordinate can be projected onto the same canvas the synthetic curves use — both renderers stay driven by the
-  exact same real polyline.
-- **Fallback**: if the routing service is unreachable (timeout, network error, offline sandbox), `fetchOsrmRoute`
-  resolves to `null` instead of throwing, and every caller falls back to the existing synthetic Catmull-Rom curve
-  generator in `src/lib/geo.ts` — so the demo never breaks. A small `RouteSourceBadge` overlay on every route map
-  (`data-testid="route-source-badge"`, `data-source="OSRM"|"SYNTHETIC"`) makes it possible to see at a glance (and to
-  assert in tests) which path source is actually active. For QA, `window.__setRoutingOffline(true)` (exposed by
-  `routing.ts`) forces the synthetic fallback on demand without needing to sever real network access.
-- The resolved OSRM route is used for both the **static preview map** (the Booking panel resolves/upgrades to OSRM
-  live as the customer picks locations) and the **live-tracking marker's path** for the order once it's created
-  (`useFleetStore`'s `scheduleRouteHydration` re-resolves and hot-swaps in the real route the moment it's ready,
-  with zero risk to the synchronous booking flow if the network is slow).
-
-## OTA-plan enrichment (judiciously scoped)
-
-From the broader Transport OTA implementation plan, a few concrete, judgment-scoped depth items were added because
-they reinforce the single-fleet dispatch story without diluting it:
-
-- **Itemized fare breakdown** — the Booking panel and every order now carry a `FareBreakdown` (base fare + distance
-  cost + time cost + airport surcharge + waiting fee → subtotal → coupon discount → total), shown to the customer
-  at quotation time rather than a single opaque number (`src/lib/pricing.ts`).
-- **Quotation expiry/versioning** — each quote has a `quotedAt` timestamp and a `quotationVersion` counter that
-  increments whenever the trip's pickup/drop-off/vehicle type changes; a live countdown (`data-testid="quote-countdown"`)
-  shows time remaining and disables booking once the quote expires, with a one-click "refresh quote" action.
-- **Status history / audit timeline** — every order carries a `statusHistory: StatusHistoryEntry[]` (status, actor,
-  timestamp) appended on every transition, rendered as a collapsible **Status Audit Timeline** on each order card in
-  the Control Center (`src/components/control/StatusHistoryTimeline.tsx`, `data-testid="status-history"`).
-- **QR-code e-voucher** — after a booking is confirmed, a client-side QR code (via `qrcode.react`, no server needed)
-  encoding the order number, pickup/drop-off, and scheduled time is shown as the customer's "ticket," alongside a
-  simple printable trip-sheet summary (also available from the Customer App's Activity tab).
-- **Coupon / promo codes** — a coupon field at checkout validates against a couple of seeded demo codes
-  (`FLYHIGH10` = 10% off, `NT100OFF` / `WELCOME50` = fixed NT$ off) and applies the discount to the fare breakdown
-  client-side.
-
-Deliberately **not** added, per the client's own exclusion list (this is a single-fleet ground-transport dispatch
-demo, not a multi-category OTA): member registration/login, hotels/attractions, multi-supplier/multi-currency,
-native app links, loyalty points, or a separate supplier portal.
+Routes between pickup and drop-off are genuine road-following paths, not straight-line interpolation:
+`src/lib/routing.ts` calls the free OSRM public demo server once per distinct pickup/drop-off pair (cached
+in-memory), with a `RouteSourceBadge` (`data-source="OSRM"|"SYNTHETIC"`) showing which path source is active, and an
+automatic fallback to a synthetic Catmull-Rom curve generator (`src/lib/geo.ts`) if the routing service is
+unreachable — the demo never breaks even fully offline.
 
 ## Tech stack
 
 - **Vite + React 19 + TypeScript**
-- **Tailwind CSS v4** for styling (dark "mission control" theme for the Admin Console/Driver App, bright
-  consumer-grade theme for the Customer App)
+- **Tailwind CSS v4** — glass/depth surfaces and a map-led visual language for the Customer/Driver apps, an advanced
+  dark "mission control" theme for Fleet OS
 - **Zustand** for the single shared client-side store + simulation engine
 - **Framer Motion** for panel transitions, animated counters, status badges, and toast notifications
-- **`recharts`** for the Control Center's Analytics & Reports dashboard and the Driver App's Earnings screen
+- **`recharts`** for Fleet OS Analytics/Reports and the Driver App's Earnings screen
 - **@react-three/fiber + @react-three/drei (three.js)** for the 3D hero vehicle on the landing page
-- **react-leaflet + OpenStreetMap tiles** for real maps (no API key required). If tile access is unavailable, the
-  app automatically falls back to a fully offline, stylized SVG/canvas map (`FleetMapFallback` /
-  `RouteMapFallback`) so the demo always looks intentional and keeps working — see `useMapHealthCheck`.
-- **OSRM public demo server** for real, road-snapped route geometry between pickup/drop-off, with an automatic
-  fallback to the app's own synthetic route generator if it's unreachable (see "Dynamic, road-snapped map routes"
-  above).
-- **`qrcode.react`** for client-side QR-code e-voucher generation (no server/backend needed).
-- A lightweight custom **i18n context** (`src/i18n/`) for the English / 繁體中文 bilingual UI (see above).
+- **react-leaflet + OpenStreetMap tiles**, with an automatic offline-safe fallback to a stylized SVG/canvas map
+- **OSRM public demo server** for real, road-snapped route geometry, with a synthetic fallback
+- **`qrcode.react`** for client-side QR-code e-voucher generation
+- A lightweight custom **i18n context** (`src/i18n/`) for the English / 繁體中文 bilingual UI
 
 ## Running it
 
@@ -286,8 +269,8 @@ npm install
 npm run dev
 ```
 
-Then open the printed local URL (defaults to `http://localhost:5173`). Start at the landing page to see all three
-apps, or use the collapsible `DemoModeSwitcher` pill (top-right) to jump directly between them.
+Then open the printed local URL (defaults to `http://localhost:5173`). Start at the landing page to see every app,
+or use the collapsible `DemoModeSwitcher` pill (top-right) to jump directly between them.
 
 ```bash
 npm run build      # production build
@@ -299,64 +282,61 @@ npm run lint       # oxlint
 Playwright scripts live in `e2e/` (make sure `npm run dev` is running first, then in another terminal):
 
 ```bash
-npm run test:e2e:smoke      # visits every app/route, fails on any console/page error
-npm run test:e2e:lifecycle  # books a real order and drives it through all three apps to completion
+npm run test:e2e:smoke      # visits every app/route (incl. every /fleet-os/* module), fails on any console/page error
+npm run test:e2e:lifecycle  # books a real order and drives it through the full 16-state lifecycle across all apps
 ```
 
 `test:e2e:lifecycle` is the best single proof that the "connected system" illusion works: it creates a booking,
 waits for a real driver to accept the dispatch (working through the multi-channel escalation ladder if needed),
-starts the trip in the Driver App, and confirms the same live position + status is mirrored in the Customer App's
-Activity tab until the order reaches `Completed`. It navigates between apps exclusively through the
-`DemoModeSwitcher` (never `page.goto`), so the shared store state survives every "hop" — exactly like a real user
-switching between the three apps would need the underlying data to stay in sync.
+starts the trip in the Driver App, and confirms the same live position + status is mirrored in the Customer App
+until the order reaches `COMPLETED`. It navigates between apps exclusively through the `DemoModeSwitcher` (never
+`page.goto`), so the shared store state survives every "hop" — exactly like a real user switching between apps
+would need the underlying data to stay in sync.
 
 There are also several demo/recording helper scripts (not part of CI, but handy for re-generating walkthrough
 artifacts or exploring a flow yourself). Unless noted "headless", these open a **real, visible** browser window:
 
 ```bash
 npm run demo:escalation      # books a ride, forces "driver won't respond", plays out the full escalation ladder
-npm run demo:features        # tours the enriched Control Center, accepts a live request in the Driver App, then customer history
-npm run demo:screenshots     # headless — captures PNGs of each key Phase-2 UI surface into /opt/cursor/artifacts
-npm run demo:redesign-tour   # headless — captures PNGs + short screen-recording videos of the bug fixes, Driver/Customer app redesigns, and Control Center analytics into /opt/cursor/artifacts
-node e2e/demo-i18n-vehicles.mjs [port]           # toggles EN <-> 中文 across apps, confirms localStorage persistence, tours vehicle cards
-node e2e/demo-booking-ota.mjs [port]              # booking flow: OSRM live-route badge, fare breakdown, coupon, QR voucher, status audit timeline, and the forced-offline synthetic-fallback check
-node e2e/demo-new-feature-screenshots.mjs [port]  # headless — captures PNGs of this round's new UI (vehicle cards, Chinese Control Center, QR voucher, status timeline) into /opt/cursor/artifacts
+npm run demo:features        # tours Fleet OS, accepts a live request in the Driver App, then customer history
+npm run demo:screenshots     # headless — captures PNGs of key UI surfaces into /opt/cursor/artifacts
+npm run demo:redesign-tour   # headless — captures PNGs + short screen-recording videos into /opt/cursor/artifacts
+node e2e/demo-i18n-vehicles.mjs [port]           # toggles EN <-> 中文 across apps, confirms localStorage persistence
+node e2e/demo-booking-ota.mjs [port]              # OSRM live-route badge, fare breakdown, coupon, QR voucher, audit timeline
+node e2e/demo-new-feature-screenshots.mjs [port]  # headless — captures PNGs of new UI into /opt/cursor/artifacts
 ```
 
 ## What's simulated vs. what would be real integrations
 
-This prototype demonstrates the **Phase 1** and **Phase 2** modules from the product blueprint. Nothing here talks
-to a real backend — everything below is simulated client-side, with a note on what a production build would need.
+Nothing here talks to a real backend — everything is simulated client-side, with a note on what a production build
+would need.
 
-### Phase 1 (foundation)
-
-| Module | In this prototype | In production |
+| Area | In this prototype | In production |
 |---|---|---|
-| Cross-platform order aggregation | Orders can arrive from a simulated Website/LINE@/KKday/Booking.com/Klook/Phone channel picker, and the Control Center can auto-generate ambient orders from random channels | Real webhook/API integrations per channel into a central orders table |
-| Data analytics dashboards | Live KPI counters (active/unassigned orders, available drivers, anomalies, revenue, on-leave-today), a 30-day capacity forecast heatmap, hourly volume chart, and driver shift-schedule matrix, all computed client-side | A real analytics/reporting service over historical order data |
-| Address map + translation | Preset bilingual (EN/中文) location list with real Taipei-area coordinates | Google Maps Geocoding/Places API + address translation service |
-| Driver integration platform | Static seeded driver roster with tiers, documents, per-driver order stats (today/week/all-time, accepted/declined/missed, completion rate), and a 14-day shift schedule | Driver onboarding portal, identity verification, bank/payout integration |
-| Control dashboard + auto-forms | Order queue with one-click "Assign"/"Reassign", an auto-dispatch suggestion, and a per-order multi-channel dispatch/escalation audit log | Same UX, backed by a real dispatch service |
-| Driver interface | Mobile-styled job card with an incoming-request accept/decline flow (countdown + channel badges) and a start/arrive/pick-up/complete flow | Native driver mobile app with push notifications & background GPS |
-| Customer booking history | Per-customer profile with booking-frequency analytics ("N rides booked · M from Taoyuan Airport · repeat customer since…") in the Customer App's Activity tab | Real customer accounts + order history backed by the orders database |
-| Order classification (3 types) | Automatic classification from pickup/drop-off location type | Same logic, applied to real geocoded addresses |
-| Flight-time API integration | `lookupFlight()` deterministically fakes airline/gate/delay from the flight number | A real flight-status API (e.g. FlightAware, AviationStack) |
+| Cross-platform order aggregation | Simulated channel picker + ambient orders from Klook/KKday/ezTravel/Booking.com/LINE OA/Website/Phone | Real webhook/API integrations per channel into a central orders table |
+| Supplier adapters | Fleet OS Suppliers module with pause/activate/suspend + a single generic adapter shape (product/availability/pricing/booking/status/cancellation) | One real adapter implementation per supplier's actual API |
+| Payments | Simulated success/decline/retry in checkout, `PENDING_PAYMENT`/`PAID`/`FAILED` states | Real PSP integration (idempotent payment intents) |
+| Driver dispatch | Priority simulation (owned fleet → paid members → outside contractors) + multi-channel escalation ladder | Same priority logic against real driver presence/location |
+| Live location | Simulated animated markers along OSRM-resolved (or synthetic-fallback) routes, clearly demo data | Real GPS streaming from driver devices |
+| Notifications | Simulated in-app/LINE/phone-call/email channel badges and toasts | Real LINE Messaging API, push (FCM/APNs), telephony (e.g. Twilio) |
+| Vouchers / invoices | Client-side QR code + printable trip-sheet; invoice type selection at checkout | Real e-invoice issuance, PDF generation service |
+| Refunds / support | Store-backed queues in Fleet OS, driven by customer-initiated requests | Real payment-gateway refund calls + ticketing system |
+| Roles / permissions / 2FA | Represented as a Fleet OS Admin module UI | Real RBAC + enforced 2FA for admin accounts |
+| Privacy / audit | `statusHistory` + a global `auditLog`, plus a customer Privacy Center (consent, data download/delete requests) | Real data-retention pipeline honoring those requests |
 
-### Phase 2 (automation)
+## Deliberately simplified or deferred
 
-| Module | In this prototype | In production |
-|---|---|---|
-| Central dispatch platform | Single shared store driving all three standalone apps live | Real-time backend (WebSocket/Firebase-style) syncing many real devices |
-| User permission roles | Implied by the three separate apps (customer/dispatcher/driver) but not access-controlled | Real auth + role-based access control |
-| Driver document auto-review | Static expiry dates with `VALID`/`EXPIRING`/`EXPIRED` badges in the Control Center's alert list | OCR pipeline reading uploaded license/insurance photos + scheduled expiry checks |
-| Automatic dispatch engine | Priority simulation: owned fleet → paid members → outside contractors, nearest driver first | Same priority logic, running against real driver locations & availability |
-| Emergency / temporary dispatch | Not implemented in this prototype (roadmap nod on the landing page) | Conflict detection + re-routing logic |
-| Customer live-location system | "Share secure tracking link" button (copies a fake URL) + the live tracking panel itself | Real signed tracking links, email delivery, expiring tokens |
-| Fleet map monitoring | Control Center's live Leaflet map with all vehicle markers | Same, at production scale with clustering |
-| Route cost logic | `estimateFare()` computes price from distance, vehicle type, and airport surcharge | Same formula shape, tuned with real cost data |
-| Multi-channel driver notifications | Simulated **In-App Push → LINE Message + Phone Call** escalation ladder with live countdowns, channel badges, and a full per-order dispatch audit log (see above) | Real LINE Messaging API / Notify, push notification service (FCM/APNs), and telephony (e.g. Twilio Voice) integrations, with real delivery/read receipts |
-| Unresponsive-driver handling | Drivers who miss both escalation stages are auto-flagged (red pulsing map marker + Control Center alert) and the order is requeued with a one-click "Reassign" to the next priority driver | Same logic, backed by real driver presence/heartbeat signals and possibly automatic reassignment without a human click |
-| Touch-map drag dispatch | Not implemented (one-click assign/reassign is the stand-in for this demo) | Drag-and-drop dispatch on a touch-screen big board |
+Given the scope of this round (8 new/restructured routes and dozens of screens), a few items were judgment-scoped:
 
-Phase 3 (in-app payments, driver/customer app-store releases) is intentionally out of scope for this prototype — the
-landing page includes a small "coming soon" roadmap nod for it.
+- Marketplace product detail shows structured inclusions/exclusions/cancellation/rating info rather than a full
+  photo gallery + review-thread UI — kept to the data the client brief actually calls out (photos, rules, rating,
+  cancellation terms, route map) without building a separate reviews subsystem.
+- Login/OTP/password-reset are represented as account-security concepts in the Account screen's copy rather than a
+  full separate auth flow, since there is no real backend/session to authenticate against in this prototype.
+- 2FA-for-admins and full RBAC enforcement are represented as Fleet OS Admin UI (roles, permissions list) rather
+  than actually gating any route — there's no real login session in this client-only prototype to gate.
+- Emergency/temporary dispatch conflict-resolution UI is noted on the landing page's roadmap rather than fully
+  modeled, consistent with the original Phase 2 scope notes.
+
+Phase 3 (in-app payments beyond the simulated flow, native driver/customer app-store releases) remains intentionally
+out of scope for this prototype — the landing page includes a small "coming soon" roadmap nod for it.
