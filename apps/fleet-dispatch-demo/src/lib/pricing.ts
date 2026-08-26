@@ -99,6 +99,19 @@ export function nextOrderNo(): string {
   return `FP-${counter}`
 }
 
+/**
+ * The seed data's bulk order generator (`src/data/seed.ts`, sized to hit the
+ * client-requested "86 active rides" + multi-window completed counts) issues
+ * several hundred sequential `FP-####` numbers of its own, starting well
+ * within this counter's default random range — which could otherwise produce
+ * colliding order numbers between a seeded order and a freshly booked one.
+ * The store calls this once after seeding to push the live counter safely
+ * past every number the seed already used.
+ */
+export function ensureOrderNoAbove(min: number): void {
+  if (counter < min) counter = min
+}
+
 export function genId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}${Date.now().toString(36).slice(-4)}`
 }

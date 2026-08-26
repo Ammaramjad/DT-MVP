@@ -65,8 +65,12 @@ try {
   const previewPhoto = page.locator('[data-testid="vehicle-preview-photo"]')
   await previewPhoto.waitFor({ state: 'visible' })
 
+  // Checkout now requires an explicit consent checkbox (client-brief checkout
+  // depth item) before the Confirm Booking button becomes enabled.
+  await page.check('[data-testid="checkout-consent"]')
+
   log('3. Submit booking')
-  await page.click('button:has-text("Confirm Booking")')
+  await page.click('[data-testid="checkout-confirm-booking"]')
   await page.waitForSelector('text=Created!', { timeout: 8000 })
   const heading = await page.textContent('h2')
   const orderNo = heading.match(/(FP-\d+)/)?.[1]
@@ -74,7 +78,7 @@ try {
   await shot('03_booking_success_modal')
 
   log('4. Go to Control Center from modal')
-  await page.click('button:has-text("View in Control Center")')
+  await page.click('button:has-text("View in Fleet OS")')
   await page.waitForSelector('text=Central Control System')
   await page.waitForTimeout(500)
   await shot('04_control_center_new_order')
@@ -94,7 +98,7 @@ try {
       break
     }
     const status = await card.getAttribute('data-order-status')
-    if (status === 'NEW' && i === 0) {
+    if (status === 'CONFIRMED' && i === 0) {
       // Nudge it along immediately if auto-dispatch hasn't fired yet.
       await card.locator('[data-testid="assign-button"]').click().catch(() => {})
     }
@@ -140,7 +144,7 @@ try {
   log('10. Switch to the Customer App to see mirrored live marker')
   await gotoApp('customer')
   await page.waitForSelector('[data-testid="customer-app-shell"]')
-  await page.click('[data-testid="customer-tab-activity"]')
+  await page.click('[data-testid="customer-tab-trips"]')
   await page.waitForTimeout(500)
   await page.waitForSelector(`[data-testid="customer-current-trip"] >> text=${orderNo}`)
   await page.waitForTimeout(2000)
@@ -148,23 +152,33 @@ try {
 
   log('11. Back to driver app, wait for arrival')
   await gotoApp('driver')
-  await page.waitForSelector('button:has-text("Confirm Passenger Picked Up")', { timeout: 40000 })
+  await page.waitForSelector('[data-testid="driver-pin-entry"]', { timeout: 40000 })
   await shot('10_driver_arrived_at_pickup')
 
-  log('12. Confirm passenger picked up')
-  await page.click('button:has-text("Confirm Passenger Picked Up")')
+  log('12. Enter the pickup PIN and confirm passenger picked up')
+  // A verified on-screen pickup PIN is now required before "Start trip" can
+  // proceed past ARRIVED (client-brief requirement) — read the real PIN via
+  // the dev-only store hook rather than guessing it.
+  const pickupPin = await page.evaluate((orderNumber) => {
+    const store = window.__fleetStore
+    const order = store.getState().orders.find((o) => o.orderNo === orderNumber)
+    return order?.pickupPin ?? null
+  }, orderNo)
+  if (!pickupPin) throw new Error('Could not read pickupPin from the dev store hook')
+  await page.fill('[data-testid="driver-pin-input"]', pickupPin)
+  await page.click('[data-testid="driver-verify-pin-button"]')
   await page.waitForTimeout(2500)
   await shot('11_driver_in_transit')
 
   log('13. Check Customer App activity feed mirrors in-transit state')
   await gotoApp('customer')
-  await page.click('[data-testid="customer-tab-activity"]')
+  await page.click('[data-testid="customer-tab-trips"]')
   await page.waitForTimeout(1500)
   await shot('12_customer_in_transit')
 
   log('14. Back to driver, wait for trip completion')
   await gotoApp('driver')
-  await page.waitForSelector('text=Trip Completed!', { timeout: 40000 })
+  await page.waitForSelector('text=Trip Completed!', { timeout: 60000 })
   await shot('13_driver_trip_completed')
 
   log('15. Confirm control center shows order completed')
@@ -173,10 +187,15 @@ try {
   await page.waitForTimeout(800)
   await shot('14_control_center_completed')
 
-  log('16. Confirm Customer App activity feed shows completed state')
+  log('16. Confirm Customer App Trips tab shows the completed order')
   await gotoApp('customer')
-  await page.click('[data-testid="customer-tab-activity"]')
-  await page.waitForSelector(`[data-testid="customer-current-trip"] >> text=${orderNo}`)
+  await page.click('[data-testid="customer-tab-trips"]')
+  await page.waitForTimeout(300)
+  // A COMPLETED order no longer defaults to the "Active" filter (which
+  // reuses the live-tracking ActivityScreen) — switch to the Completed
+  // filter to find its trip card.
+  await page.click('[data-testid="trips-filter-completed"]')
+  await page.waitForSelector(`[data-testid="trip-card"] >> text=${orderNo}`)
   await page.waitForTimeout(1000)
   await shot('15_customer_completed')
 

@@ -40,7 +40,9 @@ export function NotificationToaster() {
   }, [notifications])
 
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[1000] flex w-[min(360px,90vw)] flex-col gap-2">
+    // Starts below the DemoModeSwitcher pill (also fixed top-right) so a
+    // stream of toasts can never cover/intercept clicks on that pill.
+    <div className="pointer-events-none fixed right-4 top-16 z-[1000] flex w-[min(360px,90vw)] flex-col gap-2">
       <AnimatePresence>
         {visible.map((n) => {
           const Icon = ICONS[n.kind]

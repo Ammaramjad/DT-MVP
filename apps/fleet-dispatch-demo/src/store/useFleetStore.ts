@@ -38,7 +38,7 @@ import { AIRPORTS, getLocation, NON_AIRPORTS } from '../data/locations'
 import { buildRoutePath, evaluateRoute } from '../lib/geo'
 import { getCachedRoute, resolveDynamicRoute } from '../lib/routing'
 import { driftFlightStatus, lookupFlight, randomFlightNumber } from '../lib/flight'
-import { computeFareBreakdown, estimateDurationMin, genId, nextOrderNo } from '../lib/pricing'
+import { computeFareBreakdown, ensureOrderNoAbove, estimateDurationMin, genId, nextOrderNo } from '../lib/pricing'
 import { suggestDriver } from '../lib/dispatch'
 import { buildCapacityForecast } from '../lib/capacity'
 
@@ -364,6 +364,15 @@ function buildAmbientOrder(): Order {
 
 const seed = createSeedState()
 const fleetOsSeed = buildFleetOsSeed(seed.orders, seed.drivers)
+
+// Push the live order-number counter past every "FP-####" the bulk seed data
+// already used, so a freshly booked order can never collide with a seeded
+// one (see `ensureOrderNoAbove`'s docs in lib/pricing.ts).
+const highestSeedOrderNo = seed.orders.reduce((max, o) => {
+  const n = Number(o.orderNo.replace('FP-', ''))
+  return Number.isFinite(n) && n > max ? n : max
+}, 0)
+ensureOrderNoAbove(highestSeedOrderNo)
 
 export const useFleetStore = create<FleetState>((set, get) => ({
   orders: seed.orders,
