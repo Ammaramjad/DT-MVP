@@ -3,6 +3,9 @@ import { motion } from 'framer-motion'
 import { AlertOctagon, Users2 } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { driverTierLabel } from '../../lib/format'
+import { VehicleCard } from '../vehicles/VehicleCard'
+import { TierBadge } from '../ui/OrderBadges'
+import { useLang } from '../../i18n'
 import type { DriverTier } from '../../types'
 
 const TIER_ORDER: DriverTier[] = ['OWNED_FLEET', 'PAID_MEMBER', 'OUTSIDE_CONTRACTOR']
@@ -11,7 +14,9 @@ const TIER_BAR: Record<DriverTier, string> = { OWNED_FLEET: 'bg-cyan-400', PAID_
 
 // Mirrors the reference site's "司機管理" tier breakdown cards (自家車 / 付費會員 / 野司機).
 export function FleetRosterBreakdown() {
+  const { t, lang } = useLang()
   const drivers = useFleetStore((s) => s.drivers)
+  const vehicles = useFleetStore((s) => s.vehicles)
   const now = Date.now()
 
   const counts = useMemo(() => {
@@ -29,15 +34,15 @@ export function FleetRosterBreakdown() {
     <div>
       <div className="mb-2 flex items-center justify-between px-1">
         <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          <Users2 className="h-3.5 w-3.5" /> Fleet Roster
+          <Users2 className="h-3.5 w-3.5" /> {t('control.rosterTitle')}
         </p>
-        <span className="text-[10px] text-slate-500">{drivers.length} drivers · {offline} offline</span>
+        <span className="text-[10px] text-slate-500">{t('control.rosterCount', { n: drivers.length, n2: offline })}</span>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {counts.map(({ tier, count, pct }) => (
           <div key={tier} className="rounded-lg bg-white/[0.03] p-2 text-center">
             <p className={`text-lg font-bold ${TIER_COLOR[tier]}`}>{count}</p>
-            <p className="text-[9.5px] leading-tight text-slate-500">{driverTierLabel(tier)}</p>
+            <p className="text-[9.5px] leading-tight text-slate-500">{driverTierLabel(tier, lang)}</p>
             <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
               <motion.div className={`h-full ${TIER_BAR[tier]}`} animate={{ width: `${pct}%` }} transition={{ duration: 0.6 }} />
             </div>
@@ -56,13 +61,30 @@ export function FleetRosterBreakdown() {
               data-testid="unresponsive-driver-alert"
             >
               <AlertOctagon className="h-3.5 w-3.5 shrink-0" />
-              <span>
-                <span className="font-semibold">{d.name}</span> unresponsive on order {d.unresponsiveOrderNo}
-              </span>
+              <span>{t('control.rosterUnresponsive', { name: d.name, orderNo: d.unresponsiveOrderNo ?? '' })}</span>
             </motion.div>
           ))}
         </motion.div>
       )}
+
+      <div className="mt-3 border-t border-white/5 pt-3">
+        <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('control.fleetRosterCard')}</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4" data-testid="fleet-roster-vehicle-grid">
+          {drivers.map((driver) => {
+            const vehicle = vehicles.find((v) => v.id === driver.vehicleId)
+            if (!vehicle) return null
+            return (
+              <div key={driver.id} className="flex flex-col gap-1.5">
+                <VehicleCard type={vehicle.type} plate={vehicle.plate} size="sm" />
+                <div className="flex items-center justify-between px-0.5 text-[10.5px] text-slate-400">
+                  <span className="truncate">{lang === 'zh' ? driver.nameZh : driver.name}</span>
+                  <TierBadge tier={driver.tier} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
