@@ -1,17 +1,19 @@
 import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
 import type { OrderStatus } from '../../types'
+import { useLang } from '../../i18n'
 
-const STEPS: { key: OrderStatus; label: string }[] = [
-  { key: 'NEW', label: 'Order Placed' },
-  { key: 'ASSIGNED', label: 'Driver Assigned' },
-  { key: 'EN_ROUTE_TO_PICKUP', label: 'En Route' },
-  { key: 'ARRIVED_AT_PICKUP', label: 'Arrived' },
-  { key: 'IN_TRANSIT', label: 'In Transit' },
-  { key: 'COMPLETED', label: 'Completed' },
+const STEPS: { key: OrderStatus; labelKey: string }[] = [
+  { key: 'NEW', labelKey: 'stepper.orderPlaced' },
+  { key: 'ASSIGNED', labelKey: 'stepper.driverAssigned' },
+  { key: 'EN_ROUTE_TO_PICKUP', labelKey: 'stepper.enRoute' },
+  { key: 'ARRIVED_AT_PICKUP', labelKey: 'stepper.arrived' },
+  { key: 'IN_TRANSIT', labelKey: 'stepper.inTransit' },
+  { key: 'COMPLETED', labelKey: 'stepper.completed' },
 ]
 
 export function StatusStepper({ status }: { status: OrderStatus }) {
+  const { t } = useLang()
   const normalized = status === 'PENDING_DRIVER_RESPONSE' ? 'NEW' : status
   const effectiveIndex = STEPS.findIndex((s) => s.key === normalized || (s.key === 'IN_TRANSIT' && normalized === 'PICKED_UP'))
   const currentIndex = effectiveIndex === -1 ? 0 : effectiveIndex
@@ -34,7 +36,7 @@ export function StatusStepper({ status }: { status: OrderStatus }) {
                 {done ? <Check className="h-3.5 w-3.5" /> : <span className="text-[11px] font-bold">{i + 1}</span>}
               </motion.div>
               <span className={`w-16 text-center text-[10px] ${active ? 'font-semibold text-slate-800' : 'text-slate-400'}`}>
-                {step.label}
+                {t(step.labelKey)}
               </span>
             </div>
             {i < STEPS.length - 1 && (

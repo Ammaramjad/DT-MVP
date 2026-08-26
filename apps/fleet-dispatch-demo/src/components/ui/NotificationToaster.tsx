@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Info, MessageCircle, XCircle } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
+import { useLang } from '../../i18n'
 import type { AppNotification } from '../../types'
 
 const ICONS: Record<AppNotification['kind'], typeof Info> = {
@@ -19,6 +20,7 @@ const KIND_CLASSES: Record<AppNotification['kind'], string> = {
 }
 
 export function NotificationToaster() {
+  const { t } = useLang()
   const notifications = useFleetStore((s) => s.notifications)
   const [visible, setVisible] = useState<AppNotification[]>([])
   const seenIds = useRef<Set<string>>(new Set())
@@ -54,9 +56,9 @@ export function NotificationToaster() {
               <Icon className="mt-0.5 h-4 w-4 shrink-0" />
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
-                  <MessageCircle className="h-3 w-3 opacity-60" /> {n.title}
+                  <MessageCircle className="h-3 w-3 opacity-60" /> {t(n.titleKey)}
                 </div>
-                <p className="mt-0.5 text-[11px] leading-snug text-slate-300">{n.message}</p>
+                <p className="mt-0.5 text-[11px] leading-snug text-slate-300">{t(n.messageKey, n.params)}</p>
               </div>
             </motion.div>
           )

@@ -1,5 +1,6 @@
 import { LOCATIONS, SVG_VIEWBOX } from '../../data/locations'
 import { useFleetStore } from '../../store/useFleetStore'
+import { useLang } from '../../i18n'
 
 const TIER_COLOR: Record<string, string> = {
   OWNED_FLEET: '#22d3ee',
@@ -26,6 +27,7 @@ function locById(id: string) {
 }
 
 export function FleetMapFallback({ height = '100%' }: { height?: string | number }) {
+  const { lang } = useLang()
   const drivers = useFleetStore((s) => s.drivers)
   const orders = useFleetStore((s) => s.orders)
   const activeOrders = orders.filter((o) => !['COMPLETED', 'CANCELLED', 'NEW'].includes(o.status))
@@ -83,7 +85,7 @@ export function FleetMapFallback({ height = '100%' }: { height?: string | number
               opacity={0.9}
             />
             <text x={loc.svgX + 10} y={loc.svgY + 4} fontSize={11} fill="#8fa0c9" fontFamily="inherit">
-              {loc.isAirport ? `✈ ${loc.name.split(' ')[0]}` : loc.name.split(' ')[0]}
+              {loc.isAirport ? `✈ ${(lang === 'zh' ? loc.nameZh : loc.name).split(' ')[0]}` : (lang === 'zh' ? loc.nameZh : loc.name).split(' ')[0]}
             </text>
           </g>
         ))}

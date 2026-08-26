@@ -3,67 +3,42 @@ import { motion } from 'framer-motion'
 import { ClipboardList, Radar, Car, MapPinned, ArrowRight, Sparkles, Rocket } from 'lucide-react'
 import { Hero3D } from '../components/three/Hero3D'
 import { Badge } from '../components/ui/Badge'
+import { useLang } from '../i18n'
 
 const PANELS = [
-  {
-    to: '/booking',
-    icon: ClipboardList,
-    title: 'Customer Booking',
-    zh: '客戶預訂',
-    desc: 'Polished booking flow with live flight lookup, auto order-type classification, and instant fare estimate.',
-    tone: 'cyan' as const,
-  },
-  {
-    to: '/control',
-    icon: Radar,
-    title: 'Central Control System',
-    zh: '中央調度系統',
-    desc: 'Mission-control dispatch center — live fleet map, order queue, KPIs, and one-click auto-dispatch.',
-    tone: 'purple' as const,
-  },
-  {
-    to: '/driver',
-    icon: Car,
-    title: 'Driver App',
-    zh: '司機端',
-    desc: 'Mobile-styled job card with live GPS navigation and a simple start → arrived → picked up → complete flow.',
-    tone: 'amber' as const,
-  },
-  {
-    to: '/customer',
-    icon: MapPinned,
-    title: 'Customer Live Tracking',
-    zh: '即時追蹤',
-    desc: 'Uber-style tracking page showing the assigned driver, live ETA, and a moving map marker.',
-    tone: 'pink' as const,
-  },
+  { to: '/booking', icon: ClipboardList, key: 'booking', tone: 'cyan' as const },
+  { to: '/control', icon: Radar, key: 'control', tone: 'purple' as const },
+  { to: '/driver', icon: Car, key: 'driver', tone: 'amber' as const },
+  { to: '/customer', icon: MapPinned, key: 'customer', tone: 'pink' as const },
 ]
 
-const PHASE1 = [
-  'Cross-platform order aggregation',
-  'Data analytics dashboards',
-  'Address map + translation',
-  'Driver integration platform',
-  'Control dashboard + auto-forms',
-  'Driver interface',
-  'Order classification (3 types)',
-  'Flight-time API integration',
+const PHASE1_KEYS = [
+  'landing.module.crossPlatform',
+  'landing.module.analytics',
+  'landing.module.addressMap',
+  'landing.module.driverPlatform',
+  'landing.module.controlDashboard',
+  'landing.module.driverInterface',
+  'landing.module.orderClassification',
+  'landing.module.flightApi',
 ]
 
-const PHASE2 = [
-  'Central dispatch platform',
-  'User permission roles',
-  'Driver document auto-review',
-  'Automatic dispatch engine',
-  'Emergency / temp dispatch',
-  'Customer live-location system',
-  'Fleet map monitoring',
-  'Route cost logic',
-  'LINE@ notifications',
-  'Touch-map drag dispatch',
+const PHASE2_KEYS = [
+  'landing.module.centralDispatch',
+  'landing.module.permissions',
+  'landing.module.docReview',
+  'landing.module.autoDispatch',
+  'landing.module.emergencyDispatch',
+  'landing.module.liveLocation',
+  'landing.module.fleetMap',
+  'landing.module.routeCost',
+  'landing.module.lineNotif',
+  'landing.module.touchDispatch',
 ]
 
 export default function LandingPanel() {
+  const { t } = useLang()
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-mission-950 bg-noise text-white">
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 pb-28 pt-10 sm:px-10">
@@ -76,7 +51,7 @@ export default function LandingPanel() {
             <Sparkles className="h-4 w-4 text-cyan-300" />
             走瘋派車 <span className="text-slate-500">Fleet Dispatch</span>
           </div>
-          <Badge tone="cyan">Live Interactive Prototype</Badge>
+          <Badge tone="cyan">{t('landing.badgeLive')}</Badge>
         </motion.div>
 
         <div className="mt-6 grid flex-1 grid-cols-1 items-center gap-10 lg:grid-cols-2">
@@ -84,34 +59,30 @@ export default function LandingPanel() {
             <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
               <span className="text-gradient-neon">走瘋派車</span>
               <br />
-              <span className="shimmer-text">Fleet Dispatch</span>
+              <span className="shimmer-text">{t('landing.title2')}</span>
             </h1>
-            <p className="mt-4 max-w-xl text-base text-slate-300 sm:text-lg">
-              A live, end-to-end prototype of the airport-transfer &amp; fleet dispatch platform — from customer
-              booking to central dispatch, driver execution, and real-time customer tracking. Every panel shares one
-              simulated live state, so an order created here really does flow through the whole system.
-            </p>
+            <p className="mt-4 max-w-xl text-base text-slate-300 sm:text-lg">{t('landing.heroDesc')}</p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link
                 to="/booking"
                 className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:shadow-cyan-500/45"
               >
-                Start the Live Demo <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                {t('landing.startDemo')} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </Link>
               <Link
                 to="/control"
                 className="inline-flex items-center gap-2 rounded-xl bg-white/8 px-5 py-3 text-sm font-semibold text-slate-100 ring-1 ring-white/15 transition hover:bg-white/14"
               >
-                Jump to Control Center
+                {t('landing.jumpControl')}
               </Link>
             </div>
 
             <div className="mt-8 flex flex-wrap gap-2">
-              <Badge tone="lime">Phase 1 · 8 modules demoed</Badge>
-              <Badge tone="purple">Phase 2 · 10 modules demoed</Badge>
+              <Badge tone="lime">{t('landing.phase1Badge')}</Badge>
+              <Badge tone="purple">{t('landing.phase2Badge')}</Badge>
               <Badge tone="slate">
-                <Rocket className="h-3 w-3" /> Phase 3 roadmap: payments &amp; app store — coming soon
+                <Rocket className="h-3 w-3" /> {t('landing.phase3Badge')}
               </Badge>
             </div>
           </motion.div>
@@ -145,11 +116,11 @@ export default function LandingPanel() {
                   </div>
                   <span className="text-xs font-mono text-slate-500">0{i + 1}</span>
                 </div>
-                <h3 className="mt-3 text-base font-semibold text-white">{p.title}</h3>
-                <p className="text-xs text-slate-500">{p.zh}</p>
-                <p className="mt-2 text-xs leading-relaxed text-slate-400">{p.desc}</p>
+                <h3 className="mt-3 text-base font-semibold text-white">{t(`landing.panel.${p.key}.title`)}</h3>
+                <p className="text-xs text-slate-500">{t(`landing.panel.${p.key}.zh`)}</p>
+                <p className="mt-2 text-xs leading-relaxed text-slate-400">{t(`landing.panel.${p.key}.desc`)}</p>
                 <div className="mt-3 flex items-center gap-1 text-xs font-medium text-cyan-300 opacity-0 transition group-hover:opacity-100">
-                  Enter panel <ArrowRight className="h-3 w-3" />
+                  {t('landing.enterPanel')} <ArrowRight className="h-3 w-3" />
                 </div>
               </Link>
             </motion.div>
@@ -163,21 +134,21 @@ export default function LandingPanel() {
           className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2"
         >
           <div className="glass-panel rounded-2xl p-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">Phase 1 · Foundation</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">{t('landing.phase1Title')}</p>
             <ul className="mt-2 grid grid-cols-1 gap-1.5 text-xs text-slate-400 sm:grid-cols-2">
-              {PHASE1.map((m) => (
-                <li key={m} className="flex items-center gap-1.5">
-                  <span className="h-1 w-1 rounded-full bg-cyan-400" /> {m}
+              {PHASE1_KEYS.map((key) => (
+                <li key={key} className="flex items-center gap-1.5">
+                  <span className="h-1 w-1 rounded-full bg-cyan-400" /> {t(key)}
                 </li>
               ))}
             </ul>
           </div>
           <div className="glass-panel rounded-2xl p-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-purple-300">Phase 2 · Automation</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-purple-300">{t('landing.phase2Title')}</p>
             <ul className="mt-2 grid grid-cols-1 gap-1.5 text-xs text-slate-400 sm:grid-cols-2">
-              {PHASE2.map((m) => (
-                <li key={m} className="flex items-center gap-1.5">
-                  <span className="h-1 w-1 rounded-full bg-purple-400" /> {m}
+              {PHASE2_KEYS.map((key) => (
+                <li key={key} className="flex items-center gap-1.5">
+                  <span className="h-1 w-1 rounded-full bg-purple-400" /> {t(key)}
                 </li>
               ))}
             </ul>

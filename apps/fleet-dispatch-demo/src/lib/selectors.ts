@@ -32,12 +32,12 @@ export function computeKpis(orders: Order[], drivers: Driver[]) {
 
 export function documentAlerts(drivers: Driver[]) {
   return drivers.flatMap((d) => {
-    const alerts: { driverId: string; driverName: string; docType: string; status: string; expiresAt: string }[] = []
+    const alerts: { driverId: string; driverName: string; docTypeKey: string; status: string; expiresAt: string }[] = []
     if (d.documents.license.status !== 'VALID') {
-      alerts.push({ driverId: d.id, driverName: d.name, docType: 'Driving License', status: d.documents.license.status, expiresAt: d.documents.license.expiresAt })
+      alerts.push({ driverId: d.id, driverName: d.name, docTypeKey: 'doc.license', status: d.documents.license.status, expiresAt: d.documents.license.expiresAt })
     }
     if (d.documents.insurance.status !== 'VALID') {
-      alerts.push({ driverId: d.id, driverName: d.name, docType: 'Insurance', status: d.documents.insurance.status, expiresAt: d.documents.insurance.expiresAt })
+      alerts.push({ driverId: d.id, driverName: d.name, docTypeKey: 'doc.insurance', status: d.documents.insurance.status, expiresAt: d.documents.insurance.expiresAt })
     }
     return alerts
   })

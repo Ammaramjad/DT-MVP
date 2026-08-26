@@ -4,6 +4,7 @@ import { LOCATIONS, MAP_CENTER } from '../../data/locations'
 import { vehicleDivIcon, pinDivIcon } from './mapIcons'
 import { TierBadge, StatusBadge } from '../ui/OrderBadges'
 import { driverTierLabel } from '../../lib/format'
+import { useLang } from '../../i18n'
 
 const TIER_COLOR: Record<string, string> = {
   OWNED_FLEET: '#22d3ee',
@@ -12,6 +13,7 @@ const TIER_COLOR: Record<string, string> = {
 }
 
 export function FleetMap({ height = '100%' }: { height?: string | number }) {
+  const { t, lang } = useLang()
   const drivers = useFleetStore((s) => s.drivers)
   const orders = useFleetStore((s) => s.orders)
   const activeOrders = orders.filter((o) => !['COMPLETED', 'CANCELLED', 'NEW'].includes(o.status))
@@ -29,8 +31,8 @@ export function FleetMap({ height = '100%' }: { height?: string | number }) {
           <Marker key={loc.id} position={[loc.lat, loc.lng]} icon={pinDivIcon(loc.isAirport ? '#f472b6' : '#475569')}>
             <Popup>
               <div className="text-xs">
-                <p className="font-semibold">{loc.name}</p>
-                <p className="text-slate-400">{loc.nameZh}</p>
+                <p className="font-semibold">{lang === 'zh' ? loc.nameZh : loc.name}</p>
+                <p className="text-slate-400">{lang === 'zh' ? loc.name : loc.nameZh}</p>
               </div>
             </Popup>
           </Marker>
@@ -67,19 +69,19 @@ export function FleetMap({ height = '100%' }: { height?: string | number }) {
                   <div className="mt-1 flex items-center gap-1.5">
                     <TierBadge tier={driver.tier} />
                   </div>
-                  <p className="mt-1 text-slate-500">{driverTierLabel(driver.tier)} · ⭐ {driver.rating.toFixed(1)}</p>
+                  <p className="mt-1 text-slate-500">{driverTierLabel(driver.tier, lang)} · ⭐ {driver.rating.toFixed(1)}</p>
                   {isFlagged && (
                     <p className="mt-2 rounded-md bg-red-50 px-2 py-1 font-medium text-red-600">
-                      ⚠ Unresponsive on order {driver.unresponsiveOrderNo}
+                      ⚠ {t('control.rosterUnresponsive', { name: '', orderNo: driver.unresponsiveOrderNo ?? '' })}
                     </p>
                   )}
                   {order ? (
                     <div className="mt-2 border-t border-slate-200 pt-2">
-                      <p className="font-medium text-slate-800">Order {order.orderNo}</p>
+                      <p className="font-medium text-slate-800">{order.orderNo}</p>
                       <div className="mt-1"><StatusBadge status={order.status} /></div>
                     </div>
                   ) : (
-                    <p className="mt-2 border-t border-slate-200 pt-2 text-emerald-600">Available</p>
+                    <p className="mt-2 border-t border-slate-200 pt-2 text-emerald-600">{t('driverStatus.AVAILABLE')}</p>
                   )}
                 </div>
               </Popup>

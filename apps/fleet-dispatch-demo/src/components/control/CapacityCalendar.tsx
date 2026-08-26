@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { CalendarRange } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
+import { useLang } from '../../i18n'
 import type { CapacityDay } from '../../types'
 
 // Inspired by the reference Fleet OS "量能月曆" (capacity calendar): a 30-day
@@ -17,6 +18,7 @@ function intensityClass(day: CapacityDay, max: number): string {
 }
 
 export function CapacityCalendar() {
+  const { t, lang } = useLang()
   const capacityForecast = useFleetStore((s) => s.capacityForecast)
   const [selected, setSelected] = useState<string | null>(null)
 
@@ -27,7 +29,7 @@ export function CapacityCalendar() {
     <div>
       <div className="mb-2 flex items-center justify-between px-1">
         <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          <CalendarRange className="h-3.5 w-3.5" /> 30-Day Capacity Forecast
+          <CalendarRange className="h-3.5 w-3.5" /> {t('control.capacityTitle')}
         </p>
         <span className="text-[10px] text-slate-500">量能月曆</span>
       </div>
@@ -35,7 +37,7 @@ export function CapacityCalendar() {
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {capacityForecast.map((day, i) => {
           const dateObj = new Date(day.date)
-          const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'short' })
+          const weekday = dateObj.toLocaleDateString(lang === 'zh' ? 'zh-TW' : 'en-US', { weekday: 'short' })
           const dayNum = dateObj.getDate()
           const isSelected = (selected ?? capacityForecast.find((d) => d.isToday)?.date) === day.date
 
@@ -53,7 +55,7 @@ export function CapacityCalendar() {
               } ${day.isToday ? 'ring-1 ring-white/40' : ''}`}
               style={{ minWidth: 42 }}
             >
-              {day.isPeak && <span className="absolute -top-1.5 rounded-full bg-pink-400 px-1 text-[8px] font-bold text-mission-950">peak</span>}
+              {day.isPeak && <span className="absolute -top-1.5 rounded-full bg-pink-400 px-1 text-[8px] font-bold text-mission-950">{t('control.peak')}</span>}
               <span className="opacity-70">{weekday}</span>
               <span className="font-bold">{dayNum}</span>
               <span className="font-mono text-[9px] opacity-80">{day.orderCount}</span>
@@ -71,21 +73,21 @@ export function CapacityCalendar() {
         >
           <div>
             <p className="text-base font-bold text-cyan-300">{selectedDay.orderCount}</p>
-            <p className="text-slate-500">orders</p>
+            <p className="text-slate-500">{t('control.orders')}</p>
           </div>
           <div>
             <p className="text-base font-bold text-purple-300">{selectedDay.scheduledDrivers}</p>
-            <p className="text-slate-500">scheduled</p>
+            <p className="text-slate-500">{t('control.scheduled')}</p>
           </div>
           <div>
             <p className="text-base font-bold text-amber-300">{selectedDay.onLeave}</p>
-            <p className="text-slate-500">on leave</p>
+            <p className="text-slate-500">{t('control.onLeave')}</p>
           </div>
         </motion.div>
       )}
 
       <p className="mt-1.5 px-1 text-[10px] text-slate-500">
-        {capacityForecast.filter((d) => d.isPeak && !d.isPast).length} peak day(s) ahead · legend: darker cyan = higher order volume
+        {t('control.capacityLegend', { n: capacityForecast.filter((d) => d.isPeak && !d.isPast).length })}
       </p>
     </div>
   )

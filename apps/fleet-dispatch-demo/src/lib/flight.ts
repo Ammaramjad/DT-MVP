@@ -1,5 +1,6 @@
 import type { FlightInfo, FlightStatusKind } from '../types'
 import { hashSeed } from './geo'
+import { translate, type Lang } from '../i18n/translations'
 
 const AIRLINES: { code: string; name: string }[] = [
   { code: 'CI', name: 'China Airlines' },
@@ -79,17 +80,6 @@ export function driftFlightStatus(info: FlightInfo): FlightInfo {
   return info
 }
 
-export function flightStatusLabel(status: FlightStatusKind): string {
-  switch (status) {
-    case 'ON_TIME':
-      return 'On Time'
-    case 'DELAYED':
-      return 'Delayed'
-    case 'BOARDING':
-      return 'Boarding'
-    case 'LANDED':
-      return 'Landed'
-    default:
-      return status
-  }
+export function flightStatusLabel(status: FlightStatusKind, lang: Lang = 'en'): string {
+  return translate(lang, `flight.${status}`)
 }

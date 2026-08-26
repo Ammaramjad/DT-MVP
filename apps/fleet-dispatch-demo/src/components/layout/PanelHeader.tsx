@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import clsx from 'clsx'
+import { useLang } from '../../i18n'
 
 export function PanelHeader({
   title,
@@ -15,6 +16,7 @@ export function PanelHeader({
   light?: boolean
   right?: ReactNode
 }) {
+  const { t } = useLang()
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-5 sm:px-6">
       <div className="flex items-center gap-3">
@@ -46,7 +48,7 @@ export function PanelHeader({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-current" />
           </span>
-          Live Synced
+          {t('common.liveSynced')}
         </motion.div>
         {right}
       </div>

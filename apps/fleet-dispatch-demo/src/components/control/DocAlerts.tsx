@@ -2,13 +2,15 @@ import { AlertTriangle, ShieldAlert } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { documentAlerts } from '../../lib/selectors'
 import { formatDateTime } from '../../lib/format'
+import { useLang } from '../../i18n'
 
 export function DocAlerts() {
+  const { t, lang } = useLang()
   const drivers = useFleetStore((s) => s.drivers)
   const alerts = documentAlerts(drivers)
 
   if (alerts.length === 0) {
-    return <p className="p-3 text-center text-xs text-slate-500">All driver documents are valid. (OCR auto-review clear)</p>
+    return <p className="p-3 text-center text-xs text-slate-500">{t('control.allDocsValid')}</p>
   }
 
   return (
@@ -27,10 +29,10 @@ export function DocAlerts() {
           )}
           <div>
             <p className="font-medium text-slate-200">
-              {a.driverName} · {a.docType}
+              {a.driverName} · {t(a.docTypeKey)}
             </p>
             <p className="text-slate-500">
-              {a.status === 'EXPIRED' ? 'Expired on' : 'Expires'} {formatDateTime(a.expiresAt)} · OCR auto-review flagged
+              {a.status === 'EXPIRED' ? t('control.docExpiredOn') : t('control.docExpires')} {formatDateTime(a.expiresAt, lang)} · {t('control.docOcrFlagged')}
             </p>
           </div>
         </div>

@@ -3,8 +3,10 @@ import { motion } from 'framer-motion'
 import { BarChart3 } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { hourlyOrderDistribution } from '../../lib/capacity'
+import { useLang } from '../../i18n'
 
 export function HourlyVolumeChart() {
+  const { t } = useLang()
   const orders = useFleetStore((s) => s.orders)
 
   const buckets = useMemo(() => hourlyOrderDistribution(orders.map((o) => o.scheduledTime)), [orders])
@@ -17,10 +19,10 @@ export function HourlyVolumeChart() {
     <div>
       <div className="mb-2 flex items-center justify-between px-1">
         <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          <BarChart3 className="h-3.5 w-3.5" /> Hourly Order Volume
+          <BarChart3 className="h-3.5 w-3.5" /> {t('control.hourlyTitle')}
         </p>
         <span className="text-[10px] text-slate-500">
-          {total} total · peak {String(peak.hour).padStart(2, '0')}:00 ({peak.count})
+          {t('control.hourlySummary', { n: total, hour: String(peak.hour).padStart(2, '0'), count: peak.count })}
         </span>
       </div>
       <div className="flex h-16 items-end gap-[3px] px-1">

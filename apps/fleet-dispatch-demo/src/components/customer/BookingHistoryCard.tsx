@@ -3,7 +3,8 @@ import { motion } from 'framer-motion'
 import { CalendarHeart, MapPin, Repeat } from 'lucide-react'
 import type { CustomerHistoryEntry, CustomerProfile, Order } from '../../types'
 import { OrderTypeBadge } from '../ui/OrderBadges'
-import { formatDateTime, formatTWD } from '../../lib/format'
+import { formatDateTime, formatMonthYear, formatTWD } from '../../lib/format'
+import { useLang } from '../../i18n'
 
 interface CombinedEntry {
   id: string
@@ -19,6 +20,7 @@ interface CombinedEntry {
 // combining seeded historical orders with any completed live orders from
 // this session so the picture stays genuinely driven by shared store state.
 export function BookingHistoryCard({ profile, liveOrders }: { profile: CustomerProfile | null; liveOrders: Order[] }) {
+  const { t, lang } = useLang()
   const entries: CombinedEntry[] = useMemo(() => {
     const fromLive: CombinedEntry[] = liveOrders
       .filter((o) => o.status === 'COMPLETED' || o.status === 'CANCELLED')
@@ -53,34 +55,34 @@ export function BookingHistoryCard({ profile, liveOrders }: { profile: CustomerP
     <div className="rounded-2xl bg-white p-5 shadow-xl shadow-slate-200/70 ring-1 ring-slate-100" data-testid="booking-history-card">
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-          <CalendarHeart className="h-4 w-4 text-blue-500" /> My Bookings
+          <CalendarHeart className="h-4 w-4 text-blue-500" /> {t('history.myBookings')}
         </p>
         {isRepeat && (
           <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-600">
-            <Repeat className="h-3 w-3" /> Repeat customer
+            <Repeat className="h-3 w-3" /> {t('history.repeatCustomer')}
           </span>
         )}
       </div>
 
       <p className="mt-2 text-xs text-slate-500">
-        <span className="font-semibold text-slate-800">{totalRides} rides booked</span>
+        <span className="font-semibold text-slate-800">{t('history.ridesBooked', { n: totalRides })}</span>
         {topPickup && (
           <>
             {' '}
-            · <span className="font-medium text-slate-700">{topPickup.count}</span> from {topPickup.name.split(' ')[0]}
+            · {t('history.fromLocation', { n: topPickup.count, name: topPickup.name.split(' ')[0] })}
           </>
         )}
         {tourRides > 0 && (
           <>
             {' '}
-            · <span className="font-medium text-slate-700">{tourRides}</span> tour charter{tourRides > 1 ? 's' : ''}
+            · {t('history.tourCharters', { n: tourRides, plural: tourRides > 1 && lang === 'en' ? 's' : '' })}
           </>
         )}
-        {memberSince && <> · repeat customer since {memberSince.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</>}
+        {memberSince && <> · {t('history.memberSince', { date: formatMonthYear(memberSince.toISOString(), lang) })}</>}
       </p>
 
       <div className="mt-4 max-h-64 space-y-2 overflow-y-auto pr-1">
-        {entries.length === 0 && <p className="p-3 text-center text-xs text-slate-400">This is your first booking with us — welcome!</p>}
+        {entries.length === 0 && <p className="p-3 text-center text-xs text-slate-400">{t('history.firstBooking')}</p>}
         {entries.map((e, i) => (
           <motion.div
             key={e.id}
@@ -96,7 +98,7 @@ export function BookingHistoryCard({ profile, liveOrders }: { profile: CustomerP
               <p className="truncate font-medium text-slate-700">
                 {e.pickupName} → {e.dropoffName}
               </p>
-              <p className="text-[11px] text-slate-400">{formatDateTime(e.scheduledTime)}</p>
+              <p className="text-[11px] text-slate-400">{formatDateTime(e.scheduledTime, lang)}</p>
             </div>
             <div className="flex flex-col items-end gap-1">
               <OrderTypeBadge type={e.type} />

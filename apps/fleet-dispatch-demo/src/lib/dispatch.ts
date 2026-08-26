@@ -1,5 +1,6 @@
 import type { Driver, Order, Vehicle } from '../types'
 import { haversineKm } from './geo'
+import { translate, type Lang } from '../i18n/translations'
 
 const TIER_PRIORITY: Driver['tier'][] = ['OWNED_FLEET', 'PAID_MEMBER', 'OUTSIDE_CONTRACTOR']
 
@@ -27,7 +28,7 @@ export function suggestDriver(order: Order, drivers: Driver[], vehicles: Vehicle
   return scored[0]?.driverId ?? null
 }
 
-export function driverDisplayLabel(driver: Driver | undefined | null): string {
-  if (!driver) return 'Unassigned'
+export function driverDisplayLabel(driver: Driver | undefined | null, lang: Lang = 'en'): string {
+  if (!driver) return translate(lang, 'unassigned')
   return `${driver.name} · ${driver.nameZh}`
 }
