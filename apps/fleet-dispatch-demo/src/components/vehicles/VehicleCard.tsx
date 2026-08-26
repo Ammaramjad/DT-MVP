@@ -14,10 +14,15 @@ interface VehicleCardProps {
   light?: boolean
 }
 
+// Every catalog photo is a 3:2 studio shot (see src/assets/vehicles/*.jpg). The
+// container must share that exact aspect ratio so `object-cover` never has to
+// crop into the roof or lower body to fill a mismatched box — previously these
+// used a fixed height regardless of card width, which cropped the car badly
+// on any card wider than 1.5x its height.
 const SIZE_PHOTO: Record<'sm' | 'md' | 'lg', string> = {
-  sm: 'h-14',
-  md: 'h-24',
-  lg: 'h-32',
+  sm: 'aspect-[3/2]',
+  md: 'aspect-[3/2]',
+  lg: 'aspect-[3/2]',
 }
 
 export function VehicleCard({ type, selected = false, onClick, size = 'md', plate, className, light = false }: VehicleCardProps) {

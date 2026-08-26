@@ -11,13 +11,12 @@ import { buildRoutePath } from '../lib/geo'
 import { getCachedRoute, resolveDynamicRoute } from '../lib/routing'
 import { formatCountdownClock, formatTWD, nowPlusMinutesISO } from '../lib/format'
 import type { BookingInput, Order, RoutePath, VehicleType } from '../types'
-import { VEHICLE_TYPES } from '../data/vehicleCatalog'
+import { VEHICLE_CATALOG, VEHICLE_TYPES } from '../data/vehicleCatalog'
 import { VehicleCard } from '../components/vehicles/VehicleCard'
 import { PanelHeader } from '../components/layout/PanelHeader'
 import { OrderTypeBadge, FlightBadge } from '../components/ui/OrderBadges'
 import { Stepper } from '../components/ui/Stepper'
 import { Button } from '../components/ui/Button'
-import { VehicleSpinner } from '../components/three/VehicleSpinner'
 import { RouteMapView } from '../components/map/RouteMapView'
 import { useLang } from '../i18n'
 
@@ -464,8 +463,40 @@ export default function BookingPanel() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <div className="overflow-hidden rounded-2xl bg-slate-900 shadow-xl">
-            <VehicleSpinner color={VEHICLE_COLOR[vehicleType]} className="h-40 w-full" />
+          <div className="relative h-44 w-full overflow-hidden rounded-2xl bg-slate-900 shadow-xl" data-testid="vehicle-preview-panel">
+            {/* Soft radial glow in the selected vehicle's brand color, behind its actual catalog photo — this
+                replaces the old generic static 3D placeholder and updates live with `vehicleType`. */}
+            <div
+              className="absolute inset-0 transition-colors duration-500"
+              style={{
+                background: `radial-gradient(circle at 50% 45%, ${VEHICLE_COLOR[vehicleType]}55, transparent 70%)`,
+              }}
+            />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={vehicleType}
+                initial={{ opacity: 0, scale: 0.92, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: -8 }}
+                transition={{ duration: 0.28, ease: 'easeOut' }}
+                className="relative flex h-full w-full items-center justify-center p-4"
+              >
+                <img
+                  src={VEHICLE_CATALOG[vehicleType].photo}
+                  alt={`${VEHICLE_CATALOG[vehicleType].brand} ${VEHICLE_CATALOG[vehicleType].model}`}
+                  data-testid="vehicle-preview-photo"
+                  className="max-h-full max-w-full object-contain drop-shadow-[0_18px_28px_rgba(0,0,0,0.55)]"
+                />
+              </motion.div>
+            </AnimatePresence>
+            <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
+              <span className="rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+                {VEHICLE_CATALOG[vehicleType].brand} {VEHICLE_CATALOG[vehicleType].model}
+              </span>
+              <span className="rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-medium text-white/80 backdrop-blur-sm">
+                {t(`vehicle.type.${vehicleType}`)}
+              </span>
+            </div>
           </div>
 
           <div className="rounded-2xl bg-white p-5 shadow-xl shadow-slate-200/70 ring-1 ring-slate-100">
