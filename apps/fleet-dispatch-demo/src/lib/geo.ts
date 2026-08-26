@@ -104,6 +104,10 @@ function buildBendControlPoints(a: XY, b: XY, rand: () => number, curviness: num
 
 const SAMPLE_COUNT = 56
 
+export function durationTicksFromKm(distanceKm: number): number {
+  return Math.max(7, Math.min(30, Math.round(6 + distanceKm * 0.42)))
+}
+
 export function buildRoutePath(from: LocationRef, to: LocationRef, seedKey: string): RoutePath {
   const rand = mulberry32(hashSeed(seedKey))
   const curviness = 0.6 + rand() * 0.5
@@ -136,9 +140,9 @@ export function buildRoutePath(from: LocationRef, to: LocationRef, seedKey: stri
     distanceKm += haversineKm(points[i - 1].lat, points[i - 1].lng, points[i].lat, points[i].lng)
   }
 
-  const durationTicks = Math.max(7, Math.min(24, Math.round(6 + distanceKm * 0.42)))
+  const durationTicks = durationTicksFromKm(distanceKm)
 
-  return { points, distanceKm, durationTicks }
+  return { points, distanceKm, durationTicks, source: 'SYNTHETIC' }
 }
 
 export function evaluateRoute(path: RoutePath, progress: number): RoutePoint {
