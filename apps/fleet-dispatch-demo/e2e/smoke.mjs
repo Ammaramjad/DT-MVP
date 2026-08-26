@@ -5,7 +5,25 @@ import { chromium } from 'playwright'
 
 const PORT = process.argv[2] || process.env.PORT || 5183
 const BASE = `http://localhost:${PORT}`
-const routes = ['/', '/booking', '/control', '/driver', '/customer']
+const routes = [
+  '/',
+  '/marketplace',
+  '/booking',
+  '/control',
+  '/fleet-os',
+  '/fleet-os/suppliers',
+  '/fleet-os/catalog',
+  '/fleet-os/campaigns',
+  '/fleet-os/support',
+  '/fleet-os/refunds',
+  '/fleet-os/roster',
+  '/fleet-os/compliance',
+  '/fleet-os/finance',
+  '/fleet-os/reports',
+  '/fleet-os/admin',
+  '/driver',
+  '/customer',
+]
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })

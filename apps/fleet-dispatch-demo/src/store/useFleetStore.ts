@@ -100,6 +100,9 @@ interface FleetState {
   uploadTollEvidence: (orderId: string) => void
   requestInvoice: (orderId: string) => void
   logOrderAction: (orderId: string, actor: StatusActor, action: string, detail?: string) => void
+  rescheduleOrder: (orderId: string, newIso: string) => void
+  addOrderNote: (orderId: string, note: string) => void
+  updateFlightNumber: (orderId: string, flightNumber: string) => void
 
   setAutoDispatch: (v: boolean) => void
   setAmbientOrders: (v: boolean) => void
@@ -675,6 +678,27 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     set((s) => ({ orders: s.orders.map((o) => (o.id === orderId ? appendAudit(o, actor, action, detail) : o)) }))
   },
 
+  rescheduleOrder: (orderId, newIso) => {
+    set((s) => ({
+      orders: s.orders.map((o) =>
+        o.id === orderId ? appendAudit({ ...o, scheduledTime: newIso }, 'CUSTOMER', 'Changed pickup time', new Date(newIso).toLocaleString()) : o,
+      ),
+      notifications: pushNotification(s.notifications, 'INFO', 'notif.orderRescheduled.title', 'notif.orderRescheduled.message', { orderNo: s.orders.find((o) => o.id === orderId)?.orderNo ?? '' }, orderId),
+    }))
+  },
+
+  addOrderNote: (orderId, note) => {
+    set((s) => ({
+      orders: s.orders.map((o) => (o.id === orderId ? appendAudit({ ...o, notes: note }, 'CUSTOMER', 'Added trip note', note) : o)),
+    }))
+  },
+
+  updateFlightNumber: (orderId, flightNumber) => {
+    set((s) => ({
+      orders: s.orders.map((o) => (o.id === orderId ? appendAudit({ ...o, flightNumber }, 'CUSTOMER', 'Updated flight number', flightNumber) : o)),
+    }))
+  },
+
   setAutoDispatch: (v) => set({ autoDispatchEnabled: v }),
   setAmbientOrders: (v) => set({ ambientOrdersEnabled: v }),
   setFocusOrder: (id) => set({ focusOrderId: id }),
@@ -682,7 +706,13 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   dismissNotification: (id) => set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) })),
 
   setDriverAvailability: (driverId, status) =>
-    set((s) => ({ drivers: s.drivers.map((d) => (d.id === driverId && d.status !== 'BUSY' && d.status !== 'PENDING_RESPONSE' ? { ...d, status } : d)) })),
+    set((s) => ({
+      drivers: s.drivers.map((d) =>
+        d.id === driverId && d.status !== 'BUSY' && d.status !== 'PENDING_RESPONSE'
+          ? { ...d, status, shiftStartedAt: status === 'AVAILABLE' ? d.shiftStartedAt ?? Date.now() : status === 'OFFLINE' ? null : d.shiftStartedAt }
+          : d,
+      ),
+    })),
   setDriverWorkingMode: (driverId, mode) => set((s) => ({ drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, workingMode: mode } : d)) })),
   setDriverZone: (driverId, zone) => set((s) => ({ drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, currentZone: zone } : d)) })),
   setDriverAutoAccept: (driverId, v) => set((s) => ({ drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, autoAcceptEnabled: v } : d)) })),
