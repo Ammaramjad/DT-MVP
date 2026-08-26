@@ -11,11 +11,24 @@ import { hashSeed, mulberry32 } from './geo'
 export interface DriverEarnings {
   today: number
   week: number
+  month: number
   allTime: number
   tripsToday: number
   tripsWeek: number
   avgPerTrip: number
   last7Days: { label: string; earnings: number; trips: number }[]
+  incentives: number
+  tips: number
+  adjustments: number
+  cancellationDeduction: number
+  grossEarnings: number
+  platformCommission: number
+  netEarnings: number
+  hoursOnline: number
+  utilizationPct: number
+  cancellationRatePct: number
+  serviceQualityScore: number
+  breakdown: { airport: number; city: number; charter: number }
 }
 
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -28,6 +41,7 @@ export function buildDriverEarnings(driver: Driver, lang: 'en' | 'zh' = 'en'): D
   const today = Math.round(driver.stats.totalToday * avgPerTrip * (0.92 + rand() * 0.16))
   const week = Math.round(driver.stats.totalWeek * avgPerTrip * (0.92 + rand() * 0.16))
   const allTime = Math.round(driver.stats.totalAllTime * avgPerTrip * (0.95 + rand() * 0.1))
+  const month = Math.round(week * (2.6 + rand() * 0.8))
 
   const labels = lang === 'zh' ? WEEKDAY_SHORT_ZH : WEEKDAY_SHORT
   const today_ = new Date()
@@ -41,13 +55,48 @@ export function buildDriverEarnings(driver: Driver, lang: 'en' | 'zh' = 'en'): D
     return { label: labels[d.getDay()], earnings, trips }
   })
 
+  const incentives = Math.round(week * (0.04 + rand() * 0.05))
+  const tips = Math.round(week * (0.03 + rand() * 0.04))
+  const adjustments = Math.round(week * (0.01 + rand() * 0.02)) * (rand() > 0.7 ? -1 : 1)
+  const cancellationDeduction = Math.round(week * 0.015)
+  const grossEarnings = week + incentives + tips + adjustments - cancellationDeduction
+  const platformCommission = Math.round(grossEarnings * 0.18)
+  const netEarnings = grossEarnings - platformCommission
+
+  const hoursOnline = Math.round((6 + rand() * 4) * 10) / 10
+  const resolved = driver.stats.acceptedAllTime + driver.stats.declinedAllTime + driver.stats.missedAllTime
+  const utilizationPct = Math.round(55 + rand() * 30)
+  const cancellationRatePct = resolved === 0 ? 0 : Math.round((driver.stats.missedAllTime / resolved) * 100)
+  const serviceQualityScore = Math.round(driver.rating * 18 + rand() * 6)
+
+  const airportShare = 0.45 + rand() * 0.15
+  const charterShare = 0.1 + rand() * 0.1
+  const cityShare = 1 - airportShare - charterShare
+
   return {
     today,
     week,
+    month,
     allTime,
     tripsToday: driver.stats.totalToday,
     tripsWeek: driver.stats.totalWeek,
     avgPerTrip,
     last7Days,
+    incentives,
+    tips,
+    adjustments,
+    cancellationDeduction,
+    grossEarnings,
+    platformCommission,
+    netEarnings,
+    hoursOnline,
+    utilizationPct,
+    cancellationRatePct,
+    serviceQualityScore: Math.min(100, serviceQualityScore),
+    breakdown: {
+      airport: Math.round(grossEarnings * airportShare),
+      city: Math.round(grossEarnings * cityShare),
+      charter: Math.round(grossEarnings * charterShare),
+    },
   }
 }

@@ -1,6 +1,6 @@
-import { Plane, PlaneLanding, PlaneTakeoff, MapPinned, Bell, MessageCircle, Mail, PhoneCall } from 'lucide-react'
+import { Plane, PlaneLanding, PlaneTakeoff, MapPinned, Bell, MessageCircle, Mail, PhoneCall, Globe2 } from 'lucide-react'
 import { Badge } from './Badge'
-import type { Driver, FlightStatusKind, NotificationChannel, Order, OrderStatus } from '../../types'
+import type { BookingChannel, Driver, FlightStatusKind, NotificationChannel, Order, OrderStatus } from '../../types'
 import { orderStatusLabel, orderTypeLabel, driverTierLabel, notificationChannelLabel } from '../../lib/format'
 import { flightStatusLabel } from '../../lib/flight'
 import { useLang } from '../../i18n'
@@ -103,6 +103,27 @@ export function FlightBadge({ status }: { status: FlightStatusKind }) {
   return (
     <Badge tone={FLIGHT_TONE[status]} pulse={status === 'DELAYED'}>
       <Plane className="h-3 w-3" /> {flightStatusLabel(status, lang)}
+    </Badge>
+  )
+}
+
+const SOURCE_TONE: Record<BookingChannel, 'cyan' | 'red' | 'amber' | 'green' | 'purple' | 'slate'> = {
+  Website: 'cyan',
+  'LINE@': 'green',
+  KKday: 'amber',
+  'Booking.com': 'purple',
+  Klook: 'red',
+  'Phone / Agent': 'slate',
+  ezTravel: 'amber',
+}
+
+/** Booking-source badge — surfaces which channel an order originated from
+ * (Direct B2C / Klook / KKday / Booking.com / LINE OA / manual operator)
+ * on Driver-App trip offers and Fleet OS order cards. */
+export function SourceBadge({ channel }: { channel: BookingChannel }) {
+  return (
+    <Badge tone={SOURCE_TONE[channel] ?? 'slate'}>
+      <Globe2 className="h-3 w-3" /> {channel}
     </Badge>
   )
 }

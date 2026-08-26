@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  Camera,
   CheckCircle2,
   Flag,
   Luggage,
@@ -9,6 +10,7 @@ import {
   Phone,
   Plane,
   Power,
+  Receipt,
   ShieldAlert,
   Star,
   Users,
@@ -20,6 +22,7 @@ import { ProgressBar } from '../components/ui/ProgressBar'
 import { OrderTypeBadge, FlightBadge } from '../components/ui/OrderBadges'
 import { RouteMapView } from '../components/map/RouteMapView'
 import { DriverStatsHeader } from '../components/driver/DriverStatsHeader'
+import { DriverAvailabilityCard } from '../components/driver/DriverAvailabilityCard'
 import { IncomingRequestModal } from '../components/driver/IncomingRequestModal'
 import { DriverTabBar, type DriverTab } from '../components/driver/DriverTabBar'
 import { EarningsScreen } from '../components/driver/EarningsScreen'
@@ -27,7 +30,7 @@ import { ActivityScreen } from '../components/driver/ActivityScreen'
 import { AccountScreen } from '../components/driver/AccountScreen'
 import { VehicleCard } from '../components/vehicles/VehicleCard'
 import type { Order } from '../types'
-import { formatClock, ticksToMinutesLabel } from '../lib/format'
+import { formatClock, formatTWD, ticksToMinutesLabel } from '../lib/format'
 import { remainingDistanceKm } from '../lib/geo'
 import { useLang } from '../i18n'
 
@@ -58,13 +61,6 @@ export default function DriverPanel() {
   const incomingRequest = orders.find((o) => o.status === 'DRIVER_MATCHING' && o.pendingDriverId === driver?.id)
 
   const recentlyCompleted = orders.find((o) => o.id === justCompletedId && o.status === 'COMPLETED')
-
-  useEffect(() => {
-    if (!activeOrder && recentlyCompleted) {
-      const timer = window.setTimeout(() => setJustCompletedId(null), 4200)
-      return () => window.clearTimeout(timer)
-    }
-  }, [activeOrder, recentlyCompleted])
 
   useEffect(() => {
     if (activeOrder?.status === 'PASSENGER_ONBOARD' && activeOrder.legProgress > 0.85) {
@@ -131,6 +127,8 @@ export default function DriverPanel() {
           <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mx-auto mt-4 max-w-md px-4">
             <DriverStatsHeader stats={driver.stats} />
 
+            {!activeOrder && <DriverAvailabilityCard driver={driver} />}
+
             <div className="glass-panel mt-4 overflow-hidden rounded-[28px] shadow-2xl">
               <AnimatePresence mode="wait">
                 {activeOrder ? (
@@ -157,24 +155,7 @@ export default function DriverPanel() {
                 ) : (
                   <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-6 text-center">
                     {recentlyCompleted ? (
-                      <div>
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: 'spring', stiffness: 260 }}
-                          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300"
-                        >
-                          <CheckCircle2 className="h-9 w-9" />
-                        </motion.div>
-                        <p className="mt-3 font-semibold">{t('driver.tripCompleted')}</p>
-                        <div className="mt-2 flex justify-center gap-1">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <motion.div key={i} initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.08 }}>
-                              <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
-                            </motion.div>
-                          ))}
-                        </div>
-                      </div>
+                      <TripCompletionCard order={recentlyCompleted} onDone={() => setJustCompletedId(null)} />
                     ) : (
                       <div>
                         <div className="relative mx-auto flex h-20 w-20 items-center justify-center">
@@ -234,6 +215,70 @@ export default function DriverPanel() {
           active, exactly like the real Uber Driver app. */}
       <AnimatePresence>{incomingRequest && <IncomingRequestModal key={incomingRequest.id} order={incomingRequest} />}</AnimatePresence>
     </div>
+  )
+}
+
+function TripCompletionCard({ order, onDone }: { order: Order; onDone: () => void }) {
+  const { t } = useLang()
+  const rateCustomer = useFleetStore((s) => s.rateCustomer)
+  const uploadTollEvidence = useFleetStore((s) => s.uploadTollEvidence)
+  const [rating, setRating] = useState(order.customerRatingByDriver ?? 0)
+  const [receiptSent, setReceiptSent] = useState(false)
+
+  return (
+    <motion.div initial={{ scale: 0.94, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} data-testid="driver-trip-completion-card">
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: 'spring', stiffness: 260 }}
+        className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300"
+      >
+        <CheckCircle2 className="h-9 w-9" />
+      </motion.div>
+      <p className="mt-3 font-semibold">{t('driver.tripCompleted')}</p>
+      <p className="mt-1 text-2xl font-black text-emerald-300">{formatTWD(order.priceEstimate)}</p>
+
+      <div className="mt-4 rounded-xl bg-white/5 p-3.5">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t('driver.rateCustomer')}</p>
+        <div className="flex justify-center gap-1.5">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <button
+              key={i}
+              onClick={() => {
+                setRating(i)
+                rateCustomer(order.id, i)
+              }}
+              data-testid="driver-rate-customer-star"
+            >
+              <Star className={`h-6 w-6 ${i <= rating ? 'fill-amber-300 text-amber-300' : 'text-slate-500'}`} />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={() => uploadTollEvidence(order.id)}
+          disabled={order.tollParkingEvidenceUploaded}
+          data-testid="driver-upload-toll-evidence"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/5 py-2.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 disabled:opacity-50"
+        >
+          <Camera className="h-3.5 w-3.5" /> {order.tollParkingEvidenceUploaded ? t('driver.tollEvidenceUploaded') : t('driver.uploadTollEvidence')}
+        </button>
+        <button
+          onClick={() => setReceiptSent(true)}
+          disabled={receiptSent}
+          data-testid="driver-trigger-receipt"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/5 py-2.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 disabled:opacity-50"
+        >
+          <Receipt className="h-3.5 w-3.5" /> {receiptSent ? t('driver.receiptSent') : t('driver.triggerReceipt')}
+        </button>
+      </div>
+
+      <Button fullWidth className="mt-4" onClick={onDone} data-testid="driver-trip-completion-done">
+        {t('driver.completionDone')}
+      </Button>
+    </motion.div>
   )
 }
 
@@ -353,8 +398,32 @@ function TripInProgress({
         )}
 
         <ActionButton status={order.status} onStart={onStart} onVerifyPin={onVerifyPin} pinReady={pinInput.length === 4} />
+
+        <OperatorSupportButton order={order} />
       </div>
     </motion.div>
+  )
+}
+
+function OperatorSupportButton({ order }: { order: Order }) {
+  const { t } = useLang()
+  const createSupportTicket = useFleetStore((s) => s.createSupportTicket)
+  const [requested, setRequested] = useState(false)
+
+  if (requested) {
+    return <p className="text-center text-[11px] font-medium text-cyan-300" data-testid="driver-operator-support-sent">{t('driver.operatorSupportSent')}</p>
+  }
+  return (
+    <button
+      onClick={() => {
+        createSupportTicket(order.id, order.customer.name, t('driver.operatorSupportSubject', { orderNo: order.orderNo }), 'Driver Operations')
+        setRequested(true)
+      }}
+      data-testid="driver-operator-support"
+      className="flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-[11px] font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200"
+    >
+      <Phone className="h-3.5 w-3.5" /> {t('driver.operatorSupport')}
+    </button>
   )
 }
 

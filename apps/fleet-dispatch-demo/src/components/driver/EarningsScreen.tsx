@@ -1,9 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Wallet } from 'lucide-react'
+import { Award, Clock3, Download, Gauge, Percent, ShieldX, Star, Wallet } from 'lucide-react'
 import type { Driver } from '../../types'
+import { useFleetStore } from '../../store/useFleetStore'
 import { buildDriverEarnings } from '../../lib/earnings'
 import { formatTWD } from '../../lib/format'
+import { Badge } from '../ui/Badge'
 import { useLang } from '../../i18n'
 
 const TOOLTIP_STYLE = {
@@ -14,34 +16,117 @@ const TOOLTIP_STYLE = {
   fontSize: 12,
 }
 
-/** Uber-driver-earnings-screen-style breakdown: today / this week / all-time
- * totals plus a 7-day bar chart, all derived from the driver's existing
- * `DriverStats` trip counts (see src/lib/earnings.ts). */
+type Period = 'TODAY' | 'WEEK' | 'MONTH' | 'ALLTIME'
+
+const PAYOUT_TONE: Record<string, 'lime' | 'amber' | 'cyan'> = { PAID: 'lime', PROCESSING: 'cyan', PENDING: 'amber' }
+
+/** Uber-driver-earnings-screen-style breakdown: today / this week / this
+ * month / all-time totals, incentives/tips/adjustments/commission,
+ * completed-ride performance metrics, a ride-type breakdown, a 7-day bar
+ * chart, and this driver's live payout status pulled straight from Fleet
+ * OS's Finance/Settlement module (single shared store, so both surfaces
+ * always agree). */
 export function EarningsScreen({ driver }: { driver: Driver }) {
   const { t, lang } = useLang()
+  const payouts = useFleetStore((s) => s.payouts)
   const earnings = useMemo(() => buildDriverEarnings(driver, lang), [driver, lang])
+  const [period, setPeriod] = useState<Period>('WEEK')
+
+  const driverPayouts = useMemo(() => payouts.filter((p) => p.driverId === driver.id).slice(0, 3), [payouts, driver.id])
+
+  const headline = period === 'TODAY' ? earnings.today : period === 'WEEK' ? earnings.week : period === 'MONTH' ? earnings.month : earnings.allTime
 
   return (
     <div className="mx-auto max-w-md space-y-4 px-4 pb-6" data-testid="driver-earnings-screen">
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {(['TODAY', 'WEEK', 'MONTH', 'ALLTIME'] as Period[]).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            data-testid={`earnings-period-${p.toLowerCase()}`}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              period === p ? 'bg-emerald-400/20 text-emerald-300 ring-1 ring-emerald-400/40' : 'bg-white/5 text-slate-400'
+            }`}
+          >
+            {t(`driver.earnings.period.${p}`)}
+          </button>
+        ))}
+      </div>
+
       <div className="glass-panel rounded-2xl p-5 text-center">
         <p className="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          <Wallet className="h-3.5 w-3.5 text-emerald-300" /> {t('driver.earnings.today')}
+          <Wallet className="h-3.5 w-3.5 text-emerald-300" /> {t(`driver.earnings.period.${period}`)}
         </p>
-        <p className="mt-1 text-4xl font-black text-emerald-300">{formatTWD(earnings.today)}</p>
+        <p className="mt-1 text-4xl font-black text-emerald-300">{formatTWD(headline)}</p>
         <p className="mt-1 text-xs text-slate-500">{t('driver.earnings.tripsCount', { n: earnings.tripsToday })}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="glass-panel rounded-2xl p-4">
-          <p className="text-[11px] font-medium text-slate-400">{t('driver.earnings.thisWeek')}</p>
-          <p className="mt-1 text-xl font-bold text-white">{formatTWD(earnings.week)}</p>
-          <p className="mt-0.5 text-[10.5px] text-slate-500">{t('driver.earnings.tripsCount', { n: earnings.tripsWeek })}</p>
+      {/* Incentives / tips / adjustments / commission breakdown */}
+      <div className="glass-panel rounded-2xl p-4" data-testid="driver-earnings-breakdown">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('driver.earnings.weeklyBreakdown')}</p>
+        <dl className="space-y-1.5 text-xs text-slate-300">
+          <div className="flex justify-between">
+            <dt>{t('driver.earnings.baseFares')}</dt>
+            <dd>{formatTWD(earnings.week)}</dd>
+          </div>
+          <div className="flex justify-between text-emerald-300">
+            <dt>{t('driver.earnings.incentives')}</dt>
+            <dd>+{formatTWD(earnings.incentives)}</dd>
+          </div>
+          <div className="flex justify-between text-emerald-300">
+            <dt>{t('driver.earnings.tips')}</dt>
+            <dd>+{formatTWD(earnings.tips)}</dd>
+          </div>
+          <div className={`flex justify-between ${earnings.adjustments < 0 ? 'text-red-300' : 'text-emerald-300'}`}>
+            <dt>{t('driver.earnings.adjustments')}</dt>
+            <dd>{earnings.adjustments >= 0 ? '+' : ''}{formatTWD(earnings.adjustments)}</dd>
+          </div>
+          <div className="flex justify-between text-red-300">
+            <dt>{t('driver.earnings.cancellationFees')}</dt>
+            <dd>-{formatTWD(earnings.cancellationDeduction)}</dd>
+          </div>
+          <div className="flex justify-between border-t border-white/10 pt-1.5 font-medium text-slate-100">
+            <dt>{t('driver.earnings.gross')}</dt>
+            <dd>{formatTWD(earnings.grossEarnings)}</dd>
+          </div>
+          <div className="flex justify-between text-slate-400">
+            <dt>{t('driver.earnings.platformCommission')}</dt>
+            <dd>-{formatTWD(earnings.platformCommission)}</dd>
+          </div>
+          <div className="flex justify-between border-t border-white/10 pt-1.5 text-sm font-bold text-emerald-300">
+            <dt>{t('driver.earnings.net')}</dt>
+            <dd>{formatTWD(earnings.netEarnings)}</dd>
+          </div>
+        </dl>
+      </div>
+
+      {/* Ride-type breakdown */}
+      <div className="glass-panel rounded-2xl p-4" data-testid="driver-earnings-ride-type">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('driver.earnings.byRideType')}</p>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-xl bg-white/[0.03] p-2.5">
+            <p className="text-sm font-bold text-cyan-300">{formatTWD(earnings.breakdown.airport)}</p>
+            <p className="text-[10px] text-slate-500">{t('driver.earnings.airportTransfer')}</p>
+          </div>
+          <div className="rounded-xl bg-white/[0.03] p-2.5">
+            <p className="text-sm font-bold text-purple-300">{formatTWD(earnings.breakdown.city)}</p>
+            <p className="text-[10px] text-slate-500">{t('driver.earnings.cityRide')}</p>
+          </div>
+          <div className="rounded-xl bg-white/[0.03] p-2.5">
+            <p className="text-sm font-bold text-lime-300">{formatTWD(earnings.breakdown.charter)}</p>
+            <p className="text-[10px] text-slate-500">{t('driver.earnings.charter')}</p>
+          </div>
         </div>
-        <div className="glass-panel rounded-2xl p-4">
-          <p className="text-[11px] font-medium text-slate-400">{t('driver.earnings.allTime')}</p>
-          <p className="mt-1 text-xl font-bold text-white">{formatTWD(earnings.allTime)}</p>
-          <p className="mt-0.5 text-[10.5px] text-slate-500">{t('driver.earnings.avgPerTrip', { amount: formatTWD(earnings.avgPerTrip) })}</p>
-        </div>
+      </div>
+
+      {/* Performance metrics */}
+      <div className="glass-panel grid grid-cols-2 gap-2.5 rounded-2xl p-4" data-testid="driver-earnings-performance">
+        <PerfStat icon={<Clock3 className="h-3.5 w-3.5" />} label={t('driver.earnings.hoursOnline')} value={`${earnings.hoursOnline}h`} />
+        <PerfStat icon={<Gauge className="h-3.5 w-3.5" />} label={t('driver.earnings.utilization')} value={`${earnings.utilizationPct}%`} />
+        <PerfStat icon={<Percent className="h-3.5 w-3.5" />} label={t('driver.earnings.acceptanceRate')} value={`${Math.round((driver.stats.acceptedAllTime / Math.max(1, driver.stats.acceptedAllTime + driver.stats.declinedAllTime + driver.stats.missedAllTime)) * 100)}%`} />
+        <PerfStat icon={<ShieldX className="h-3.5 w-3.5" />} label={t('driver.earnings.cancellationRate')} value={`${earnings.cancellationRatePct}%`} />
+        <PerfStat icon={<Star className="h-3.5 w-3.5" />} label={t('driver.earnings.customerRating')} value={driver.rating.toFixed(1)} />
+        <PerfStat icon={<Award className="h-3.5 w-3.5" />} label={t('driver.earnings.serviceQuality')} value={`${earnings.serviceQualityScore}/100`} />
       </div>
 
       <div className="glass-panel rounded-2xl p-4">
@@ -58,6 +143,39 @@ export function EarningsScreen({ driver }: { driver: Driver }) {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Payout status — sourced from Fleet OS Finance/Settlement */}
+      <div className="glass-panel rounded-2xl p-4" data-testid="driver-earnings-payouts">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('driver.earnings.payoutStatus')}</p>
+          <button className="flex items-center gap-1 text-[11px] font-medium text-cyan-300" data-testid="driver-earnings-download-statement">
+            <Download className="h-3 w-3" /> {t('driver.earnings.downloadStatement')}
+          </button>
+        </div>
+        <div className="space-y-2">
+          {driverPayouts.map((p) => (
+            <div key={p.id} className="flex items-center justify-between rounded-xl bg-white/[0.03] px-3 py-2 text-xs">
+              <div>
+                <p className="font-medium text-slate-200">{p.period}</p>
+                <p className="text-slate-500">{formatTWD(p.netAmount)} · {p.method}</p>
+              </div>
+              <Badge tone={PAYOUT_TONE[p.status] ?? 'amber'}>{t(`fleetos.finance.status.${p.status}`)}</Badge>
+            </div>
+          ))}
+          {driverPayouts.length === 0 && <p className="py-2 text-center text-[11px] text-slate-500">{t('driver.earnings.noPayouts')}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PerfStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-white/[0.03] p-2.5">
+      <p className="flex items-center gap-1 text-[10px] text-slate-500">
+        {icon} {label}
+      </p>
+      <p className="mt-1 text-sm font-bold text-slate-100">{value}</p>
     </div>
   )
 }

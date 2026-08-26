@@ -1,12 +1,15 @@
-import { motion } from 'framer-motion'
-import { CheckCircle2, Luggage, MapPin, Users, X, Zap } from 'lucide-react'
-import type { Order } from '../../types'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { CheckCircle2, Luggage, MapPin, MessageSquareText, Star, Users, X, Zap } from 'lucide-react'
+import type { DeclineReason, Order } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
 import { CountdownRing } from '../ui/CountdownRing'
-import { ChannelBadge, OrderTypeBadge } from '../ui/OrderBadges'
+import { ChannelBadge, OrderTypeBadge, SourceBadge } from '../ui/OrderBadges'
 import { Button } from '../ui/Button'
 import { formatClock, formatTWD } from '../../lib/format'
 import { useLang } from '../../i18n'
+
+const DECLINE_REASONS: DeclineReason[] = ['TOO_FAR', 'LOW_FARE', 'VEHICLE_MISMATCH', 'OFF_SHIFT', 'OTHER']
 
 /**
  * The Driver App's Uber-style full-screen incoming-ride sheet — replaces the
@@ -19,10 +22,12 @@ import { useLang } from '../../i18n'
 export function IncomingRequestModal({ order }: { order: Order }) {
   const { t, lang } = useLang()
   const respondToDispatch = useFleetStore((s) => s.respondToDispatch)
+  const [showDeclineReasons, setShowDeclineReasons] = useState(false)
   const attempt = order.dispatchAttempts[order.dispatchAttempts.length - 1]
   if (!attempt) return null
 
   const isEscalated = attempt.stage === 2
+  const passengerRating = 4.3 + (order.orderNo.length % 7) * 0.1
 
   return (
     <motion.div
@@ -58,9 +63,21 @@ export function IncomingRequestModal({ order }: { order: Order }) {
         </div>
 
         <div className="mt-5 flex-1 overflow-y-auto px-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="font-mono text-base font-bold text-white">{order.orderNo}</span>
-            <OrderTypeBadge type={order.type} />
+            <div className="flex items-center gap-1.5">
+              <SourceBadge channel={order.channel} />
+              <OrderTypeBadge type={order.type} />
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between rounded-xl bg-white/5 p-3.5">
+            <span className="flex items-center gap-1.5 text-xs text-slate-300">
+              <Users className="h-3.5 w-3.5" /> {order.customer.name}
+            </span>
+            <span className="flex items-center gap-1 text-xs font-semibold text-amber-300">
+              <Star className="h-3.5 w-3.5 fill-amber-300" /> {passengerRating.toFixed(1)}
+            </span>
           </div>
 
           <div className="mt-3 flex items-baseline justify-between rounded-xl bg-white/5 p-3.5">
@@ -85,16 +102,51 @@ export function IncomingRequestModal({ order }: { order: Order }) {
               <span>{formatClock(order.scheduledTime, lang)}</span>
               <span className="ml-auto font-medium text-slate-300">{order.distanceKm.toFixed(1)} km</span>
             </div>
+            <div className="flex items-center gap-1.5 border-t border-white/10 pt-2 text-xs text-slate-400">
+              <span className="rounded-md bg-white/5 px-2 py-1 font-medium text-slate-300">{t(`vehicle.type.${order.vehicleType}`)}</span>
+              {order.flightNumber && <span className="rounded-md bg-white/5 px-2 py-1 font-medium text-slate-300">{order.flightNumber}</span>}
+            </div>
           </div>
+
+          {order.notes && (
+            <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-400/10 p-3 text-xs text-amber-200">
+              <MessageSquareText className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {order.notes}
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-white/10 p-5">
-          <Button variant="secondary" size="lg" onClick={() => respondToDispatch(order.id, false)} data-testid="decline-request-button">
-            <X className="h-5 w-5" /> {t('driver.decline')}
-          </Button>
-          <Button variant="success" size="lg" onClick={() => respondToDispatch(order.id, true)} data-testid="accept-request-button">
-            <CheckCircle2 className="h-5 w-5" /> {t('driver.accept')}
-          </Button>
+        <div className="border-t border-white/10 p-5">
+          <AnimatePresence mode="wait">
+            {showDeclineReasons ? (
+              <motion.div key="reasons" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} data-testid="decline-reason-picker">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t('driver.declineReasonPrompt')}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {DECLINE_REASONS.map((reason) => (
+                    <button
+                      key={reason}
+                      onClick={() => respondToDispatch(order.id, false, reason)}
+                      data-testid={`decline-reason-${reason.toLowerCase()}`}
+                      className="rounded-lg bg-white/5 px-2.5 py-2 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-white/10"
+                    >
+                      {t(`driver.declineReason.${reason}`)}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setShowDeclineReasons(false)} className="mt-2.5 w-full text-center text-[11px] text-slate-400 hover:text-slate-300">
+                  {t('driver.declineReasonCancel')}
+                </button>
+              </motion.div>
+            ) : (
+              <motion.div key="actions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-2 gap-3">
+                <Button variant="secondary" size="lg" onClick={() => setShowDeclineReasons(true)} data-testid="decline-request-button">
+                  <X className="h-5 w-5" /> {t('driver.decline')}
+                </Button>
+                <Button variant="success" size="lg" onClick={() => respondToDispatch(order.id, true)} data-testid="accept-request-button">
+                  <CheckCircle2 className="h-5 w-5" /> {t('driver.accept')}
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
     </motion.div>
