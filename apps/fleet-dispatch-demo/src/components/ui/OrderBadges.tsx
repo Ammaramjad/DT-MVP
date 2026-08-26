@@ -1,7 +1,7 @@
-import { Plane, PlaneLanding, PlaneTakeoff, MapPinned } from 'lucide-react'
+import { Plane, PlaneLanding, PlaneTakeoff, MapPinned, Bell, MessageCircle, Mail, PhoneCall } from 'lucide-react'
 import { Badge } from './Badge'
-import type { Driver, FlightStatusKind, Order, OrderStatus } from '../../types'
-import { orderStatusLabel, orderTypeLabel, driverTierLabel } from '../../lib/format'
+import type { Driver, FlightStatusKind, NotificationChannel, Order, OrderStatus } from '../../types'
+import { orderStatusLabel, orderTypeLabel, driverTierLabel, notificationChannelLabel } from '../../lib/format'
 import { flightStatusLabel } from '../../lib/flight'
 
 export function OrderTypeBadge({ type }: { type: Order['type'] }) {
@@ -28,6 +28,7 @@ export function OrderTypeBadge({ type }: { type: Order['type'] }) {
 
 const STATUS_TONE: Record<OrderStatus, 'cyan' | 'purple' | 'pink' | 'amber' | 'lime' | 'slate' | 'red' | 'green'> = {
   NEW: 'amber',
+  PENDING_DRIVER_RESPONSE: 'pink',
   ASSIGNED: 'cyan',
   EN_ROUTE_TO_PICKUP: 'purple',
   ARRIVED_AT_PICKUP: 'pink',
@@ -38,10 +39,33 @@ const STATUS_TONE: Record<OrderStatus, 'cyan' | 'purple' | 'pink' | 'amber' | 'l
 }
 
 export function StatusBadge({ status }: { status: OrderStatus }) {
-  const pulse = status === 'EN_ROUTE_TO_PICKUP' || status === 'IN_TRANSIT' || status === 'NEW'
+  const pulse = status === 'EN_ROUTE_TO_PICKUP' || status === 'IN_TRANSIT' || status === 'NEW' || status === 'PENDING_DRIVER_RESPONSE'
   return (
     <Badge tone={STATUS_TONE[status]} pulse={pulse}>
       {orderStatusLabel(status)}
+    </Badge>
+  )
+}
+
+const CHANNEL_ICON: Record<NotificationChannel, typeof Bell> = {
+  IN_APP: Bell,
+  LINE: MessageCircle,
+  EMAIL: Mail,
+  PHONE_CALL: PhoneCall,
+}
+
+const CHANNEL_TONE: Record<NotificationChannel, 'cyan' | 'green' | 'purple' | 'amber'> = {
+  IN_APP: 'cyan',
+  LINE: 'green',
+  EMAIL: 'purple',
+  PHONE_CALL: 'amber',
+}
+
+export function ChannelBadge({ channel, compact = false }: { channel: NotificationChannel; compact?: boolean }) {
+  const Icon = CHANNEL_ICON[channel]
+  return (
+    <Badge tone={CHANNEL_TONE[channel]} className={compact ? 'px-1.5 py-0.5' : undefined}>
+      <Icon className="h-3 w-3" /> {compact ? null : notificationChannelLabel(channel)}
     </Badge>
   )
 }

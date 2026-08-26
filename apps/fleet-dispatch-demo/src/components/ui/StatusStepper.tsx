@@ -12,7 +12,8 @@ const STEPS: { key: OrderStatus; label: string }[] = [
 ]
 
 export function StatusStepper({ status }: { status: OrderStatus }) {
-  const effectiveIndex = STEPS.findIndex((s) => s.key === status || (s.key === 'IN_TRANSIT' && status === 'PICKED_UP'))
+  const normalized = status === 'PENDING_DRIVER_RESPONSE' ? 'NEW' : status
+  const effectiveIndex = STEPS.findIndex((s) => s.key === normalized || (s.key === 'IN_TRANSIT' && normalized === 'PICKED_UP'))
   const currentIndex = effectiveIndex === -1 ? 0 : effectiveIndex
 
   return (

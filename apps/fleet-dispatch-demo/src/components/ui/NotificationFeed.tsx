@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { formatRelative } from '../../lib/format'
+import { ChannelBadge } from './OrderBadges'
 
 const ICONS = { INFO: Info, SUCCESS: CheckCircle2, WARNING: AlertTriangle, ERROR: XCircle }
 const COLORS = { INFO: 'text-cyan-300', SUCCESS: 'text-emerald-300', WARNING: 'text-amber-300', ERROR: 'text-red-300' }
@@ -30,6 +31,13 @@ export function NotificationFeed({ limit = 12 }: { limit?: number }) {
                   <span className="shrink-0 text-[10px] text-slate-500">{formatRelative(n.timestamp)}</span>
                 </div>
                 <p className="mt-0.5 text-[11px] leading-snug text-slate-400">{n.message}</p>
+                {n.channels && n.channels.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {n.channels.map((c) => (
+                      <ChannelBadge key={c} channel={c} compact />
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
           )

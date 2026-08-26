@@ -52,11 +52,12 @@ export function FleetMap({ height = '100%' }: { height?: string | number }) {
         {drivers.map((driver) => {
           const order = orders.find((o) => o.driverId === driver.id && !['COMPLETED', 'CANCELLED'].includes(o.status))
           const isMoving = order?.status === 'EN_ROUTE_TO_PICKUP' || order?.status === 'IN_TRANSIT'
+          const isFlagged = !!driver.unresponsiveFlagUntil && driver.unresponsiveFlagUntil > Date.now()
           return (
             <Marker
               key={driver.id}
               position={[driver.lat, driver.lng]}
-              icon={vehicleDivIcon(TIER_COLOR[driver.tier], { pulse: isMoving })}
+              icon={vehicleDivIcon(isFlagged ? '#ef4444' : TIER_COLOR[driver.tier], { pulse: isMoving || isFlagged })}
             >
               <Popup>
                 <div className="min-w-[180px] text-xs">
@@ -67,6 +68,11 @@ export function FleetMap({ height = '100%' }: { height?: string | number }) {
                     <TierBadge tier={driver.tier} />
                   </div>
                   <p className="mt-1 text-slate-500">{driverTierLabel(driver.tier)} · ⭐ {driver.rating.toFixed(1)}</p>
+                  {isFlagged && (
+                    <p className="mt-2 rounded-md bg-red-50 px-2 py-1 font-medium text-red-600">
+                      ⚠ Unresponsive on order {driver.unresponsiveOrderNo}
+                    </p>
+                  )}
                   {order ? (
                     <div className="mt-2 border-t border-slate-200 pt-2">
                       <p className="font-medium text-slate-800">Order {order.orderNo}</p>

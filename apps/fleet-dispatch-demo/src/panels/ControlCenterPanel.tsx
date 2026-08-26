@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Bell, Cpu, DollarSign, Gauge, Radar, Users2 } from 'lucide-react'
+import { AlertTriangle, CalendarClock, Cpu, DollarSign, Gauge, Radar, UserX, Users2 } from 'lucide-react'
 import { useFleetStore } from '../store/useFleetStore'
 import { computeKpis } from '../lib/selectors'
 import { PanelHeader } from '../components/layout/PanelHeader'
@@ -9,6 +9,10 @@ import { OrderQueueCard } from '../components/control/OrderQueueCard'
 import { DocAlerts } from '../components/control/DocAlerts'
 import { NotificationFeed } from '../components/ui/NotificationFeed'
 import { FleetMapView } from '../components/map/FleetMapView'
+import { CapacityCalendar } from '../components/control/CapacityCalendar'
+import { HourlyVolumeChart } from '../components/control/HourlyVolumeChart'
+import { DriverScheduleMatrix } from '../components/control/DriverScheduleMatrix'
+import { FleetRosterBreakdown } from '../components/control/FleetRosterBreakdown'
 
 type FilterKey = 'ACTIVE' | 'NEW' | 'IN_PROGRESS' | 'COMPLETED' | 'ALL'
 
@@ -18,6 +22,14 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'IN_PROGRESS', label: 'In Progress' },
   { key: 'COMPLETED', label: 'Completed' },
   { key: 'ALL', label: 'All' },
+]
+
+type CapacityTab = 'FORECAST' | 'SCHEDULE' | 'ROSTER'
+
+const CAPACITY_TABS: { key: CapacityTab; label: string }[] = [
+  { key: 'FORECAST', label: 'Capacity Forecast' },
+  { key: 'SCHEDULE', label: 'Driver Schedule' },
+  { key: 'ROSTER', label: 'Fleet Roster' },
 ]
 
 export default function ControlCenterPanel() {
@@ -31,6 +43,7 @@ export default function ControlCenterPanel() {
   const setFocusOrder = useFleetStore((s) => s.setFocusOrder)
 
   const [filter, setFilter] = useState<FilterKey>('ACTIVE')
+  const [capacityTab, setCapacityTab] = useState<CapacityTab>('FORECAST')
 
   const kpis = useMemo(() => computeKpis(orders, drivers), [orders, drivers])
 
@@ -40,7 +53,9 @@ export default function ControlCenterPanel() {
       case 'NEW':
         return sorted.filter((o) => o.status === 'NEW')
       case 'IN_PROGRESS':
-        return sorted.filter((o) => ['ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'PICKED_UP', 'IN_TRANSIT'].includes(o.status))
+        return sorted.filter((o) =>
+          ['PENDING_DRIVER_RESPONSE', 'ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'PICKED_UP', 'IN_TRANSIT'].includes(o.status),
+        )
       case 'COMPLETED':
         return sorted.filter((o) => o.status === 'COMPLETED' || o.status === 'CANCELLED')
       case 'ACTIVE':
@@ -69,11 +84,13 @@ export default function ControlCenterPanel() {
         <ToggleChip label="Live Orders" active={ambientOrdersEnabled} onClick={() => setAmbientOrders(!ambientOrdersEnabled)} icon={<Radar className="h-3 w-3" />} />
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 px-4 sm:grid-cols-4 sm:px-6">
+      <div className="mt-4 grid grid-cols-2 gap-3 px-4 sm:grid-cols-3 sm:px-6 lg:grid-cols-6">
         <StatCard icon={<Gauge className="h-4 w-4" />} label="Active Orders" value={kpis.activeOrders} tone="cyan" />
+        <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Unassigned" value={kpis.unassignedOrders} tone="amber" />
         <StatCard icon={<Users2 className="h-4 w-4" />} label="Available Drivers" value={kpis.availableDrivers} tone="purple" />
+        <StatCard icon={<UserX className="h-4 w-4" />} label="Anomalies" value={kpis.anomalies} tone="red" />
         <StatCard icon={<DollarSign className="h-4 w-4" />} label="Revenue Today" value={kpis.todayRevenue} prefix="NT$" tone="lime" />
-        <StatCard icon={<Bell className="h-4 w-4" />} label="On-Time %" value={kpis.onTimePct} suffix="%" tone="amber" />
+        <StatCard icon={<CalendarClock className="h-4 w-4" />} label="On Leave Today" value={kpis.onLeaveToday} tone="pink" />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 px-4 sm:px-6 lg:grid-cols-[1.05fr_1.35fr_0.85fr]">
@@ -113,7 +130,7 @@ export default function ControlCenterPanel() {
 
         <div className="flex flex-col gap-3">
           <div className="glass-panel flex flex-1 flex-col rounded-2xl p-3">
-            <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">LINE@ Notification Feed</p>
+            <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Multi-Channel Notification Feed</p>
             <div className="max-h-[300px] flex-1">
               <NotificationFeed limit={20} />
             </div>
@@ -122,6 +139,44 @@ export default function ControlCenterPanel() {
             <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Driver Document Alerts</p>
             <DocAlerts />
           </div>
+        </div>
+      </div>
+
+      <div className="mt-4 px-4 sm:px-6">
+        <div className="glass-panel rounded-2xl p-4">
+          <div className="mb-3 flex items-center gap-1.5 overflow-x-auto">
+            {CAPACITY_TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setCapacityTab(t.key)}
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  capacityTab === t.key ? 'bg-cyan-400/15 text-cyan-300' : 'text-slate-400 hover:bg-white/5'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+            <span className="ml-auto hidden text-[10px] text-slate-500 sm:inline">Modelled after the reference Fleet OS scheduling dashboard</span>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {capacityTab === 'FORECAST' && (
+              <motion.div key="forecast" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
+                <CapacityCalendar />
+                <HourlyVolumeChart />
+              </motion.div>
+            )}
+            {capacityTab === 'SCHEDULE' && (
+              <motion.div key="schedule" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                <DriverScheduleMatrix />
+              </motion.div>
+            )}
+            {capacityTab === 'ROSTER' && (
+              <motion.div key="roster" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                <FleetRosterBreakdown />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

@@ -91,13 +91,14 @@ export function FleetMapFallback({ height = '100%' }: { height?: string | number
         {drivers.map((driver) => {
           const order = orders.find((o) => o.driverId === driver.id && !['COMPLETED', 'CANCELLED'].includes(o.status))
           const isMoving = order?.status === 'EN_ROUTE_TO_PICKUP' || order?.status === 'IN_TRANSIT'
-          const color = TIER_COLOR[driver.tier]
+          const isFlagged = !!driver.unresponsiveFlagUntil && driver.unresponsiveFlagUntil > Date.now()
+          const color = isFlagged ? '#ef4444' : TIER_COLOR[driver.tier]
           return (
             <g key={driver.id} style={{ transition: 'transform 1.3s linear' }} transform={`translate(${driver.svgX}, ${driver.svgY})`}>
-              {isMoving && (
+              {(isMoving || isFlagged) && (
                 <circle r={14} fill="none" stroke={color} strokeWidth={2}>
-                  <animate attributeName="r" values="6;16;6" dur="1.8s" repeatCount="indefinite" />
-                  <animate attributeName="opacity" values="0.8;0;0.8" dur="1.8s" repeatCount="indefinite" />
+                  <animate attributeName="r" values="6;16;6" dur={isFlagged ? '1s' : '1.8s'} repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.8;0;0.8" dur={isFlagged ? '1s' : '1.8s'} repeatCount="indefinite" />
                 </circle>
               )}
               <circle r={7} fill={color} stroke="white" strokeWidth={1.5} />
