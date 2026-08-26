@@ -666,6 +666,14 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   },
 }))
 
+// Dev/demo-only escape hatch for e2e/artifact scripts that need to drive the
+// simulation deterministically (e.g. forcing a specific driver's incoming
+// request) instead of racing the randomized response-window timers. Never
+// included in production builds.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  ;(window as unknown as { __fleetStore?: typeof useFleetStore }).__fleetStore = useFleetStore
+}
+
 /** Resolves (and, once resolved, patches into the store) a real road-snapped
  * OSRM route for one order leg — called after the order/leg is created with
  * its synthetic fallback so the UI updates in place the moment the routing

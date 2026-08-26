@@ -41,6 +41,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
       data-order-status={order.status}
       data-assigned-driver={assignedDriver?.name ?? ''}
       data-assigned-driver-id={assignedDriver?.id ?? ''}
+      data-pending-driver-id={order.pendingDriverId ?? ''}
       className={`relative cursor-pointer rounded-xl border p-3.5 transition ${
         focused ? 'border-cyan-400/50 bg-cyan-400/[0.06]' : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.04]'
       }`}
