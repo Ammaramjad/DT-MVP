@@ -18,8 +18,10 @@ import { PanelHeader } from '../components/layout/PanelHeader'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { ProgressBar } from '../components/ui/ProgressBar'
-import { OrderTypeBadge, FlightBadge } from '../components/ui/OrderBadges'
+import { OrderTypeBadge, FlightBadge, StatusBadge } from '../components/ui/OrderBadges'
 import { RouteMapView } from '../components/map/RouteMapView'
+import { DriverStatsHeader } from '../components/driver/DriverStatsHeader'
+import { IncomingRequestCard } from '../components/driver/IncomingRequestCard'
 import { driverTierLabel, formatClock, ticksToMinutesLabel } from '../lib/format'
 import { remainingDistanceKm } from '../lib/geo'
 
@@ -42,6 +44,7 @@ export default function DriverPanel() {
   const vehicle = vehicles.find((v) => v.id === driver?.vehicleId)
 
   const activeOrder = orders.find((o) => o.driverId === driver?.id && ACTIVE_STATUSES.includes(o.status))
+  const incomingRequest = orders.find((o) => o.status === 'PENDING_DRIVER_RESPONSE' && o.pendingDriverId === driver?.id)
   const todaysJobs = useMemo(
     () => orders.filter((o) => o.driverId === driver?.id).sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
     [orders, driver?.id],
@@ -91,6 +94,16 @@ export default function DriverPanel() {
       </div>
 
       <div className="mx-auto mt-4 max-w-md px-4">
+        <DriverStatsHeader stats={driver.stats} />
+      </div>
+
+      {incomingRequest && (
+        <div className="mx-auto mt-4 max-w-md px-4">
+          <IncomingRequestCard order={incomingRequest} />
+        </div>
+      )}
+
+      <div className="mx-auto mt-4 max-w-md px-4">
         <div className="glass-panel overflow-hidden rounded-[28px] shadow-2xl">
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-5">
             <div className="flex items-center justify-between">
@@ -104,7 +117,7 @@ export default function DriverPanel() {
                   </div>
                 </div>
               </div>
-              {driver.status !== 'BUSY' && (
+              {(driver.status === 'AVAILABLE' || driver.status === 'OFFLINE') && (
                 <button
                   onClick={() => setDriverAvailability(driver.id, driver.status === 'AVAILABLE' ? 'OFFLINE' : 'AVAILABLE')}
                   className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium ${
@@ -115,6 +128,7 @@ export default function DriverPanel() {
                 </button>
               )}
               {driver.status === 'BUSY' && <Badge tone="cyan" pulse>On Trip</Badge>}
+              {driver.status === 'PENDING_RESPONSE' && <Badge tone="pink" pulse>Awaiting Your Response</Badge>}
             </div>
             <div className="mt-3 flex items-center gap-2">
               <Badge tone="slate">{driverTierLabel(driver.tier)}</Badge>
@@ -245,7 +259,7 @@ export default function DriverPanel() {
                 <span className="truncate text-slate-500">
                   {job.pickup.name.split(' ')[0]} → {job.dropoff.name.split(' ')[0]}
                 </span>
-                <Badge tone={job.status === 'COMPLETED' ? 'green' : 'slate'}>{job.status}</Badge>
+                <StatusBadge status={job.status} />
               </div>
             ))}
             {todaysJobs.length === 0 && <p className="p-3 text-center text-xs text-slate-500">No jobs yet today.</p>}
