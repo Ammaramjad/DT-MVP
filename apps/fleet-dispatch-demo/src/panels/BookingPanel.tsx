@@ -44,14 +44,17 @@ export default function BookingPanel() {
   const location = useLocation()
   const { t, lang } = useLang()
 
-  const preset = (location.state as { presetType?: string } | null)?.presetType
+  const routerState = location.state as
+    | { presetType?: string; presetPickupId?: string; presetDropoffId?: string; presetVehicleType?: VehicleType; presetChannel?: BookingInput['channel'] }
+    | null
+  const preset = routerState?.presetType
   const presetConfig = preset ? PRESETS[preset] : undefined
 
-  const [channel, setChannel] = useState<BookingInput['channel']>('Website')
-  const [pickupId, setPickupId] = useState(presetConfig?.pickupId ?? 'tpe-airport')
-  const [dropoffId, setDropoffId] = useState(presetConfig?.dropoffId ?? 'taipei-main-station')
+  const [channel, setChannel] = useState<BookingInput['channel']>(routerState?.presetChannel ?? 'Website')
+  const [pickupId, setPickupId] = useState(routerState?.presetPickupId ?? presetConfig?.pickupId ?? 'tpe-airport')
+  const [dropoffId, setDropoffId] = useState(routerState?.presetDropoffId ?? presetConfig?.dropoffId ?? 'taipei-main-station')
   const [scheduledTime, setScheduledTime] = useState(() => nowPlusMinutesISO(90).slice(0, 16))
-  const [vehicleType, setVehicleType] = useState<VehicleType>(presetConfig?.vehicleType ?? 'SEDAN')
+  const [vehicleType, setVehicleType] = useState<VehicleType>(routerState?.presetVehicleType ?? presetConfig?.vehicleType ?? 'SEDAN')
   const [passengers, setPassengers] = useState(2)
   const [luggage, setLuggage] = useState(2)
   const [name, setName] = useState('')

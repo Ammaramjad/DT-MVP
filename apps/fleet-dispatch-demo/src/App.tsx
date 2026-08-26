@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { useSimulationTicker } from './hooks/useSimulationTicker'
 import { useRealRouteHydration } from './hooks/useRealRouteHydration'
 import { NotificationToaster } from './components/ui/NotificationToaster'
@@ -9,6 +9,17 @@ import BookingPanel from './panels/BookingPanel'
 import ControlCenterPanel from './panels/ControlCenterPanel'
 import DriverPanel from './panels/DriverPanel'
 import CustomerAppPanel from './panels/CustomerAppPanel'
+import MarketplacePanel from './panels/MarketplacePanel'
+import SuppliersPanel from './panels/fleetos/SuppliersPanel'
+import CatalogPanel from './panels/fleetos/CatalogPanel'
+import CampaignsPanel from './panels/fleetos/CampaignsPanel'
+import SupportPanel from './panels/fleetos/SupportPanel'
+import RefundsPanel from './panels/fleetos/RefundsPanel'
+import RosterPanel from './panels/fleetos/RosterPanel'
+import CompliancePanel from './panels/fleetos/CompliancePanel'
+import FinancePanel from './panels/fleetos/FinancePanel'
+import ReportsPanel from './panels/fleetos/ReportsPanel'
+import AdminPanel from './panels/fleetos/AdminPanel'
 
 export default function App() {
   useSimulationTicker()
@@ -21,9 +32,26 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPanel />} />
           <Route path="/booking" element={<BookingPanel />} />
-          <Route path="/control" element={<ControlCenterPanel />} />
+          <Route path="/marketplace" element={<MarketplacePanel />} />
           <Route path="/driver" element={<DriverPanel />} />
           <Route path="/customer" element={<CustomerAppPanel />} />
+
+          {/* Fleet OS — canonical desktop command-center routes per the client
+              brief. /control is kept as a working alias (redirect) so the
+              existing PR history / any bookmarked links keep resolving. */}
+          <Route path="/control" element={<Navigate to="/fleet-os" replace />} />
+          <Route path="/fleet-os" element={<ControlCenterPanel />} />
+          <Route path="/fleet-os/orders" element={<ControlCenterPanel />} />
+          <Route path="/fleet-os/suppliers" element={<SuppliersPanel />} />
+          <Route path="/fleet-os/catalog" element={<CatalogPanel />} />
+          <Route path="/fleet-os/campaigns" element={<CampaignsPanel />} />
+          <Route path="/fleet-os/support" element={<SupportPanel />} />
+          <Route path="/fleet-os/refunds" element={<RefundsPanel />} />
+          <Route path="/fleet-os/roster" element={<RosterPanel />} />
+          <Route path="/fleet-os/compliance" element={<CompliancePanel />} />
+          <Route path="/fleet-os/finance" element={<FinancePanel />} />
+          <Route path="/fleet-os/reports" element={<ReportsPanel />} />
+          <Route path="/fleet-os/admin" element={<AdminPanel />} />
         </Routes>
         <DemoModeSwitcher />
       </BrowserRouter>

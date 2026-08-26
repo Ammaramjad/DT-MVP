@@ -14,6 +14,7 @@ import { HourlyVolumeChart } from '../components/control/HourlyVolumeChart'
 import { DriverScheduleMatrix } from '../components/control/DriverScheduleMatrix'
 import { FleetRosterBreakdown } from '../components/control/FleetRosterBreakdown'
 import { AnalyticsDashboard } from '../components/control/AnalyticsDashboard'
+import { FleetOsNav } from '../components/fleetos/FleetOsNav'
 import { useLang } from '../i18n'
 
 type FilterKey = 'ACTIVE' | 'NEW' | 'IN_PROGRESS' | 'COMPLETED' | 'ALL'
@@ -86,6 +87,10 @@ export default function ControlCenterPanel() {
       <div className="mt-3 flex items-center gap-2 px-4 sm:hidden">
         <ToggleChip label={t('control.autoDispatch')} active={autoDispatchEnabled} onClick={() => setAutoDispatch(!autoDispatchEnabled)} icon={<Cpu className="h-3 w-3" />} />
         <ToggleChip label={t('control.liveOrders')} active={ambientOrdersEnabled} onClick={() => setAmbientOrders(!ambientOrdersEnabled)} icon={<Radar className="h-3 w-3" />} />
+      </div>
+
+      <div className="mt-3 px-4 sm:px-6">
+        <FleetOsNav />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 px-4 sm:grid-cols-3 sm:px-6 lg:grid-cols-6">

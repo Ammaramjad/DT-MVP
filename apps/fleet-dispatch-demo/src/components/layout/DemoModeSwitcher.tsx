@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Car, ClipboardList, Home as HomeIcon, LayoutGrid, MapPinned, Radar, X } from 'lucide-react'
+import { Car, ClipboardList, Globe2, Home as HomeIcon, LayoutGrid, MapPinned, Radar, X } from 'lucide-react'
 import clsx from 'clsx'
 import { useLang } from '../../i18n'
 import { LANGS } from '../../i18n/translations'
 
 const APPS = [
   { to: '/', labelKey: 'nav.home', icon: HomeIcon },
+  { to: '/marketplace', labelKey: 'nav.marketplace', icon: Globe2 },
   { to: '/booking', labelKey: 'nav.booking', icon: ClipboardList },
   { to: '/control', labelKey: 'nav.control', icon: Radar },
   { to: '/driver', labelKey: 'nav.driver', icon: Car },
