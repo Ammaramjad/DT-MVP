@@ -13,26 +13,28 @@ import { CapacityCalendar } from '../components/control/CapacityCalendar'
 import { HourlyVolumeChart } from '../components/control/HourlyVolumeChart'
 import { DriverScheduleMatrix } from '../components/control/DriverScheduleMatrix'
 import { FleetRosterBreakdown } from '../components/control/FleetRosterBreakdown'
+import { useLang } from '../i18n'
 
 type FilterKey = 'ACTIVE' | 'NEW' | 'IN_PROGRESS' | 'COMPLETED' | 'ALL'
 
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'ACTIVE', label: 'Active' },
-  { key: 'NEW', label: 'New' },
-  { key: 'IN_PROGRESS', label: 'In Progress' },
-  { key: 'COMPLETED', label: 'Completed' },
-  { key: 'ALL', label: 'All' },
+const FILTERS: { key: FilterKey; labelKey: string }[] = [
+  { key: 'ACTIVE', labelKey: 'control.filter.active' },
+  { key: 'NEW', labelKey: 'control.filter.new' },
+  { key: 'IN_PROGRESS', labelKey: 'control.filter.inProgress' },
+  { key: 'COMPLETED', labelKey: 'control.filter.completed' },
+  { key: 'ALL', labelKey: 'control.filter.all' },
 ]
 
 type CapacityTab = 'FORECAST' | 'SCHEDULE' | 'ROSTER'
 
-const CAPACITY_TABS: { key: CapacityTab; label: string }[] = [
-  { key: 'FORECAST', label: 'Capacity Forecast' },
-  { key: 'SCHEDULE', label: 'Driver Schedule' },
-  { key: 'ROSTER', label: 'Fleet Roster' },
+const CAPACITY_TABS: { key: CapacityTab; labelKey: string }[] = [
+  { key: 'FORECAST', labelKey: 'control.tab.forecast' },
+  { key: 'SCHEDULE', labelKey: 'control.tab.schedule' },
+  { key: 'ROSTER', labelKey: 'control.tab.roster' },
 ]
 
 export default function ControlCenterPanel() {
+  const { t } = useLang()
   const orders = useFleetStore((s) => s.orders)
   const drivers = useFleetStore((s) => s.drivers)
   const autoDispatchEnabled = useFleetStore((s) => s.autoDispatchEnabled)
@@ -68,29 +70,29 @@ export default function ControlCenterPanel() {
   return (
     <div className="min-h-screen bg-mission-950 bg-noise pb-28 text-white">
       <PanelHeader
-        title="Central Control System"
-        subtitle="走瘋派車 · 中央調度系統 · Mission Control"
+        title={t('control.title')}
+        subtitle={t('control.subtitle')}
         icon={<Radar className="h-5 w-5" />}
         right={
           <div className="hidden items-center gap-2 sm:flex">
-            <ToggleChip label="Auto-Dispatch" active={autoDispatchEnabled} onClick={() => setAutoDispatch(!autoDispatchEnabled)} icon={<Cpu className="h-3 w-3" />} />
-            <ToggleChip label="Live Demo Orders" active={ambientOrdersEnabled} onClick={() => setAmbientOrders(!ambientOrdersEnabled)} icon={<Radar className="h-3 w-3" />} />
+            <ToggleChip label={t('control.autoDispatch')} active={autoDispatchEnabled} onClick={() => setAutoDispatch(!autoDispatchEnabled)} icon={<Cpu className="h-3 w-3" />} />
+            <ToggleChip label={t('control.liveDemoOrders')} active={ambientOrdersEnabled} onClick={() => setAmbientOrders(!ambientOrdersEnabled)} icon={<Radar className="h-3 w-3" />} />
           </div>
         }
       />
 
       <div className="mt-3 flex items-center gap-2 px-4 sm:hidden">
-        <ToggleChip label="Auto-Dispatch" active={autoDispatchEnabled} onClick={() => setAutoDispatch(!autoDispatchEnabled)} icon={<Cpu className="h-3 w-3" />} />
-        <ToggleChip label="Live Orders" active={ambientOrdersEnabled} onClick={() => setAmbientOrders(!ambientOrdersEnabled)} icon={<Radar className="h-3 w-3" />} />
+        <ToggleChip label={t('control.autoDispatch')} active={autoDispatchEnabled} onClick={() => setAutoDispatch(!autoDispatchEnabled)} icon={<Cpu className="h-3 w-3" />} />
+        <ToggleChip label={t('control.liveOrders')} active={ambientOrdersEnabled} onClick={() => setAmbientOrders(!ambientOrdersEnabled)} icon={<Radar className="h-3 w-3" />} />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 px-4 sm:grid-cols-3 sm:px-6 lg:grid-cols-6">
-        <StatCard icon={<Gauge className="h-4 w-4" />} label="Active Orders" value={kpis.activeOrders} tone="cyan" />
-        <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Unassigned" value={kpis.unassignedOrders} tone="amber" />
-        <StatCard icon={<Users2 className="h-4 w-4" />} label="Available Drivers" value={kpis.availableDrivers} tone="purple" />
-        <StatCard icon={<UserX className="h-4 w-4" />} label="Anomalies" value={kpis.anomalies} tone="red" />
-        <StatCard icon={<DollarSign className="h-4 w-4" />} label="Revenue Today" value={kpis.todayRevenue} prefix="NT$" tone="lime" />
-        <StatCard icon={<CalendarClock className="h-4 w-4" />} label="On Leave Today" value={kpis.onLeaveToday} tone="pink" />
+        <StatCard icon={<Gauge className="h-4 w-4" />} label={t('control.kpi.activeOrders')} value={kpis.activeOrders} tone="cyan" />
+        <StatCard icon={<AlertTriangle className="h-4 w-4" />} label={t('control.kpi.unassigned')} value={kpis.unassignedOrders} tone="amber" />
+        <StatCard icon={<Users2 className="h-4 w-4" />} label={t('control.kpi.availableDrivers')} value={kpis.availableDrivers} tone="purple" />
+        <StatCard icon={<UserX className="h-4 w-4" />} label={t('control.kpi.anomalies')} value={kpis.anomalies} tone="red" />
+        <StatCard icon={<DollarSign className="h-4 w-4" />} label={t('control.kpi.revenueToday')} value={kpis.todayRevenue} prefix="NT$" tone="lime" />
+        <StatCard icon={<CalendarClock className="h-4 w-4" />} label={t('control.kpi.onLeaveToday')} value={kpis.onLeaveToday} tone="pink" />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 px-4 sm:px-6 lg:grid-cols-[1.05fr_1.35fr_0.85fr]">
@@ -104,7 +106,7 @@ export default function ControlCenterPanel() {
                   filter === f.key ? 'bg-cyan-400/15 text-cyan-300' : 'text-slate-400 hover:bg-white/5'
                 }`}
               >
-                {f.label}
+                {t(f.labelKey)}
               </button>
             ))}
           </div>
@@ -114,14 +116,14 @@ export default function ControlCenterPanel() {
                 <OrderQueueCard key={order.id} order={order} focused={order.id === focusOrderId} onFocus={() => setFocusOrder(order.id)} />
               ))}
             </AnimatePresence>
-            {filteredOrders.length === 0 && <p className="p-6 text-center text-xs text-slate-500">No orders in this view.</p>}
+            {filteredOrders.length === 0 && <p className="p-6 text-center text-xs text-slate-500">{t('control.noOrders')}</p>}
           </div>
         </div>
 
         <div className="glass-panel flex flex-col rounded-2xl p-3">
           <div className="mb-2 flex items-center justify-between px-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Live Fleet Map</p>
-            <span className="text-[11px] text-slate-500">{drivers.filter((d) => d.status === 'BUSY').length} vehicles en route</span>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('control.liveFleetMap')}</p>
+            <span className="text-[11px] text-slate-500">{t('control.vehiclesEnRoute', { n: drivers.filter((d) => d.status === 'BUSY').length })}</span>
           </div>
           <div className="h-[420px] flex-1 lg:h-full">
             <FleetMapView />
@@ -130,13 +132,13 @@ export default function ControlCenterPanel() {
 
         <div className="flex flex-col gap-3">
           <div className="glass-panel flex flex-1 flex-col rounded-2xl p-3">
-            <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Multi-Channel Notification Feed</p>
+            <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('control.notificationFeed')}</p>
             <div className="max-h-[300px] flex-1">
               <NotificationFeed limit={20} />
             </div>
           </div>
           <div className="glass-panel rounded-2xl p-3">
-            <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Driver Document Alerts</p>
+            <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('control.docAlerts')}</p>
             <DocAlerts />
           </div>
         </div>
@@ -145,18 +147,18 @@ export default function ControlCenterPanel() {
       <div className="mt-4 px-4 sm:px-6">
         <div className="glass-panel rounded-2xl p-4">
           <div className="mb-3 flex items-center gap-1.5 overflow-x-auto">
-            {CAPACITY_TABS.map((t) => (
+            {CAPACITY_TABS.map((tab) => (
               <button
-                key={t.key}
-                onClick={() => setCapacityTab(t.key)}
+                key={tab.key}
+                onClick={() => setCapacityTab(tab.key)}
                 className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                  capacityTab === t.key ? 'bg-cyan-400/15 text-cyan-300' : 'text-slate-400 hover:bg-white/5'
+                  capacityTab === tab.key ? 'bg-cyan-400/15 text-cyan-300' : 'text-slate-400 hover:bg-white/5'
                 }`}
               >
-                {t.label}
+                {t(tab.labelKey)}
               </button>
             ))}
-            <span className="ml-auto hidden text-[10px] text-slate-500 sm:inline">Modelled after the reference Fleet OS scheduling dashboard</span>
+            <span className="ml-auto hidden text-[10px] text-slate-500 sm:inline">{t('control.referenceNote')}</span>
           </div>
 
           <AnimatePresence mode="wait">
@@ -180,9 +182,7 @@ export default function ControlCenterPanel() {
         </div>
       </div>
 
-      <div className="mt-4 px-4 text-center text-[11px] text-slate-500 sm:px-6">
-        Simulated dispatch engine · priority: owned fleet → paid members → outside contractors · pricing auto-calculated from distance, time &amp; vehicle type
-      </div>
+      <div className="mt-4 px-4 text-center text-[11px] text-slate-500 sm:px-6">{t('control.footerNote')}</div>
     </div>
   )
 }

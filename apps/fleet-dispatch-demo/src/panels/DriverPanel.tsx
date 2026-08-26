@@ -22,12 +22,15 @@ import { OrderTypeBadge, FlightBadge, StatusBadge } from '../components/ui/Order
 import { RouteMapView } from '../components/map/RouteMapView'
 import { DriverStatsHeader } from '../components/driver/DriverStatsHeader'
 import { IncomingRequestCard } from '../components/driver/IncomingRequestCard'
+import { VehicleCard } from '../components/vehicles/VehicleCard'
 import { driverTierLabel, formatClock, ticksToMinutesLabel } from '../lib/format'
 import { remainingDistanceKm } from '../lib/geo'
+import { useLang } from '../i18n'
 
 const ACTIVE_STATUSES = ['ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'PICKED_UP', 'IN_TRANSIT']
 
 export default function DriverPanel() {
+  const { t, lang } = useLang()
   const drivers = useFleetStore((s) => s.drivers)
   const vehicles = useFleetStore((s) => s.vehicles)
   const orders = useFleetStore((s) => s.orders)
@@ -76,7 +79,7 @@ export default function DriverPanel() {
 
   return (
     <div className="min-h-screen bg-mission-950 bg-noise pb-28 text-white">
-      <PanelHeader title="Driver App" subtitle="走瘋派車 · 司機端" icon={<Car className="h-5 w-5" />} />
+      <PanelHeader title={t('driver.title')} subtitle={t('driver.subtitle')} icon={<Car className="h-5 w-5" />} />
 
       <div className="mx-auto mt-4 max-w-md px-4">
         <select
@@ -94,6 +97,7 @@ export default function DriverPanel() {
       </div>
 
       <div className="mx-auto mt-4 max-w-md px-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('driver.myStats')}</p>
         <DriverStatsHeader stats={driver.stats} />
       </div>
 
@@ -110,10 +114,10 @@ export default function DriverPanel() {
               <div className="flex items-center gap-3">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-3xl">{driver.avatarEmoji}</div>
                 <div>
-                  <p className="font-semibold text-white">{driver.name}</p>
-                  <p className="text-xs text-slate-400">{driver.nameZh}</p>
+                  <p className="font-semibold text-white">{lang === 'zh' ? driver.nameZh : driver.name}</p>
+                  <p className="text-xs text-slate-400">{lang === 'zh' ? driver.name : driver.nameZh}</p>
                   <div className="mt-1 flex items-center gap-1 text-xs text-amber-300">
-                    <Star className="h-3 w-3 fill-amber-300" /> {driver.rating.toFixed(1)} · {driver.completedTrips} trips
+                    <Star className="h-3 w-3 fill-amber-300" /> {driver.rating.toFixed(1)} · {driver.completedTrips}
                   </div>
                 </div>
               </div>
@@ -124,20 +128,29 @@ export default function DriverPanel() {
                     driver.status === 'AVAILABLE' ? 'bg-emerald-400/15 text-emerald-300' : 'bg-slate-500/15 text-slate-400'
                   }`}
                 >
-                  <Power className="h-3 w-3" /> {driver.status === 'AVAILABLE' ? 'Online' : 'Offline'}
+                  <Power className="h-3 w-3" /> {driver.status === 'AVAILABLE' ? t('driver.online') : t('driver.offline')}
                 </button>
               )}
-              {driver.status === 'BUSY' && <Badge tone="cyan" pulse>On Trip</Badge>}
-              {driver.status === 'PENDING_RESPONSE' && <Badge tone="pink" pulse>Awaiting Your Response</Badge>}
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <Badge tone="slate">{driverTierLabel(driver.tier)}</Badge>
-              {vehicle && (
-                <Badge tone="purple">
-                  <Car className="h-3 w-3" /> {vehicle.plate}
+              {driver.status === 'BUSY' && (
+                <Badge tone="cyan" pulse>
+                  {t('driver.onTrip')}
+                </Badge>
+              )}
+              {driver.status === 'PENDING_RESPONSE' && (
+                <Badge tone="pink" pulse>
+                  {t('driver.awaitingResponse')}
                 </Badge>
               )}
             </div>
+            <div className="mt-3 flex items-center gap-2">
+              <Badge tone="slate">{driverTierLabel(driver.tier, lang)}</Badge>
+            </div>
+            {vehicle && (
+              <div className="mt-3">
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{t('driver.myVehicle')}</p>
+                <VehicleCard type={vehicle.type} plate={vehicle.plate} size="sm" />
+              </div>
+            )}
           </div>
 
           <div className="p-4">
@@ -156,10 +169,10 @@ export default function DriverPanel() {
                     </div>
                     <div className="mt-2 space-y-1.5 text-xs">
                       <p className="flex items-start gap-1.5 text-slate-300">
-                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-300" /> {activeOrder.pickup.name}
+                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-300" /> {lang === 'zh' ? activeOrder.pickup.nameZh : activeOrder.pickup.name}
                       </p>
                       <p className="flex items-start gap-1.5 text-slate-300">
-                        <Flag className="mt-0.5 h-3.5 w-3.5 shrink-0 text-pink-300" /> {activeOrder.dropoff.name}
+                        <Flag className="mt-0.5 h-3.5 w-3.5 shrink-0 text-pink-300" /> {lang === 'zh' ? activeOrder.dropoff.nameZh : activeOrder.dropoff.name}
                       </p>
                     </div>
                     <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-500">
@@ -169,9 +182,9 @@ export default function DriverPanel() {
                       <span className="flex items-center gap-1">
                         <Luggage className="h-3 w-3" /> {activeOrder.luggage}
                       </span>
-                      <span>{formatClock(activeOrder.scheduledTime)}</span>
+                      <span>{formatClock(activeOrder.scheduledTime, lang)}</span>
                     </div>
-                    {activeOrder.notes && <p className="mt-2 rounded-lg bg-amber-400/10 p-2 text-[11px] text-amber-200">📝 {activeOrder.notes}</p>}
+                    {activeOrder.notes && <p className="mt-2 rounded-lg bg-amber-400/10 p-2 text-[11px] text-amber-200">{t('driver.notesForDriver', { notes: activeOrder.notes })}</p>}
                   </div>
 
                   {activeOrder.flightInfo && (
@@ -180,7 +193,7 @@ export default function DriverPanel() {
                         <Plane className="h-4 w-4 text-cyan-300" />
                         <div>
                           <p className="font-medium">{activeOrder.flightInfo.flightNumber}</p>
-                          <p className="text-slate-500">Gate {activeOrder.flightInfo.gate}</p>
+                          <p className="text-slate-500">{t('booking.gate', { gate: activeOrder.flightInfo.gate })}</p>
                         </div>
                       </div>
                       <FlightBadge status={activeOrder.flightInfo.status} />
@@ -196,11 +209,9 @@ export default function DriverPanel() {
                       <div className="mb-1 flex items-center justify-between text-[11px] text-slate-400">
                         <span className="flex items-center gap-1">
                           <Navigation className="h-3 w-3" />
-                          {activeOrder.status === 'EN_ROUTE_TO_PICKUP' ? 'Driving to pickup' : 'Driving to destination'}
+                          {activeOrder.status === 'EN_ROUTE_TO_PICKUP' ? t('driver.drivingToPickup') : t('driver.drivingToDest')}
                         </span>
-                        <span>
-                          {remainingKm.toFixed(1)} km · ETA {ticksToMinutesLabel(remainingTicks)}
-                        </span>
+                        <span>{t('driver.kmEta', { km: remainingKm.toFixed(1), eta: ticksToMinutesLabel(remainingTicks, lang) })}</span>
                       </div>
                       <ProgressBar progress={activeOrder.legProgress} tone={activeOrder.status === 'IN_TRANSIT' ? 'amber' : 'cyan'} />
                     </div>
@@ -220,7 +231,7 @@ export default function DriverPanel() {
                       >
                         <CheckCircle2 className="h-9 w-9" />
                       </motion.div>
-                      <p className="mt-3 font-semibold">Trip Completed!</p>
+                      <p className="mt-3 font-semibold">{t('driver.tripCompleted')}</p>
                       <div className="mt-2 flex justify-center gap-1">
                         {[1, 2, 3, 4, 5].map((i) => (
                           <motion.div key={i} initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.08 }}>
@@ -236,12 +247,8 @@ export default function DriverPanel() {
                         <span className="absolute inset-2 animate-pulse-slow rounded-full bg-cyan-400/10" />
                         <Navigation className="h-8 w-8 text-cyan-300" />
                       </div>
-                      <p className="mt-3 font-semibold text-slate-200">
-                        {driver.status === 'OFFLINE' ? "You're Offline" : "You're Available"}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {driver.status === 'OFFLINE' ? 'Go online to receive dispatch jobs.' : 'Waiting for the next dispatch from Control Center…'}
-                      </p>
+                      <p className="mt-3 font-semibold text-slate-200">{driver.status === 'OFFLINE' ? t('driver.youAreOffline') : t('driver.youAreAvailable')}</p>
+                      <p className="mt-1 text-xs text-slate-500">{driver.status === 'OFFLINE' ? t('driver.goOnline') : t('driver.waitingDispatch')}</p>
                     </div>
                   )}
                 </motion.div>
@@ -251,18 +258,18 @@ export default function DriverPanel() {
         </div>
 
         <div className="glass-panel mt-4 rounded-2xl p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Today's Job List</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('driver.jobList')}</p>
           <div className="space-y-1.5">
             {todaysJobs.map((job) => (
               <div key={job.id} className="flex items-center justify-between rounded-lg bg-white/[0.03] px-2.5 py-2 text-xs">
                 <span className="font-mono text-slate-300">{job.orderNo}</span>
                 <span className="truncate text-slate-500">
-                  {job.pickup.name.split(' ')[0]} → {job.dropoff.name.split(' ')[0]}
+                  {(lang === 'zh' ? job.pickup.nameZh : job.pickup.name).split(' ')[0]} → {(lang === 'zh' ? job.dropoff.nameZh : job.dropoff.name).split(' ')[0]}
                 </span>
                 <StatusBadge status={job.status} />
               </div>
             ))}
-            {todaysJobs.length === 0 && <p className="p-3 text-center text-xs text-slate-500">No jobs yet today.</p>}
+            {todaysJobs.length === 0 && <p className="p-3 text-center text-xs text-slate-500">{t('driver.noJobsToday')}</p>}
           </div>
         </div>
       </div>
@@ -279,31 +286,32 @@ function ActionButton({
   onStart: () => void
   onPickup: () => void
 }) {
+  const { t } = useLang()
   if (order.status === 'ASSIGNED') {
     return (
       <Button fullWidth size="lg" onClick={onStart}>
-        <Navigation className="h-4 w-4" /> Start Trip to Pickup
+        <Navigation className="h-4 w-4" /> {t('driver.startTrip')}
       </Button>
     )
   }
   if (order.status === 'ARRIVED_AT_PICKUP') {
     return (
       <Button fullWidth size="lg" variant="success" onClick={onPickup}>
-        <CheckCircle2 className="h-4 w-4" /> Confirm Passenger Picked Up
+        <CheckCircle2 className="h-4 w-4" /> {t('driver.confirmPickup')}
       </Button>
     )
   }
   if (order.status === 'EN_ROUTE_TO_PICKUP') {
     return (
       <Button fullWidth size="lg" variant="secondary" disabled>
-        Arriving at pickup…
+        {t('driver.arriving')}
       </Button>
     )
   }
   if (order.status === 'IN_TRANSIT' || order.status === 'PICKED_UP') {
     return (
       <Button fullWidth size="lg" variant="secondary" disabled>
-        En route to destination…
+        {t('driver.enRouteDest')}
       </Button>
     )
   }
