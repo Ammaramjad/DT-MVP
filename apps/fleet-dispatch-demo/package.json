@@ -9,7 +9,10 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:e2e:smoke": "node e2e/smoke.mjs",
-    "test:e2e:lifecycle": "node e2e/lifecycle.mjs"
+    "test:e2e:lifecycle": "node e2e/lifecycle.mjs",
+    "demo:escalation": "node e2e/demo-escalation.mjs",
+    "demo:features": "node e2e/demo-features.mjs",
+    "demo:screenshots": "node e2e/demo-screenshots.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

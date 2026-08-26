@@ -63,24 +63,30 @@ try {
   await page.waitForTimeout(500)
   await shot('04_control_center_new_order')
 
-  log('5. Wait for order to be auto-dispatched (or assign manually)')
+  log('5. Wait for order to be auto-dispatched and a driver to actually accept')
   const card = page.locator(`[data-testid="order-card"][data-order-no="${orderNo}"]`)
   await card.waitFor({ state: 'visible' })
 
+  // A driver is only really "assigned" once data-assigned-driver-id is set —
+  // the order may sit in PENDING_DRIVER_RESPONSE (notified, awaiting reply)
+  // for a while first as it works through the multi-channel escalation ladder.
   let assigned = false
-  for (let i = 0; i < 8; i++) {
-    const status = await card.getAttribute('data-order-status')
-    if (status && status !== 'NEW') {
+  for (let i = 0; i < 20; i++) {
+    const driverId = await card.getAttribute('data-assigned-driver-id')
+    if (driverId) {
       assigned = true
       break
+    }
+    const status = await card.getAttribute('data-order-status')
+    if (status === 'NEW' && i === 0) {
+      // Nudge it along immediately if auto-dispatch hasn't fired yet.
+      await card.locator('[data-testid="assign-button"]').click().catch(() => {})
     }
     await page.waitForTimeout(1500)
   }
 
   if (!assigned) {
-    log('5b. Manually clicking Assign button')
-    await card.locator('[data-testid="assign-button"]').click()
-    await page.waitForTimeout(800)
+    throw new Error('Order never reached a real driver assignment (still awaiting response after escalation window)')
   }
   await shot('05_control_center_assigned')
 
