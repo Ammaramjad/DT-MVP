@@ -56,6 +56,10 @@ export default function MarketplacePanel() {
   const handleBook = (listing: MarketplaceListing) => {
     navigate('/booking', {
       state: {
+        // Hourly Charter (計時包車) listings need `presetType` set so
+        // BookingPanel's PRESETS lookup pre-enables charter mode — see
+        // panels/BookingPanel.tsx's `PRESETS.HOURLY_CHARTER`.
+        presetType: listing.category === 'HOURLY_CHARTER' ? 'HOURLY_CHARTER' : undefined,
         presetPickupId: listing.fromLocationId,
         presetDropoffId: listing.toLocationId,
         presetVehicleCategory: DEFAULT_CATEGORY_FOR_TYPE[listing.vehicleType],

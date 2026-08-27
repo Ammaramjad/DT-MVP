@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight, PlaneLanding, PlaneTakeoff, Search, Tag, Users2 } from 'lucide-react'
+import { ArrowRight, PlaneLanding, PlaneTakeoff, Search, Tag, Timer, Users2 } from 'lucide-react'
 import type { Order } from '../../types'
 import { StatusBadge } from '../ui/OrderBadges'
 import { ticksToMinutesLabel } from '../../lib/format'
@@ -14,6 +14,10 @@ const QUICK_ACTIONS: { key: string; icon: typeof PlaneLanding; labelKey: string;
   { key: 'pickup', icon: PlaneLanding, labelKey: 'customer.home.quickAirportPickup', presetType: 'AIRPORT_PICKUP' },
   { key: 'dropoff', icon: PlaneTakeoff, labelKey: 'customer.home.quickAirportDropoff', presetType: 'AIRPORT_DROPOFF' },
   { key: 'tour', icon: Users2, labelKey: 'customer.home.quickTourCharter', presetType: 'TOUR_CHARTER' },
+  // Hourly Charter (計時包車, Wanma Transfer) — billed by reserved hours, not
+  // distance; see `lib/serviceRules.ts` for its rules and `PRESETS.HOURLY_CHARTER`
+  // in panels/BookingPanel.tsx for how this preset pre-enables charter mode.
+  { key: 'charter', icon: Timer, labelKey: 'customer.home.quickHourlyCharter', presetType: 'HOURLY_CHARTER' },
 ]
 
 export function HomeScreen({
@@ -57,19 +61,19 @@ export function HomeScreen({
         </Link>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-2.5">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-4 gap-2">
         {QUICK_ACTIONS.map((action) => (
           <button
             key={action.key}
             type="button"
             onClick={() => navigate('/booking', { state: { presetType: action.presetType } })}
             data-testid={`customer-quick-${action.key}`}
-            className="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-3.5 text-center shadow-md shadow-slate-200/50 ring-1 ring-slate-100 transition hover:ring-blue-200 hover:shadow-lg"
+            className="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-2.5 text-center shadow-md shadow-slate-200/50 ring-1 ring-slate-100 transition hover:ring-blue-200 hover:shadow-lg"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
               <action.icon className="h-4.5 w-4.5" />
             </span>
-            <span className="text-[10.5px] font-semibold leading-tight text-slate-600">{t(action.labelKey)}</span>
+            <span className="text-[10px] font-semibold leading-tight text-slate-600">{t(action.labelKey)}</span>
           </button>
         ))}
       </motion.div>
