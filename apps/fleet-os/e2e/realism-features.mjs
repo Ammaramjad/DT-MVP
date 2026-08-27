@@ -178,9 +178,18 @@ try {
     store.setState({
       orders: state.orders.map((o) =>
         o.id === targetOrder.id
-          ? { ...o, status: 'ARRIVED', driverId: freeDriver.id, vehicleId: freeDriver.vehicleId, waitStartedAt: Date.now() - 20 * 60_000, waitingFeeAgreed: false }
+          ? {
+              ...o,
+              status: 'ARRIVED',
+              driverId: freeDriver.id,
+              vehicleId: freeDriver.vehicleId,
+              waitStartedAt: Date.now() - 20 * 60_000,
+              waitingFeeAgreed: false,
+              flightInfo: undefined, // Clear flightInfo to prevent ticker from auto-cancelling if simulated flight shifts
+            }
           : o,
       ),
+      focusDriverId: freeDriver.id,
     })
     return { driverId: freeDriver.id, orderNo: targetOrder.orderNo, vehicleCategory: targetOrder.vehicleCategory }
   })
