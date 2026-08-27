@@ -16,7 +16,7 @@ import type { Driver, DocumentKind, Vehicle } from '../../types'
 import { VehicleCard } from '../vehicles/VehicleCard'
 import { Badge } from '../ui/Badge'
 import { driverTierLabel } from '../../lib/format'
-import { formatDateTime } from '../../lib/format'
+import { formatExpiryDate } from '../../lib/format'
 import { useLang } from '../../i18n'
 import clsx from 'clsx'
 
@@ -99,7 +99,7 @@ export function AccountScreen({
                   </div>
                 </div>
                 <div className="mt-1 flex items-center justify-between text-slate-500">
-                  <span>{formatDateTime(doc.expiresAt, lang)}</span>
+                  <span>{formatExpiryDate(doc.expiresAt, lang)}</span>
                   {!done && doc.status !== 'EXPIRED' && remaining <= 60 && (
                     <span className="flex items-center gap-1 text-amber-300">
                       <AlertTriangle className="h-3 w-3" /> {t('driver.account.renewsIn', { n: Math.max(0, remaining) })}

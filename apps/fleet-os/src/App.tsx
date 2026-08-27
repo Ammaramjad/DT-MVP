@@ -10,6 +10,7 @@ import ControlCenterPanel from './panels/ControlCenterPanel'
 import DriverPanel from './panels/DriverPanel'
 import CustomerAppPanel from './panels/CustomerAppPanel'
 import MarketplacePanel from './panels/MarketplacePanel'
+import NotFoundPanel from './panels/NotFoundPanel'
 import SuppliersPanel from './panels/fleetos/SuppliersPanel'
 import CatalogPanel from './panels/fleetos/CatalogPanel'
 import CampaignsPanel from './panels/fleetos/CampaignsPanel'
@@ -52,6 +53,8 @@ export default function App() {
           <Route path="/fleet-os/finance" element={<FinancePanel />} />
           <Route path="/fleet-os/reports" element={<ReportsPanel />} />
           <Route path="/fleet-os/admin" element={<AdminPanel />} />
+
+          <Route path="*" element={<NotFoundPanel />} />
         </Routes>
         <DemoModeSwitcher />
       </BrowserRouter>

@@ -1,4 +1,5 @@
 import { translate, type Lang } from '../i18n/translations'
+import type { AppNotification } from '../types'
 
 export const TICK_MS = 1500
 
@@ -9,6 +10,12 @@ export function formatTWD(amount: number): string {
 export function formatClock(iso: string, lang: Lang = 'en'): string {
   const d = new Date(iso)
   return d.toLocaleTimeString(lang === 'zh' ? 'zh-TW' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** Calendar date only (with year) — for document expiry, where a time-of-day is meaningless. */
+export function formatExpiryDate(iso: string, lang: Lang = 'en'): string {
+  const d = new Date(iso)
+  return d.toLocaleDateString(lang === 'zh' ? 'zh-TW' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 export function formatDateTime(iso: string, lang: Lang = 'en'): string {
@@ -57,6 +64,24 @@ export function orderStatusLabel(status: string, lang: Lang = 'en'): string {
 
 export function notificationChannelLabel(channel: string, lang: Lang = 'en'): string {
   return translate(lang, `channel.${channel}`)
+}
+
+/**
+ * Notification message templates reference `{channels}`, but the channel list
+ * lives on the notification itself rather than in its params (the feed also
+ * renders it as badges). This merges a localized, human-readable channel list
+ * into the interpolation vars so the placeholder always resolves.
+ */
+export function notificationVars(
+  notification: Pick<AppNotification, 'params' | 'channels'>,
+  lang: Lang = 'en',
+): Record<string, string | number> | undefined {
+  const { params, channels } = notification
+  if (!channels || channels.length === 0) return params
+  return {
+    ...params,
+    channels: channels.map((c) => notificationChannelLabel(c, lang)).join(translate(lang, 'channel.joiner')),
+  }
 }
 
 export function countdownLabel(msRemaining: number): string {

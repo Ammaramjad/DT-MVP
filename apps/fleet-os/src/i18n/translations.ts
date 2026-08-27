@@ -24,6 +24,12 @@ export const translations: Record<Lang, Record<string, string>> = {
     'lang.switchLabel': 'Language',
     'demo.switcherLabel': 'Demo',
     'demo.switcherHint': 'Demo mode — jump to another app',
+    'channel.joiner': ' + ',
+
+    // ---- Not found ----
+    'notFound.badge': 'Route not found',
+    'notFound.title': 'This screen does not exist',
+    'notFound.subtitle': 'The link you followed is not part of the Fleet Dispatch prototype. Pick one of the apps below to continue the demo.',
 
     // ---- Landing panel ----
     'landing.badgeLive': 'Live Interactive Prototype',
@@ -321,9 +327,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'driver.subtitle': '走瘋派車 · 司機端',
     'driver.myStats': 'My Order Stats',
     'driver.completion': '{n}% completion',
-    'driver.today': 'Today',
-    'driver.thisWeek': 'This Week',
-    'driver.allTime': 'All-Time',
+    'driver.today': 'Offers Today',
+    'driver.thisWeek': 'Offers This Week',
+    'driver.allTime': 'Offers All-Time',
     'driver.acceptedToday': '{n} accepted today',
     'driver.declinedMissedToday': '{n} declined/missed today',
     'driver.incomingRequest': 'Incoming Request',
@@ -941,6 +947,12 @@ export const translations: Record<Lang, Record<string, string>> = {
     'lang.switchLabel': '語言',
     'demo.switcherLabel': '演示選單',
     'demo.switcherHint': '演示模式 — 跳轉至其他應用程式',
+    'channel.joiner': '、',
+
+    // ---- Not found ----
+    'notFound.badge': '找不到頁面',
+    'notFound.title': '此頁面不存在',
+    'notFound.subtitle': '您開啟的連結不屬於本派車系統原型。請從下列應用程式選擇一項繼續體驗。',
 
     // ---- Landing panel ----
     'landing.badgeLive': '即時互動原型',
@@ -1232,9 +1244,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'driver.subtitle': '走瘋派車 · Driver App',
     'driver.myStats': '我的訂單統計',
     'driver.completion': '完成率 {n}%',
-    'driver.today': '今日',
-    'driver.thisWeek': '本週',
-    'driver.allTime': '總計',
+    'driver.today': '今日派單',
+    'driver.thisWeek': '本週派單',
+    'driver.allTime': '累計派單',
     'driver.acceptedToday': '今日已接 {n} 單',
     'driver.declinedMissedToday': '今日拒絕／錯過 {n} 單',
     'driver.incomingRequest': '新的派遣請求',

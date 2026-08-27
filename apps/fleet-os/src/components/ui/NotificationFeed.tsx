@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
-import { formatRelative } from '../../lib/format'
+import { formatRelative, notificationVars } from '../../lib/format'
 import { useLang } from '../../i18n'
 import { ChannelBadge } from './OrderBadges'
 
@@ -32,7 +32,7 @@ export function NotificationFeed({ limit = 12 }: { limit?: number }) {
                   <span className="text-xs font-semibold text-slate-100">{t(n.titleKey)}</span>
                   <span className="shrink-0 text-[10px] text-slate-500">{formatRelative(n.timestamp, lang)}</span>
                 </div>
-                <p className="mt-0.5 text-[11px] leading-snug text-slate-400">{t(n.messageKey, n.params)}</p>
+                <p className="mt-0.5 text-[11px] leading-snug text-slate-400">{t(n.messageKey, notificationVars(n, lang))}</p>
                 {n.channels && n.channels.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {n.channels.map((c) => (
