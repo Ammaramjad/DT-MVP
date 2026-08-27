@@ -1,5 +1,36 @@
 import { ACTIVE_ORDER_STATUSES } from '../types'
-import type { Driver, Order } from '../types'
+import type { Driver, Order, Vehicle } from '../types'
+import { DRIVER_REVEAL_WINDOW_MS } from './serviceRules'
+
+const DRIVER_VISIBLE_STATUSES = new Set<Order['status']>(['DRIVER_EN_ROUTE', 'ARRIVED', 'PASSENGER_ONBOARD', 'COMPLETED'])
+
+/**
+ * 萬馬接送-style driver-info-reveal timing: full contact details (name,
+ * phone, plate) are only shown once the driver is genuinely en route (or a
+ * demo override is set), or once the trip is within the reveal window of
+ * departure — rather than instantly at booking, even though a driver may
+ * already be `ASSIGNED` well ahead of time.
+ */
+export function isDriverInfoRevealed(order: Order, now: number = Date.now()): boolean {
+  if (!order.driverId) return false
+  if (order.driverInfoRevealOverride) return true
+  if (DRIVER_VISIBLE_STATUSES.has(order.status)) return true
+  if (order.status !== 'ASSIGNED') return false
+  const scheduledAt = new Date(order.scheduledTime).getTime()
+  return now >= scheduledAt - DRIVER_REVEAL_WINDOW_MS
+}
+
+/** Honest "vehicle substitution" transparency: true when the vehicle Fleet
+ * OS actually dispatched differs from the category the customer originally
+ * selected (e.g. booked a 9-seat van, dispatched a compatible 6-seat van
+ * that still covers the party) — mirrors Wanma's "may substitute an
+ * 8-seater if ≤7 passengers" disclosure. */
+export function isVehicleSubstituted(order: Order, vehicles: Vehicle[]): boolean {
+  if (!order.vehicleId) return false
+  const vehicle = vehicles.find((v) => v.id === order.vehicleId)
+  if (!vehicle) return false
+  return vehicle.category !== order.vehicleCategory
+}
 
 const ACTIVE_SET = new Set(ACTIVE_ORDER_STATUSES)
 const UNASSIGNED_SET = new Set<Order['status']>(['CONFIRMED', 'DRIVER_MATCHING'])

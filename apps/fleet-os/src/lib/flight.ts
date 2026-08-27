@@ -62,11 +62,26 @@ export function driftFlightStatus(info: FlightInfo): FlightInfo {
   const roll = Math.random()
   if (roll < 0.5) return info
 
+  if (info.status === 'ON_TIME' && roll > 0.985) {
+    // Rare: flight diverts outright (Wanma's "diverted to a different
+    // airport" full-refund trigger).
+    return { ...info, status: 'DIVERTED' }
+  }
   if (info.status === 'ON_TIME' && roll > 0.9) {
     const delayMinutes = 10 + Math.floor(Math.random() * 35)
     return {
       ...info,
       status: 'DELAYED',
+      delayMinutes,
+      estimatedTime: new Date(new Date(info.scheduledTime).getTime() + delayMinutes * 60_000).toISOString(),
+    }
+  }
+  if (info.status === 'DELAYED' && roll > 0.97) {
+    // Rare: a cascading delay pushes the schedule shift past the 2-hour
+    // "major change" threshold (Wanma's full-refund trigger).
+    const delayMinutes = 125 + Math.floor(Math.random() * 40)
+    return {
+      ...info,
       delayMinutes,
       estimatedTime: new Date(new Date(info.scheduledTime).getTime() + delayMinutes * 60_000).toISOString(),
     }
