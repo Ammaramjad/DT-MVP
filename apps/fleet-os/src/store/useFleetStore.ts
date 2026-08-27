@@ -16,9 +16,11 @@ import type {
   DriverStats,
   DriverWorkingMode,
   LocationRef,
+  ManualOrderInput,
   NotificationChannel,
   NotificationKind,
   NotificationPreference,
+  OperatingParams,
   Order,
   OrderStatus,
   PassengerRequirements,
@@ -28,6 +30,9 @@ import type {
   RefundRequestStatus,
   Role,
   SavedPassenger,
+  StaffAccount,
+  StaffAccountStatus,
+  StaffRole,
   Supplier,
   SupplierStatus,
   SupportTicket,
@@ -51,6 +56,7 @@ import { buildInitialZoneConditions, computeDynamicFareBreakdown, countAvailable
 import { DEFAULT_CATEGORY_FOR_TYPE, VEHICLE_CATEGORY_CATALOG } from '../data/vehicleCatalog'
 import { suggestDriver } from '../lib/dispatch'
 import { buildCapacityForecast } from '../lib/capacity'
+import { DEFAULT_OPERATING_PARAMS, SEED_STAFF_ACCOUNTS } from '../data/fleetOsSeed'
 import {
   computeWaitingFee,
   LAST_MINUTE_AUTO_CANCEL_DEMO_MS,
@@ -98,6 +104,8 @@ interface FleetState {
   catalogProducts: CatalogProduct[]
   payouts: ReturnType<typeof buildFleetOsSeed>['payouts']
   globalAuditLog: AuditLogEntry[]
+  staffAccounts: StaffAccount[]
+  operatingParams: OperatingParams
 
   /** Simulated Dynamic Pricing Service state — see `lib/dynamicPricing.ts`. */
   zoneConditions: ZoneCondition[]
@@ -129,6 +137,13 @@ interface FleetState {
   rescheduleOrder: (orderId: string, newIso: string) => void
   addOrderNote: (orderId: string, note: string) => void
   updateFlightNumber: (orderId: string, flightNumber: string) => void
+  /** 翻譯校對 (Translation Proofreading) — ops confirms (optionally after
+   * editing) the Traditional Chinese working translation for one order's
+   * `notes`, moving it out of the pending queue. See `lib/translation.ts`. */
+  submitTranslationReview: (orderId: string, editedNotesZh: string) => void
+  /** Creates a phone/walk-in order directly in a confirmed state — mirrors
+   * the reference site's 手動開單 (Manual Order Entry) screen. */
+  createManualOrder: (input: ManualOrderInput) => Order
 
   /** Realism/depth additions inspired by 機場快綫 Airport Express and 萬馬接送
    * Wanma Transfer — see `lib/serviceRules.ts` for every rule's provenance. */
@@ -153,8 +168,16 @@ interface FleetState {
   setDriverZone: (driverId: string, zone: string) => void
   setDriverAutoAccept: (driverId: string, v: boolean) => void
   setDriverAirportPreference: (driverId: string, v: boolean) => void
+  setDriverLoginEnabled: (driverId: string, v: boolean) => void
   hydrateSeedRoutes: () => void
   tick: () => void
+
+  // ---- 帳號管理 (Account Management) ----
+  addStaffAccount: (input: { name: string; email: string; role: StaffRole }) => void
+  setStaffAccountStatus: (id: string, status: StaffAccountStatus) => void
+
+  // ---- 營運參數 (Operating Parameters) ----
+  updateOperatingParams: (patch: Partial<OperatingParams>, actor?: string) => void
 
   setSupplierStatus: (id: string, status: SupplierStatus) => void
   setCampaignStatus: (id: string, status: CampaignStatus) => void
@@ -357,6 +380,14 @@ function buildOrderFromInput(
     passengers: input.passengers,
     luggage: input.luggage,
     notes: input.notes,
+    // Real bookings placed directly through this app are already written in
+    // the customer's own words at checkout, so they never need the 翻譯校對
+    // (Translation Proofreading) queue — that queue only applies to
+    // ambient/seed orders simulating inbound foreign-language OTA channels.
+    // See `lib/translation.ts`.
+    translationStatus: 'NOT_NEEDED',
+    sourceLanguage: null,
+    originalNoteText: null,
     flightNumber: input.flightNumber || null,
     flightInfo,
     driverId: null,
@@ -549,6 +580,8 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   catalogProducts: fleetOsSeed.catalogProducts,
   payouts: fleetOsSeed.payouts,
   globalAuditLog: fleetOsSeed.globalAuditLog,
+  staffAccounts: SEED_STAFF_ACCOUNTS,
+  operatingParams: DEFAULT_OPERATING_PARAMS,
 
   zoneConditions: buildInitialZoneConditions(),
   pricingRules: DEFAULT_PRICING_RULES,
@@ -880,6 +913,115 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     }))
   },
 
+  submitTranslationReview: (orderId, editedNotesZh) => {
+    set((s) => ({
+      orders: s.orders.map((o) =>
+        o.id === orderId
+          ? appendAudit({ ...o, notes: editedNotesZh, translationStatus: 'CONFIRMED' }, 'DISPATCHER', 'Translation proofread & confirmed', editedNotesZh)
+          : o,
+      ),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'dispatcher', `Confirmed translation review for ${s.orders.find((o) => o.id === orderId)?.orderNo ?? orderId}`, 'Order', orderId),
+    }))
+  },
+
+  createManualOrder: (input) => {
+    const id = genId('ord')
+    const orderNo = nextOrderNo()
+    const pickup = getLocation(input.pickupId)
+    const dropoff = getLocation(input.dropoffId)
+    const routeToDropoff = getCachedRoute(pickup, dropoff) ?? buildRoutePath(pickup, dropoff, `${id}-leg2`)
+    const flightInfo = input.flightNumber ? lookupFlight(input.flightNumber, input.scheduledTime) : null
+    const durationMin = estimateDurationMin(routeToDropoff.distanceKm)
+    const now = Date.now()
+    const vehicleCategory = DEFAULT_CATEGORY_FOR_TYPE[input.vehicleType]
+
+    const order: Order = {
+      id,
+      orderNo,
+      channel: input.channel,
+      type: input.type,
+      status: 'CONFIRMED',
+      createdAt: now,
+      scheduledTime: input.scheduledTime,
+      customer: { name: input.customerName, phone: input.customerPhone, email: '' },
+      pickup,
+      dropoff,
+      vehicleType: input.vehicleType,
+      vehicleCategory,
+      passengerRequirements: NO_PASSENGER_REQUIREMENTS,
+      passengers: input.passengers,
+      luggage: 0,
+      notes: input.notes,
+      flightNumber: input.flightNumber || null,
+      flightInfo,
+      driverId: null,
+      vehicleId: null,
+      suggestedDriverId: null,
+      priceEstimate: input.quotedPrice,
+      fareBreakdown: {
+        baseFare: input.quotedPrice, distanceCost: 0, timeCost: 0, demandAdjustment: 0, weatherAdjustment: 0, nightSurcharge: 0,
+        holidaySurcharge: 0, airportSurcharge: 0, tollFee: 0, parkingFee: 0, waitingFee: 0, vipSurcharge: 0, charterHours: null,
+        mountainSurcharge: 0, subtotal: input.quotedPrice, discount: 0, couponCode: null, total: input.quotedPrice,
+        demandLevel: 'NORMAL', weatherCondition: 'CLEAR', appliedSurchargePct: 0, fairnessCapApplied: false,
+        supplierPrice: Math.round(input.quotedPrice * 0.82), platformMargin: Math.round(input.quotedPrice * 0.18),
+        explanationKey: null,
+      },
+      distanceKm: routeToDropoff.distanceKm,
+      durationMin,
+      routeToPickup: null,
+      routeToDropoff,
+      legProgress: 0,
+      currentPos: null,
+      pickedUpAt: null,
+      pendingDriverId: null,
+      dispatchAttempts: [],
+      escalationStage: 0,
+      unresponsiveDriverIds: [],
+      demoForceNoResponse: false,
+      quotationVersion: 1,
+      quotedAt: now,
+      statusHistory: [
+        { id: genId('hist'), status: 'CONFIRMED', at: now, actor: 'DISPATCHER' },
+      ],
+      auditLog: [{ id: genId('aud'), at: now, actor: 'DISPATCHER', action: `Manually entered by ${input.enteredBy}`, detail: `${input.channel} \u00b7 ${input.vehicleType}` }],
+      paymentStatus: 'PAID',
+      supplierStatus: 'NOT_APPLICABLE',
+      voucherStatus: 'ISSUED',
+      pickupPin: randomPin(),
+      cancellationReason: null,
+      refundAmount: null,
+      supportTicketId: null,
+      driverRatingByCustomer: null,
+      customerRatingByDriver: null,
+      tollParkingEvidenceUploaded: false,
+      noShowReported: false,
+      waitStartedAt: null,
+      pickupInstructions: pickup.isAirport
+        ? { terminal: 'Terminal 1', gate: `${String.fromCharCode(65 + Math.floor(Math.random() * 6))}${Math.floor(Math.random() * 20) + 1}`, meetAndGreetBoard: `Zhaofeng Travel \u00b7 ${input.customerName}` }
+        : null,
+      invoiceRequested: false,
+      invoiceIssued: false,
+      bookingUrgency: 'STANDARD',
+      flightLandedAt: null,
+      driverInfoRevealOverride: false,
+      paymentMethod: 'cash',
+      lateFeeAmount: null,
+      lateFeeWaitMinutes: null,
+      waitingFeeAgreed: false,
+      waypoints: [],
+      translationStatus: 'NOT_NEEDED',
+      sourceLanguage: null,
+      originalNoteText: null,
+    }
+
+    set((s) => ({
+      orders: [order, ...s.orders],
+      notifications: pushNotification(s.notifications, 'SUCCESS', 'notif.manualOrderCreated.title', 'notif.manualOrderCreated.message', { orderNo }, order.id),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, input.enteredBy, `Manually opened order ${orderNo} (${input.channel})`, 'Order', order.id),
+    }))
+    return order
+  },
+
   revealDriverInfoNow: (orderId) =>
     set((s) => ({
       orders: s.orders.map((o) => (o.id === orderId ? appendAudit({ ...o, driverInfoRevealOverride: true }, 'SYSTEM', 'Driver contact details revealed early (demo)') : o)),
@@ -967,6 +1109,31 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   setDriverZone: (driverId, zone) => set((s) => ({ drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, currentZone: zone } : d)) })),
   setDriverAutoAccept: (driverId, v) => set((s) => ({ drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, autoAcceptEnabled: v } : d)) })),
   setDriverAirportPreference: (driverId, v) => set((s) => ({ drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, airportPreference: v } : d)) })),
+  setDriverLoginEnabled: (driverId, v) =>
+    set((s) => ({
+      drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, loginEnabled: v } : d)),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'ops.manager', `${v ? 'Enabled' : 'Disabled'} driver app login`, 'Driver', driverId),
+    })),
+
+  addStaffAccount: ({ name, email, role }) =>
+    set((s) => {
+      const account: StaffAccount = { id: genId('staff'), name, email, role, status: 'ACTIVE', createdAt: new Date().toISOString().slice(0, 10) }
+      return {
+        staffAccounts: [...s.staffAccounts, account],
+        globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'ops.manager', `Created staff account for ${name} (${role})`, 'StaffAccount', account.id),
+      }
+    }),
+  setStaffAccountStatus: (id, status) =>
+    set((s) => ({
+      staffAccounts: s.staffAccounts.map((a) => (a.id === id ? { ...a, status } : a)),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'ops.manager', `Set staff account status to ${status}`, 'StaffAccount', id),
+    })),
+
+  updateOperatingParams: (patch, actor = 'ops.manager') =>
+    set((s) => ({
+      operatingParams: { ...s.operatingParams, ...patch },
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Updated operating parameters: ${Object.keys(patch).join(', ')}`, 'OperatingParams', 'global'),
+    })),
 
   hydrateSeedRoutes: () => {
     const state = get()

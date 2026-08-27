@@ -348,6 +348,9 @@ export default function BookingPanel() {
       lateFeeWaitMinutes: null,
       waitingFeeAgreed: false,
       waypoints,
+      translationStatus: 'NOT_NEEDED',
+      sourceLanguage: null,
+      originalNoteText: null,
     }),
     [
       channel,

@@ -89,6 +89,33 @@ body {
   -webkit-backdrop-filter: blur(18px);
 }
 
+/* Fleet OS dark-theme form control — matches the border/bg/focus treatment
+   already used ad hoc across pricing/vehicle/manual-order forms, centralized
+   here so every new module's inputs/selects/textareas stay visually consistent. */
+.input-field {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  padding: 0.375rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  color: rgb(241,245,249);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.input-field:focus {
+  border-color: rgba(34,211,238,0.5);
+}
+.input-field:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.input-field option {
+  background: #0b1120;
+  color: #f1f5f9;
+}
+
 .text-gradient-neon {
   background: linear-gradient(90deg, #22d3ee, #a855f7 55%, #f472b6);
   -webkit-background-clip: text;

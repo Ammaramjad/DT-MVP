@@ -5,6 +5,7 @@ import { computeFareBreakdown, estimateDurationMin, genId } from '../lib/pricing
 import { lookupFlight } from '../lib/flight'
 import { buildShiftSchedule } from '../lib/capacity'
 import { DEFAULT_CATEGORY_FOR_TYPE, VEHICLE_CATEGORY_CATALOG } from '../lib/../data/vehicleCatalog'
+import { computeTranslationFields } from '../lib/translation'
 
 const NO_REQUIREMENTS: PassengerRequirements = { childSeat: false, wheelchair: false, pet: false, specialAssistance: '' }
 
@@ -94,7 +95,8 @@ export const SEED_VEHICLES: Vehicle[] = BASE_VEHICLE_SEEDS.map((v, i) => {
 
 const BASE_DRIVERS: Omit<
   Driver,
-  'status' | 'lat' | 'lng' | 'svgX' | 'svgY' | 'stats' | 'shiftSchedule' | 'unresponsiveFlagUntil' | 'unresponsiveOrderNo' | 'workingMode' | 'currentZone' | 'autoAcceptEnabled' | 'airportPreference' | 'shiftStartedAt'
+  | 'status' | 'lat' | 'lng' | 'svgX' | 'svgY' | 'stats' | 'shiftSchedule' | 'unresponsiveFlagUntil' | 'unresponsiveOrderNo'
+  | 'workingMode' | 'currentZone' | 'autoAcceptEnabled' | 'airportPreference' | 'shiftStartedAt' | 'loginEnabled'
 >[] = [
   {
     id: 'drv-1', name: 'Chih-Ming Chen', nameZh: '\u9673\u5fd7\u660e', avatarEmoji: '\ud83e\uddd1\ud83c\udffb\u200d\u2708\ufe0f', colorHex: '#22d3ee', phone: '0912-345-671', tier: 'OWNED_FLEET', rating: 4.9, completedTrips: 812, vehicleId: 'veh-1',
@@ -220,6 +222,9 @@ function freshOrderShell(id: string, orderNo: string): Pick<
   | 'lateFeeWaitMinutes'
   | 'waitingFeeAgreed'
   | 'waypoints'
+  | 'translationStatus'
+  | 'sourceLanguage'
+  | 'originalNoteText'
 > {
   const now = Date.now()
   return {
@@ -264,6 +269,9 @@ function freshOrderShell(id: string, orderNo: string): Pick<
     lateFeeWaitMinutes: null,
     waitingFeeAgreed: false,
     waypoints: [],
+    translationStatus: 'NOT_NEEDED',
+    sourceLanguage: null,
+    originalNoteText: null,
   }
 }
 
@@ -292,6 +300,7 @@ function buildOrderBase(params: {
   const isAirport = pickup.isAirport || dropoff.isAirport
   const durationMin = estimateDurationMin(routeToDropoff.distanceKm)
   const fareBreakdown = computeFareBreakdown(routeToDropoff.distanceKm, durationMin, params.vehicleType, isAirport)
+  const translation = computeTranslationFields(params.channel, params.customer.name, params.id)
 
   return {
     ...freshOrderShell(params.id, params.orderNo),
@@ -308,7 +317,10 @@ function buildOrderBase(params: {
     passengerRequirements: params.passengerRequirements ?? NO_REQUIREMENTS,
     passengers: params.passengers,
     luggage: params.luggage,
-    notes: params.notes ?? '',
+    notes: translation.notes ?? params.notes ?? '',
+    translationStatus: translation.translationStatus,
+    sourceLanguage: translation.sourceLanguage,
+    originalNoteText: translation.originalNoteText,
     flightNumber: params.flightNumber ?? null,
     flightInfo,
     priceEstimate: fareBreakdown.total,
@@ -497,6 +509,11 @@ function buildBulkActiveOrder(id: string, orderNo: string, status: OrderStatus, 
   order.voucherStatus = ['DRAFT', 'PENDING_PAYMENT'].includes(status) ? 'NOT_ISSUED' : 'ISSUED'
   order.statusHistory = [{ id: genId('hist'), status, at: createdAt, actor: 'CUSTOMER' }]
   order.auditLog = [{ id: genId('aud'), at: createdAt, actor: 'CUSTOMER', action: `Order created via ${channel}` }]
+  const translation = computeTranslationFields(channel, name, id)
+  order.translationStatus = translation.translationStatus
+  order.sourceLanguage = translation.sourceLanguage
+  order.originalNoteText = translation.originalNoteText
+  if (translation.notes) order.notes = translation.notes
   return order
 }
 
@@ -549,6 +566,11 @@ function buildBulkCompletedOrder(id: string, orderNo: string, ageMinutes: number
   order.paymentStatus = 'PAID'
   order.voucherStatus = 'REDEEMED'
   order.driverRatingByCustomer = 4 + Math.round(Math.random())
+  const translation = computeTranslationFields(channel, name, id)
+  order.translationStatus = translation.translationStatus
+  order.sourceLanguage = translation.sourceLanguage
+  order.originalNoteText = translation.originalNoteText
+  if (translation.notes) order.notes = translation.notes
   order.statusHistory = [
     { id: genId('hist'), status: 'CONFIRMED', at: createdAt, actor: 'CUSTOMER' },
     { id: genId('hist'), status: 'ASSIGNED', at: createdAt + 3 * 60_000, actor: 'DISPATCHER' },
@@ -589,6 +611,7 @@ export function createSeedState(): {
       autoAcceptEnabled: i % 3 === 0,
       airportPreference: i % 2 === 0,
       shiftStartedAt: Date.now() - Math.floor(Math.random() * 4) * 3_600_000,
+      loginEnabled: true,
     }
   })
 

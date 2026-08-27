@@ -244,6 +244,10 @@ export interface Driver {
   autoAcceptEnabled: boolean
   airportPreference: boolean
   shiftStartedAt: number | null
+  /** 帳號管理 (Account Management) "可機帳號" tab — whether this driver's app
+   * login is currently enabled. Disabling mirrors the reference site's
+   * staff-account 停用/啟用 toggle applied to the driver side. */
+  loginEnabled: boolean
 }
 
 export interface Vehicle {
@@ -472,7 +476,21 @@ export interface Order {
   /** Informal multi-stop support (client trust signal: "completely free ...
    * multi-stop pickup/drop-off support"). */
   waypoints: TripWaypoint[]
+
+  /** 翻譯校對 (Translation Proofreading) — mirrors the reference Fleet OS's
+   * queue for orders that arrive from a foreign-language channel (Klook/
+   * KKday/ezTravel/Booking.com/LINE OA) with a foreign customer. `notes`
+   * holds the AI-pretranslated (demo-simulated) Traditional Chinese working
+   * copy that ops can edit; `originalNoteText`/`sourceLanguage` hold the
+   * original-language source text for side-by-side proofing. See
+   * `lib/translation.ts` and `/fleet-os/translation-qa`. */
+  translationStatus: TranslationStatus
+  sourceLanguage: SourceLanguage | null
+  originalNoteText: string | null
 }
+
+export type TranslationStatus = 'NOT_NEEDED' | 'PENDING' | 'CONFIRMED'
+export type SourceLanguage = 'EN' | 'JA' | 'KO'
 
 export interface BookingInput {
   channel: BookingChannel
@@ -739,6 +757,62 @@ export interface AuditLogEntry {
   action: string
   targetType: string
   targetId: string
+}
+
+// ---------------------------------------------------------------------------
+// 帳號管理 (Account Management) & 營運參數 (Operating Parameters) — the
+// reference site's two "系統" (System) sidebar modules, distinct from the
+// existing role/permission matrix in Fleet OS Admin: this is a concrete list
+// of individually-managed dispatcher/support-staff login accounts, and a
+// single centralized set of scheduling/flight-board operating parameters.
+// ---------------------------------------------------------------------------
+export type StaffRole = 'ADMIN' | 'SUPPORT'
+export type StaffAccountStatus = 'ACTIVE' | 'DISABLED'
+
+export interface StaffAccount {
+  id: string
+  name: string
+  email: string
+  role: StaffRole
+  status: StaffAccountStatus
+  createdAt: string
+}
+
+/** Input shape for the reference site's 手動開單 (Manual Order Entry) screen
+ * — a dispatcher/counter-staff form for phone or walk-in bookings. Unlike
+ * `BookingInput` (customer self-serve checkout), this always creates the
+ * order already `CONFIRMED` with a manually-quoted price, since a phone
+ * order is confirmed the moment staff key it in. */
+export interface ManualOrderInput {
+  type: 'AIRPORT_PICKUP' | 'AIRPORT_DROPOFF' | 'TOUR_CHARTER'
+  channel: BookingChannel
+  flightNumber: string
+  customerName: string
+  customerPhone: string
+  passengers: number
+  scheduledTime: string
+  pickupId: string
+  dropoffId: string
+  vehicleType: VehicleType
+  quotedPrice: number
+  notes: string
+  enteredBy: string
+}
+
+export interface OperatingParams {
+  /** Day-shift window (24h clock hours). Everything outside this window is
+   * treated as the night shift for scheduling purposes. */
+  dayShiftStartHour: number
+  dayShiftEndHour: number
+  /** How many days ahead of a given date the night/day shift roster must be
+   * auto-generated and published by. */
+  nightShiftPublishAheadDays: number
+  dayShiftPublishAheadDays: number
+  /** How many days into the future a driver may request/adjust leave or a
+   * preferred shift via the Driver App. */
+  driverPlanningWindowDays: number
+  /** How often the Flight Board auto-refreshes flight status (minutes). */
+  flightBoardRefreshMinutes: number
 }
 
 // ---------------------------------------------------------------------------
