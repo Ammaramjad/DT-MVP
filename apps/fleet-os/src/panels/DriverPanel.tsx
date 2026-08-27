@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  AlertTriangle,
   Camera,
   CheckCircle2,
+  Clock3,
+  FlaskConical,
   Flag,
+  HandCoins,
   Luggage,
   MapPin,
   Navigation,
@@ -32,6 +36,7 @@ import { VehicleCard } from '../components/vehicles/VehicleCard'
 import type { Order } from '../types'
 import { formatClock, formatTWD, ticksToMinutesLabel } from '../lib/format'
 import { remainingDistanceKm } from '../lib/geo'
+import { computeWaitingFee, WAITING_FEE_FORFEIT_MINUTES, WAITING_GRACE_MINUTES } from '../lib/serviceRules'
 import { useLang } from '../i18n'
 
 const ACTIVE_STATUSES = ['ASSIGNED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'PASSENGER_ONBOARD']
@@ -47,6 +52,8 @@ export default function DriverPanel() {
   const verifyPickupPin = useFleetStore((s) => s.verifyPickupPin)
   const reportNoShow = useFleetStore((s) => s.reportNoShow)
   const setDriverAvailability = useFleetStore((s) => s.setDriverAvailability)
+  const agreeToWaitForLatePassenger = useFleetStore((s) => s.agreeToWaitForLatePassenger)
+  const simulateLatePassenger = useFleetStore((s) => s.simulateLatePassenger)
 
   const [tab, setTab] = useState<DriverTab>('HOME')
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null)
@@ -151,6 +158,8 @@ export default function DriverPanel() {
                       }
                     }}
                     onNoShow={() => reportNoShow(activeOrder.id)}
+                    onAgreeToWait={() => agreeToWaitForLatePassenger(activeOrder.id)}
+                    onSimulateLatePassenger={() => simulateLatePassenger(activeOrder.id)}
                   />
                 ) : (
                   <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-6 text-center">
@@ -292,6 +301,8 @@ function TripInProgress({
   pinError,
   onVerifyPin,
   onNoShow,
+  onAgreeToWait,
+  onSimulateLatePassenger,
 }: {
   order: Order
   remainingKm: number
@@ -302,8 +313,14 @@ function TripInProgress({
   pinError: boolean
   onVerifyPin: () => void
   onNoShow: () => void
+  onAgreeToWait: () => void
+  onSimulateLatePassenger: () => void
 }) {
   const { t, lang } = useLang()
+  const waitMinutes = order.status === 'ARRIVED' && order.waitStartedAt ? Math.floor((Date.now() - order.waitStartedAt) / 60_000) : 0
+  const isLate = waitMinutes > WAITING_GRACE_MINUTES
+  const feePreview = isLate ? computeWaitingFee(order.vehicleCategory, waitMinutes) : 0
+  const isForfeitable = waitMinutes > WAITING_FEE_FORFEIT_MINUTES && !order.waitingFeeAgreed
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-4">
@@ -380,13 +397,45 @@ function TripInProgress({
                 inputMode="numeric"
                 maxLength={4}
                 data-testid="driver-pin-input"
-                placeholder="\u2022\u2022\u2022\u2022"
+                placeholder="••••"
                 className={`w-full rounded-lg border bg-slate-950/60 px-3 py-2.5 text-center font-mono text-lg tracking-[0.5em] text-white outline-none ${
                   pinError ? 'border-red-400/60 ring-2 ring-red-400/30' : 'border-white/10 focus:border-cyan-400/50'
                 }`}
               />
             </div>
             {pinError && <p className="mt-1.5 text-[11px] text-red-300">{t('driver.pinIncorrect')}</p>}
+
+            {/* Late-boarding waiting fee (萬馬接送): free for the first 15
+                minutes, then billed in 30-minute cash blocks once the
+                driver agrees by phone to keep waiting. */}
+            {order.waitStartedAt && (
+              <div className="mt-2.5 rounded-lg bg-white/5 p-2.5" data-testid="driver-wait-timer">
+                <div className="flex items-center justify-between text-[11px] text-slate-300">
+                  <span className="flex items-center gap-1.5">
+                    <Clock3 className="h-3.5 w-3.5" /> {t('driver.waitingSince', { min: waitMinutes })}
+                  </span>
+                  {isLate && <span className="font-semibold text-amber-300">{t('pricing.cashToDriver', { amount: formatTWD(feePreview) })}</span>}
+                </div>
+                {isLate && !order.waitingFeeAgreed && (
+                  <button onClick={onAgreeToWait} data-testid="driver-agree-to-wait" className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-400/15 py-1.5 text-[11px] font-semibold text-amber-300 hover:bg-amber-400/25">
+                    <HandCoins className="h-3.5 w-3.5" /> {t('driver.agreeToWait')}
+                  </button>
+                )}
+                {order.waitingFeeAgreed && <p className="mt-1.5 text-[10.5px] text-emerald-300">{t('driver.waitingFeeAgreed')}</p>}
+                {isForfeitable && <p className="mt-1.5 flex items-center gap-1 text-[10.5px] text-red-300"><AlertTriangle className="h-3 w-3" /> {t('driver.waitingForfeitWarning', { min: WAITING_FEE_FORFEIT_MINUTES })}</p>}
+                {!isLate && (
+                  <button
+                    onClick={onSimulateLatePassenger}
+                    data-testid="driver-simulate-late-passenger"
+                    className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/5 py-1.5 text-[10.5px] font-medium text-slate-500 hover:text-slate-300"
+                    title="Demo: fast-forward this pickup past the 15-minute grace period"
+                  >
+                    <FlaskConical className="h-3 w-3" /> {t('driver.simulateLatePassengerDemo')}
+                  </button>
+                )}
+              </div>
+            )}
+
             <button
               onClick={onNoShow}
               data-testid="driver-report-no-show"
