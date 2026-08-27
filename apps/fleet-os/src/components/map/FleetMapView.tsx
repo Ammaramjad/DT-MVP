@@ -105,7 +105,10 @@ export function FleetMapView({ height = '100%' }: { height?: string | number }) 
 
       {bigScreen && (
         <div className="fixed inset-0 z-[900] flex flex-col bg-mission-950/98 p-4 backdrop-blur-xl" data-testid="fleetmap-bigscreen-overlay">
-          <div className="mb-2 flex items-center justify-between">
+          {/* pr reserves room so "Exit Big Screen" never sits under the fixed
+           * DemoModeSwitcher pill (z-[950], also top-right) — see the same fix
+           * in PanelHeader.tsx. */}
+          <div className="mb-2 flex items-center justify-between pr-24 sm:pr-28">
             <p className="text-sm font-semibold text-slate-200">{t('fleetos.map.bigScreen')}</p>
             <button
               onClick={() => setBigScreen(false)}
