@@ -40,18 +40,19 @@ export function NotificationToaster() {
   }, [notifications])
 
   return (
-    // Starts below the DemoModeSwitcher pill (also fixed top-right) so a
-    // stream of toasts can never cover/intercept clicks on that pill.
-    <div className="pointer-events-none fixed right-4 top-16 z-[1000] flex w-[min(360px,90vw)] flex-col gap-2">
+    // Placed at bottom-right (bottom-5 right-5) so toasts NEVER collide with,
+    // cover, or intercept clicks on the top-right DemoModeSwitcher pill/menu.
+    // The outer container has pointer-events-none and individual toasts have pointer-events-auto.
+    <div className="pointer-events-none fixed bottom-5 right-5 z-[800] flex w-[min(360px,90vw)] flex-col gap-2">
       <AnimatePresence>
         {visible.map((n) => {
           const Icon = ICONS[n.kind]
           return (
             <motion.div
               key={n.id}
-              initial={{ opacity: 0, x: 60, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 60, scale: 0.9 }}
+              initial={{ opacity: 0, y: 30, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 320, damping: 26 }}
               className={`glass-panel pointer-events-auto flex items-start gap-2.5 rounded-xl border-l-2 p-3 shadow-2xl ${KIND_CLASSES[n.kind]}`}
             >

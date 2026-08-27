@@ -192,8 +192,9 @@ try {
               waitingFeeAgreed: false,
               flightInfo: undefined, // Clear flightInfo to prevent ticker from auto-cancelling if simulated flight shifts
             }
-          : o,
+          : o.pendingDriverId === freeDriver.id ? { ...o, pendingDriverId: null, status: 'CONFIRMED' } : o,
       ),
+      drivers: state.drivers.map((d) => (d.id === freeDriver.id ? { ...d, status: 'BUSY' } : d)),
       focusDriverId: freeDriver.id,
     })
     return { driverId: freeDriver.id, orderNo: targetOrder.orderNo, vehicleCategory: targetOrder.vehicleCategory }

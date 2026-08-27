@@ -7,12 +7,13 @@ import {
   Lock,
   ArrowRight,
   AlertTriangle,
+  CheckCircle2,
   Smartphone,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useLang } from '../../i18n'
 import { LANGS } from '../../i18n/translations'
-import { LINE_DEMO_OTP, useGatekeeper } from '../../lib/gatekeeper'
+import { useGatekeeper } from '../../lib/gatekeeper'
 
 export function ClientGatekeeper() {
   const { t, lang, setLang } = useLang()
@@ -28,7 +29,7 @@ export function ClientGatekeeper() {
   const [otpSent, setOtpSent] = useState(false)
   const [lineOtp, setLineOtp] = useState('')
   const [lineError, setLineError] = useState<string | null>(null)
-  const [showPushNotification, setShowPushNotification] = useState(false)
+  const [confirmationNotice, setConfirmationNotice] = useState<string | null>(null)
 
   const handleSendLineOtp = () => {
     if (!lineIdentifier.trim()) {
@@ -40,7 +41,7 @@ export function ClientGatekeeper() {
     setTimeout(() => {
       setIsSendingOtp(false)
       setOtpSent(true)
-      setShowPushNotification(true)
+      setConfirmationNotice(t('gatekeeper.line.sentConfirmation'))
     }, 600)
   }
 
@@ -70,45 +71,6 @@ export function ClientGatekeeper() {
       {/* Background glowing gradients */}
       <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-[500px] w-[650px] rounded-full bg-gradient-to-br from-cyan-500/20 via-purple-600/15 to-transparent blur-3xl" />
       <div className="pointer-events-none absolute -bottom-40 right-10 h-[400px] w-[500px] rounded-full bg-gradient-to-tl from-emerald-500/15 via-blue-600/10 to-transparent blur-3xl" />
-
-      {/* Simulated Live LINE Push Notification Banner */}
-      <AnimatePresence>
-        {showPushNotification && (
-          <motion.div
-            initial={{ opacity: 0, y: -40, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            className="fixed top-5 z-[1100] max-w-md w-[92%] rounded-2xl border border-emerald-500/30 bg-slate-900/95 p-3.5 shadow-2xl backdrop-blur-xl ring-1 ring-emerald-400/20"
-            data-testid="line-push-notification-banner"
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-md">
-                <MessageSquare className="h-5 w-5 fill-current" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold tracking-wide text-emerald-400">
-                    {t('gatekeeper.line.pushBannerTitle')}
-                  </span>
-                  <span className="text-[10px] text-slate-500">now</span>
-                </div>
-                <p className="mt-0.5 text-xs text-slate-200">
-                  {t('gatekeeper.line.pushBannerBody', { code: LINE_DEMO_OTP })}
-                </p>
-                <div className="mt-2 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowPushNotification(false)}
-                    className="rounded-lg bg-slate-800/80 px-2.5 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-700/80 hover:text-white transition"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Main Glassmorphic Access Modal */}
       <motion.div
@@ -246,6 +208,22 @@ export function ClientGatekeeper() {
                 </button>
               </div>
             </div>
+
+            {/* Calm confirmation notice without revealing passcode */}
+            <AnimatePresence>
+              {confirmationNotice && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3 text-xs text-emerald-300 ring-1 ring-emerald-500/20"
+                  data-testid="gatekeeper-line-sent-notice"
+                >
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span className="leading-snug">{confirmationNotice}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* OTP Input Form once sent */}
             <form onSubmit={handleVerifyLineOtp} className="space-y-3">

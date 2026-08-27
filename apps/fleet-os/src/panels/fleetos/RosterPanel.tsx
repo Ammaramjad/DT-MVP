@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Radio, Users2 } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
@@ -18,10 +18,17 @@ export default function RosterPanel() {
   const setDriverWorkingMode = useFleetStore((s) => s.setDriverWorkingMode)
   const setDriverAutoAccept = useFleetStore((s) => s.setDriverAutoAccept)
   const [tab, setTab] = useState<'ROSTER' | 'SCHEDULE' | 'TODAY'>('ROSTER')
+  const [query, setQuery] = useState('')
 
   const available = drivers.filter((d) => d.status === 'AVAILABLE').length
   const busy = drivers.filter((d) => d.status === 'BUSY').length
   const airportPref = drivers.filter((d) => d.airportPreference).length
+
+  const filteredDrivers = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return drivers
+    return drivers.filter((d) => d.name.toLowerCase().includes(q) || d.nameZh.includes(q) || d.id.toLowerCase().includes(q))
+  }, [drivers, query])
 
   return (
     <FleetOsPage title={t('fleetos.roster.title')} subtitle={t('fleetos.roster.subtitle')} icon={<Users2 className="h-5 w-5" />}>
@@ -50,9 +57,18 @@ export default function RosterPanel() {
             <FleetRosterBreakdown />
           </div>
           <div className="glass-panel max-h-[640px] overflow-y-auto rounded-2xl p-3" data-testid="driver-working-mode-list">
-            <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{t('fleetos.roster.workingModes')}</p>
+            <div className="mb-2 flex items-center justify-between px-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('fleetos.roster.workingModes')}</p>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={lang === 'zh' ? '搜尋司機…' : 'Search driver…'}
+                className="w-28 rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-slate-200 outline-none placeholder:text-slate-500 focus:border-cyan-400/40"
+              />
+            </div>
             <div className="space-y-1.5">
-              {drivers.map((d) => (
+              {filteredDrivers.map((d) => (
                 <div key={d.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.02] p-2.5" data-testid="driver-working-mode-row">
                   <div className="flex items-center gap-2 truncate">
                     <span className="text-base">{d.avatarEmoji}</span>

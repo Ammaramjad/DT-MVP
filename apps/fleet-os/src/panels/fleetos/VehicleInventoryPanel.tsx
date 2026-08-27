@@ -92,6 +92,30 @@ export default function VehicleInventoryPanel() {
     [supply, t],
   )
 
+  const [filterQuery, setFilterQuery] = useState('')
+  const [tablePage, setTablePage] = useState(1)
+  const TABLE_PAGE_SIZE = 30
+
+  const filteredVehicles = useMemo(() => {
+    const q = filterQuery.trim().toLowerCase()
+    if (!q) return vehicles
+    return vehicles.filter((v) => {
+      const driver = driverById.get(v.driverId)
+      return (
+        v.plate.toLowerCase().includes(q) ||
+        v.category.toLowerCase().includes(q) ||
+        v.serviceZone.toLowerCase().includes(q) ||
+        (driver && (driver.name.toLowerCase().includes(q) || driver.nameZh.includes(q)))
+      )
+    })
+  }, [vehicles, filterQuery, driverById])
+
+  const totalTablePages = Math.ceil(filteredVehicles.length / TABLE_PAGE_SIZE)
+  const pagedVehicles = useMemo(() => {
+    const start = (tablePage - 1) * TABLE_PAGE_SIZE
+    return filteredVehicles.slice(start, start + TABLE_PAGE_SIZE)
+  }, [filteredVehicles, tablePage])
+
   const selected = vehicles.find((v) => v.id === selectedId) ?? null
   const selectedDriver = selected ? driverById.get(selected.driverId) : undefined
   const selectedStatus = selected ? vehicleOperationalStatus(selected, selectedDriver) : null
@@ -195,7 +219,44 @@ export default function VehicleInventoryPanel() {
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
         <div className="glass-panel overflow-hidden rounded-2xl">
-          <p className="p-4 pb-0 text-sm font-semibold text-white">{t('fleetos.vehicles.fleetTitle')}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2 p-4 pb-2">
+            <p className="text-sm font-semibold text-white">{t('fleetos.vehicles.fleetTitle')}</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={filterQuery}
+                onChange={(e) => {
+                  setFilterQuery(e.target.value)
+                  setTablePage(1)
+                }}
+                placeholder={lang === 'zh' ? '搜尋車牌、類別、區域或司機…' : 'Search plate, category, zone, driver…'}
+                className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-cyan-400/40"
+              />
+              {totalTablePages > 1 && (
+                <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <span className="text-[10.5px]">
+                    {tablePage} / {totalTablePages}
+                  </span>
+                  <div className="flex gap-0.5">
+                    <button
+                      onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                      disabled={tablePage === 1}
+                      className="rounded bg-white/5 px-1.5 py-0.5 text-slate-400 hover:bg-white/10 disabled:opacity-30"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      onClick={() => setTablePage((p) => Math.min(totalTablePages, p + 1))}
+                      disabled={tablePage === totalTablePages}
+                      className="rounded bg-white/5 px-1.5 py-0.5 text-slate-400 hover:bg-white/10 disabled:opacity-30"
+                    >
+                      ›
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-xs" data-testid="vehicle-inventory-table">
               <thead className="text-[10.5px] uppercase tracking-wide text-slate-500">
@@ -209,13 +270,12 @@ export default function VehicleInventoryPanel() {
                 </tr>
               </thead>
               <tbody>
-                {vehicles.map((v) => {
+                {pagedVehicles.map((v) => {
                   const driver = driverById.get(v.driverId)
                   const status = vehicleOperationalStatus(v, driver)
                   return (
-                    <motion.tr
+                    <tr
                       key={v.id}
-                      layout
                       onClick={() => setSelectedId(v.id)}
                       data-testid="vehicle-inventory-row"
                       className={`cursor-pointer border-t border-white/5 transition hover:bg-white/[0.03] ${selectedId === v.id ? 'bg-cyan-400/[0.05]' : ''}`}
@@ -234,7 +294,7 @@ export default function VehicleInventoryPanel() {
                           <Badge tone="red">{t('fleetos.vehicles.complianceFlagged')}</Badge>
                         )}
                       </td>
-                    </motion.tr>
+                    </tr>
                   )
                 })}
               </tbody>

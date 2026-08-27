@@ -66,16 +66,17 @@ try {
   await page.fill('[data-testid="gatekeeper-line-input"]', '0912-345-678')
   await page.click('[data-testid="gatekeeper-line-send-btn"]')
 
-  await page.waitForSelector('[data-testid="line-push-notification-banner"]', { timeout: 5000 })
-  console.log('✓ Instant LINE Push notification banner displayed')
+  await page.waitForSelector('[data-testid="gatekeeper-line-sent-notice"]', { timeout: 5000 })
+  console.log('✓ Calm confirmation notice displayed without leaking OTP')
 
-  // Verify that 1-click approve button is completely removed
+  // Verify that 1-click approve button is completely removed and banner does not leak OTP
   const line1ClickCount = await page.locator('[data-testid="gatekeeper-line-1click-approve-btn"]').count()
   const lineBannerApproveCount = await page.locator('[data-testid="line-banner-fill-and-unlock-btn"]').count()
-  if (line1ClickCount > 0 || lineBannerApproveCount > 0) {
-    throw new Error('1-click bypass buttons should not exist in LINE 2FA tab/banner')
+  const lineBannerCount = await page.locator('[data-testid="line-push-notification-banner"]').count()
+  if (line1ClickCount > 0 || lineBannerApproveCount > 0 || lineBannerCount > 0) {
+    throw new Error('1-click bypass buttons or OTP banner should not exist in LINE 2FA tab')
   }
-  console.log('✓ Confirmed 1-click LINE approval bypasses are completely removed')
+  console.log('✓ Confirmed 1-click LINE approval bypasses and OTP disclosure banner are completely removed')
 
   // Test entering invalid OTP
   await page.fill('[data-testid="gatekeeper-line-otp-input"]', '1234')
