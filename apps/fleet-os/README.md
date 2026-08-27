@@ -167,6 +167,52 @@ The selected category and passenger requirements aren't cosmetic — they drive 
 5. The Customer App's Trips/Activity screens show the selected category badge and an expandable full fare
    breakdown for every trip.
 
+## Competitor-inspired realism additions (Taiwan airport-transfer research round)
+
+The client pointed at two real Taiwan airport-transfer competitor sites — **機場快綫 Airport Express**
+(airportfrstcar.com) and **萬馬接送 Wanma Transfer** (wanma.tw/express) — and asked to adapt genuinely valuable
+concepts from each into this prototype's Marketplace/Booking experience, judgment-scoped rather than as a literal
+checklist. All new business rules/constants live in `src/lib/serviceRules.ts`, with real-world timers compressed to
+short, watchable demo durations (documented inline) the same way the pre-existing dispatch-escalation ladder does.
+
+| Adapted from | Concept | How it's wired in |
+|---|---|---|
+| Airport Express | Booking-urgency tiers: "保證有車" guaranteed vs. "24小時內臨時預約" best-effort/NOT-guaranteed last-minute (15 min–24 hr ahead) | `BookingUrgency` on `Order`; a visible tier picker in `BookingPanel` Step 1, an `UrgencyBadge` everywhere an order card renders, and a `tick()` rule that auto-cancels (free, with refund) a `LAST_MINUTE` `AIRPORT_PICKUP` still unmatched (`CONFIRMED`/`DRIVER_MATCHING`) once the demo-compressed equivalent of "30 min after actual landing" elapses |
+| Airport Express | 3-step flow: Fare Estimate → Payment Method → Booking Confirmation | `BookingPanel` restructured into an explicit `step` state + `BookingProgressSteps` stepper; Step 1 is the existing dynamic-pricing/vehicle-grid flow, Step 2 adds payment method + notes, Step 3 is the existing confirmation modal |
+| Airport Express | Pay online by card, or cash on arrival/drop-off + a notes field | `PaymentMethodKey` (`card`/`linepay`/`applepay`/`cash`) on `Order`; choosing `cash` skips simulated payment capture and instead marks `paymentStatus: 'PAID'` only once the trip reaches `COMPLETED` |
+| Airport Express | Free-cancellation / multi-stop / insured / 24h-support trust badges | Real, functioning `TrustBadge`s in `BookingPanel` (the cancellation one flips tone live based on `hoursUntilTrip`) plus a free-text waypoint list (`TripWaypoint[]`) with add/remove UI |
+| Wanma Transfer | Driver-info-reveal timing (sent night-before, not at booking) | `isDriverInfoRevealed()` in `lib/selectors.ts` — full driver name/phone/plate stay withheld until the order is genuinely `DRIVER_EN_ROUTE`+ or within `DRIVER_REVEAL_WINDOW_MS` of departure; a "Driver details available closer to your trip" placeholder (with a demo "reveal now" shortcut) shows beforehand in both `TripsScreen` and `ActivityScreen` |
+| Wanma Transfer | 48-hour free-cancellation window | `FREE_CANCELLATION_WINDOW_HOURS = 48`, surfaced as a live badge in both `BookingPanel` and `TripsScreen` (computed off each trip's actual `scheduledTime`, not static copy) |
+| Wanma Transfer | Vehicle substitution within a compatible capacity band (e.g. 9-seat van → 8-seat van for ≤7 passengers) | `isVehicleSubstituted()` compares the dispatched vehicle's actual category to what was booked; an honest "Your vehicle was updated to an equivalent option" notice renders in `TripsScreen`, `ActivityScreen`, and the Fleet OS `OrderQueueCard` whenever they differ |
+| Wanma Transfer | Late-boarding waiting fee: 15-min grace, then 30-min cash blocks, per-vehicle-category rate, forfeit if unresolved | `computeWaitingFee()` in `serviceRules.ts` (NT$200 sedan/SUV/accessible, NT$300 van, NT$400 minibus, NT$500 luxury); the Driver App's ARRIVED screen shows a live wait timer, a fee preview, an "agree to wait" action, and a forfeiture warning past `WAITING_FEE_FORFEIT_MINUTES` |
+| Wanma Transfer | Flight-aware airport-ready buffers (bigger buffer for bigger airports) + free-wait-then-fee escalation + full refund on diversion/2h+ shift | `AIRPORT_READY_BUFFER_MIN` (Taoyuan 55 min, Songshan 50 min, Kaohsiung 35 min, else 45 min default) and `AIRPORT_FREE_WAIT_AFTER_LANDING_MIN`/`AIRPORT_FEE_ESCALATION_END_MIN` in `serviceRules.ts`; `tick()` records `flightLandedAt` and auto-cancels-with-refund any active order whose flight diverts or shifts ≥120 min from what was booked |
+| Wanma Transfer | Hourly Charter (計時包車): billed by reserved hours, no guiding/admission/meals, mountain-route cash surcharge | New `charterHours`/`mountainRoute` fields feed `computeDynamicFareBreakdown()` (hourly rate × reserved hours instead of distance-based fare, plus a flat `MOUNTAIN_ROUTE_SURCHARGE_TWD` cash-to-driver line); a dedicated toggle + hours picker in `BookingPanel`, a Home-screen quick action, and a Marketplace listing that pre-enables charter mode |
+| Wanma Transfer | LINE quick login/registration + email login/registration, order lookup, shopping-cart-style checkout | Simulated `authSession` (`loginWithLine`/`loginWithEmail`/`logout` — no real backend/session) plus an order-lookup-by-order-number card, both added to the Customer App's Account screen; "shopping cart" maps onto the existing single-trip checkout flow rather than a literal multi-item cart, since bookings here are one trip at a time |
+| Airport Express | Passenger guidelines (乘客須知) / company profile info pages | Added as collapsible info sections in the Account screen rather than separate routes, kept prototype-grade per the brief |
+
+**Deliberately not (re)built this round**, because it would duplicate work already shipped in earlier rounds:
+cancellation/refund request states, the dynamic-pricing engine's core zone/weather/demand factors, and the
+capability-gated vehicle-matching/dispatch logic all already existed — this round only *deepens* them (urgency-tier
+auto-cancel, major-flight-change refund, vehicle-substitution transparency) rather than re-implementing them. A
+literal multi-item "shopping cart" and 企業專區/B2B zone were also skipped as out-of-scope depth for a demo that
+already models one trip at a time end-to-end.
+
+### Trying it live
+
+- **Urgency tier + auto-cancel**: `/booking` → select "Last-Minute / Same-Day", pick Airport Pickup, look up a flight
+  → submit → in `/fleet-os` (Control Center), use the order card's demo "simulate flight landed" button → within the
+  compressed demo window the order auto-cancels with a refund note in its audit log.
+- **3-step flow**: `/booking` walks Fare Estimate → Payment Method (try "Cash on arrival") → Confirmation with a
+  real order number.
+- **Hourly Charter**: `/booking` → toggle "Book as Hourly Charter" → pick reserved hours → check "mountain route" →
+  watch the fare breakdown switch to an hourly rate + a cash mountain surcharge line.
+- **Driver-info-reveal / vehicle-substitution / waiting fee**: Customer App → My Trips → an upcoming/active trip
+  shows the "driver details available closer to your trip" placeholder (with a demo reveal button) and, when
+  applicable, the vehicle-substitution notice; the Driver App's ARRIVED screen shows the live wait timer + fee
+  preview once a passenger is running late.
+- **Account surface**: Customer App → Account → "Continue with LINE"/"Continue with Email", and the order-lookup
+  card (try a real order number from a confirmation screen, or a bogus one to see the not-found state).
+
 ## Module-by-module rundown
 
 ### Marketplace (`/marketplace`) — OTA-style discovery
@@ -394,9 +440,10 @@ npm run lint       # oxlint
 Playwright scripts live in `e2e/` (make sure `npm run dev` is running first, then in another terminal):
 
 ```bash
-npm run test:e2e:smoke            # visits every app/route (incl. every /fleet-os/* module), fails on any console/page error
-npm run test:e2e:lifecycle        # books a real order and drives it through the full 16-state lifecycle across all apps
-npm run test:e2e:vehicle-pricing  # multi-vehicle-card selection, ineligibility, compare-3, dynamic pricing, both new Fleet OS modules, matching integration
+npm run test:e2e:smoke             # visits every app/route (incl. every /fleet-os/* module), fails on any console/page error
+npm run test:e2e:lifecycle         # books a real order and drives it through the full 16-state lifecycle across all apps
+npm run test:e2e:vehicle-pricing   # multi-vehicle-card selection, ineligibility, compare-3, dynamic pricing, both new Fleet OS modules, matching integration
+npm run test:e2e:realism-features  # urgency-tier auto-cancel, 3-step flow, Hourly Charter, driver-reveal timing, vehicle substitution, waiting fee, LINE/email login + order lookup
 ```
 
 `test:e2e:lifecycle` is the best single proof that the "connected system" illusion works: it creates a booking,
@@ -416,6 +463,16 @@ vehicle for maintenance in `/fleet-os/vehicles` and confirms its audit log, and 
 wheelchair-accessible order is matched by the dispatch engine to a real driver whose Driver App job card shows the
 wheelchair requirement — the full matching-integration proof.
 
+`test:e2e:realism-features` proves this round's competitor-inspired additions end to end: books a `LAST_MINUTE`
+flight-based airport pickup, forces it unmatched and simulates the flight landing via the dev store hook, and
+confirms the compressed post-landing window actually auto-cancels it with a refund; configures an Hourly Charter
+trip with the mountain-route surcharge and confirms it appears as a fare line item; forces a driver into an ARRIVED
+trip with a 20-minute wait to prove the late-boarding waiting-fee UI (preview + "agree to wait") appears past the
+grace period; forces a far-future `ASSIGNED` trip with a substituted vehicle category to prove both the
+driver-info-reveal placeholder (and its "reveal now" demo action) and the vehicle-substitution notice render
+correctly; and finally logs in via the simulated LINE flow and looks up that earlier order by its order number
+(plus a bogus number to confirm the not-found state).
+
 There are also several demo/recording helper scripts (not part of CI, but handy for re-generating walkthrough
 artifacts or exploring a flow yourself). Unless noted "headless", these open a **real, visible** browser window:
 
@@ -427,6 +484,8 @@ npm run demo:redesign-tour   # headless — captures PNGs + short screen-recordi
 node e2e/demo-i18n-vehicles.mjs [port]           # toggles EN <-> 中文 across apps, confirms localStorage persistence
 node e2e/demo-booking-ota.mjs [port]              # OSRM live-route badge, fare breakdown, coupon, QR voucher, audit timeline
 node e2e/demo-new-feature-screenshots.mjs [port]  # headless — captures PNGs of new UI into /opt/cursor/artifacts
+node e2e/record-booking-realism.mjs [port]           # headless — records the urgency-tier/3-step/Hourly-Charter walkthrough video
+node e2e/record-trip-lifecycle-realism.mjs [port]    # headless — records the driver-reveal/vehicle-substitution/waiting-fee walkthrough video
 ```
 
 ## What's simulated vs. what would be real integrations
@@ -449,6 +508,7 @@ would need.
 | Weather / demand feed | Simulated per-zone state that drifts over time (`lib/dynamicPricing.ts`), clearly labeled "Demo API simulation" in `/fleet-os/pricing/dynamic` | Real Weather API + a real demand/telemetry pipeline behind the same `ZoneCondition` shape |
 | Dynamic pricing rules | Fleet-Manager-editable rules stored in the client-side store, applied identically everywhere a fare is quoted | A real pricing-rules service with approval workflow, versioning, and rollout controls |
 | Fleet/vehicle GPS & supplier availability | Simulated vehicle records + driver status in the store | Real fleet-GPS telemetry and supplier-availability API integrations feeding the same inventory shape |
+| Customer login / order lookup | Client-side `authSession` flag flipped by simulated "LINE"/email login (no real OAuth, no real credential check); order lookup searches the live in-memory order list | Real LINE Login OAuth + email/password auth with sessions, and a real order-management API behind the lookup |
 
 ## Deliberately simplified or deferred
 
@@ -457,8 +517,10 @@ Given the scope of this round (8 new/restructured routes and dozens of screens),
 - Marketplace product detail shows structured inclusions/exclusions/cancellation/rating info rather than a full
   photo gallery + review-thread UI — kept to the data the client brief actually calls out (photos, rules, rating,
   cancellation terms, route map) without building a separate reviews subsystem.
-- Login/OTP/password-reset are represented as account-security concepts in the Account screen's copy rather than a
-  full separate auth flow, since there is no real backend/session to authenticate against in this prototype.
+- Login is now a real (fully simulated, no backend) UI flow — LINE quick login and email login/registration in the
+  Account screen both flip a client-side `authSession` flag — but OTP/password-reset stay represented as
+  account-security copy rather than a full separate auth flow, since there is still no real backend/session to
+  authenticate against in this prototype.
 - 2FA-for-admins and full RBAC enforcement are represented as Fleet OS Admin UI (roles, permissions list) rather
   than actually gating any route — there's no real login session in this client-only prototype to gate.
 - Emergency/temporary dispatch conflict-resolution UI is noted on the landing page's roadmap rather than fully
