@@ -1,0 +1,53 @@
+{
+  "name": "fleet-os",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test:e2e:smoke": "node e2e/smoke.mjs",
+    "test:e2e:lifecycle": "node e2e/lifecycle.mjs",
+    "demo:escalation": "node e2e/demo-escalation.mjs",
+    "demo:features": "node e2e/demo-features.mjs",
+    "demo:screenshots": "node e2e/demo-screenshots.mjs",
+    "demo:i18n-vehicles": "node e2e/demo-i18n-vehicles.mjs",
+    "demo:booking-ota": "node e2e/demo-booking-ota.mjs",
+    "demo:new-feature-screenshots": "node e2e/demo-new-feature-screenshots.mjs",
+    "demo:redesign-tour": "node e2e/demo-redesign-tour.mjs"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^13.1.1",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^1.34.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.18.2",
+    "recharts": "^2.15.4",
+    "three": "^0.185.1",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/leaflet": "^1.9.22",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/three": "^0.185.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "autoprefixer": "^10.5.4",
+    "oxlint": "^1.79.0",
+    "playwright": "^1.62.1",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2"
+  }
+}

@@ -20,6 +20,7 @@ This repository contains a scalable monorepo foundation with:
 apps/
   api/                  FastAPI backend
   web/                  Next.js frontend
+  fleet-os/             走瘋派車 Fleet Dispatch — unrelated live demo prototype (see its own README)
 docs/
   architecture.md       System architecture and ER diagram
   prd.md                Product requirements document

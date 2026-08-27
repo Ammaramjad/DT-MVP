@@ -1,0 +1,326 @@
+import { useMemo, useState, type ReactNode } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Calendar, FileText, MessageSquareWarning, QrCode, RefreshCw, Star, X } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import type { Driver, Order, Vehicle, CustomerProfile } from '../../types'
+import { useFleetStore } from '../../store/useFleetStore'
+import { OrderTypeBadge } from '../ui/OrderBadges'
+import { StatusBadge } from '../ui/OrderBadges'
+import { ActivityScreen } from './ActivityScreen'
+import { formatClock, formatDateTime, formatTWD, orderStatusLabel } from '../../lib/format'
+import { useLang } from '../../i18n'
+
+type TripFilter = 'UPCOMING' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'REFUND'
+
+const ACTIVE_SET = new Set(['CONFIRMED', 'DRIVER_MATCHING', 'ASSIGNED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'PASSENGER_ONBOARD'])
+const UPCOMING_SET = new Set(['DRAFT', 'PENDING_PAYMENT', 'PAID', 'SUPPLIER_PENDING'])
+const CANCELLED_SET = new Set(['CANCELLATION_REQUESTED', 'CANCELLED', 'FAILED'])
+const REFUND_SET = new Set(['REFUND_PENDING', 'REFUNDED'])
+
+const FILTERS: { key: TripFilter; labelKey: string }[] = [
+  { key: 'UPCOMING', labelKey: 'trips.filter.upcoming' },
+  { key: 'ACTIVE', labelKey: 'trips.filter.active' },
+  { key: 'COMPLETED', labelKey: 'trips.filter.completed' },
+  { key: 'CANCELLED', labelKey: 'trips.filter.cancelled' },
+  { key: 'REFUND', labelKey: 'trips.filter.refund' },
+]
+
+/** "My Trips" — the client brief's dedicated Upcoming / Active / Completed /
+ * Cancelled / Refund tabs, each with receipts/vouchers/invoices, driver
+ * rating + "book again", pickup-time/flight/note changes, cancellation and
+ * refund requests, and a linked support-case timeline. The Active tab keeps
+ * the existing full live-tracking experience (ActivityScreen) intact. */
+export function TripsScreen({
+  order,
+  orders,
+  onSelectOrder,
+  driver,
+  vehicle,
+  profile,
+  liveOrders,
+  onGoToSafety,
+}: {
+  order: Order
+  orders: Order[]
+  onSelectOrder: (id: string) => void
+  driver: Driver | undefined
+  vehicle: Vehicle | undefined
+  profile: CustomerProfile | null
+  liveOrders: Order[]
+  onGoToSafety?: () => void
+}) {
+  const { t, lang } = useLang()
+  const [filter, setFilter] = useState<TripFilter>(ACTIVE_SET.has(order.status) ? 'ACTIVE' : 'UPCOMING')
+
+  const sorted = useMemo(() => [...liveOrders].sort((a, b) => b.createdAt - a.createdAt), [liveOrders])
+  const filtered = useMemo(() => {
+    switch (filter) {
+      case 'UPCOMING':
+        return sorted.filter((o) => UPCOMING_SET.has(o.status))
+      case 'ACTIVE':
+        return sorted.filter((o) => ACTIVE_SET.has(o.status))
+      case 'COMPLETED':
+        return sorted.filter((o) => o.status === 'COMPLETED')
+      case 'CANCELLED':
+        return sorted.filter((o) => CANCELLED_SET.has(o.status))
+      case 'REFUND':
+        return sorted.filter((o) => REFUND_SET.has(o.status))
+      default:
+        return sorted
+    }
+  }, [sorted, filter])
+
+  return (
+    <div className="mx-auto max-w-md space-y-4 px-4 pb-6" data-testid="customer-trips-screen">
+      <div>
+        <h1 className="text-xl font-bold text-slate-900">{t('trips.title')}</h1>
+        <p className="text-xs text-slate-500">{t('trips.subtitle')}</p>
+      </div>
+
+      <div className="flex gap-1 overflow-x-auto pb-1" data-testid="trips-filter-tabs">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            data-testid={`trips-filter-${f.key.toLowerCase()}`}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+              filter === f.key ? 'bg-blue-500 text-white shadow-sm shadow-blue-500/30' : 'bg-white text-slate-500 ring-1 ring-slate-200'
+            }`}
+          >
+            {t(f.labelKey)}
+          </button>
+        ))}
+      </div>
+
+      {filter === 'ACTIVE' && ACTIVE_SET.has(order.status) ? (
+        <ActivityScreen order={order} orders={orders} onSelectOrder={onSelectOrder} driver={driver} vehicle={vehicle} profile={profile} liveOrders={liveOrders} onGoToSafety={onGoToSafety} />
+      ) : (
+        <div className="space-y-3">
+          {filtered.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-xs text-slate-400 shadow-sm ring-1 ring-slate-100">{t('trips.empty')}</p>}
+          {filtered.map((o) => (
+            <TripCard key={o.id} order={o} lang={lang} t={t} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TripCard({ order, lang, t }: { order: Order; lang: 'en' | 'zh'; t: (key: string, vars?: Record<string, string | number>) => string }) {
+  const rescheduleOrder = useFleetStore((s) => s.rescheduleOrder)
+  const addOrderNote = useFleetStore((s) => s.addOrderNote)
+  const updateFlightNumber = useFleetStore((s) => s.updateFlightNumber)
+  const requestCancellation = useFleetStore((s) => s.requestCancellation)
+  const rateDriver = useFleetStore((s) => s.rateDriver)
+  const requestInvoice = useFleetStore((s) => s.requestInvoice)
+  const createSupportTicket = useFleetStore((s) => s.createSupportTicket)
+
+  const [showVoucher, setShowVoucher] = useState(false)
+  const [showReschedule, setShowReschedule] = useState(false)
+  const [showNote, setShowNote] = useState(false)
+  const [noteInput, setNoteInput] = useState(order.notes)
+  const [rescheduleValue, setRescheduleValue] = useState(order.scheduledTime.slice(0, 16))
+  const [rated, setRated] = useState(order.driverRatingByCustomer ?? 0)
+  const [ticketCreated, setTicketCreated] = useState(false)
+  const [invoiceRequested, setInvoiceRequested] = useState(order.invoiceRequested)
+
+  const pickupName = lang === 'zh' ? order.pickup.nameZh : order.pickup.name
+  const dropoffName = lang === 'zh' ? order.dropoff.nameZh : order.dropoff.name
+  const canModify = UPCOMING_SET.has(order.status) || order.status === 'CONFIRMED'
+  const canCancel = !['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED', 'CANCELLATION_REQUESTED'].includes(order.status)
+
+  return (
+    <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl bg-white p-4 shadow-md shadow-slate-200/50 ring-1 ring-slate-100" data-testid="trip-card">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono text-xs font-bold text-slate-700">{order.orderNo}</span>
+        <StatusBadge status={order.status} />
+      </div>
+      <div className="mt-2 flex items-center gap-1.5">
+        <OrderTypeBadge type={order.type} />
+        <span className="text-[11px] text-slate-400">{order.channel}</span>
+      </div>
+      <p className="mt-2 truncate text-sm text-slate-700">
+        {pickupName} → {dropoffName}
+      </p>
+      <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+        <span>{formatDateTime(order.scheduledTime, lang)}</span>
+        <span className="font-semibold text-slate-600">{formatTWD(order.priceEstimate)}</span>
+      </div>
+
+      {order.status === 'COMPLETED' && (
+        <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 p-2.5">
+          <span className="text-[11px] text-slate-500">{t('trips.rateDriver')}</span>
+          <div className="flex gap-0.5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setRated(i)
+                  rateDriver(order.id, i)
+                }}
+                data-testid="trip-rate-star"
+              >
+                <Star className={`h-4 w-4 ${i <= rated ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {canModify && (
+          <ChipButton onClick={() => setShowReschedule((v) => !v)} testId="trip-change-time">
+            <Calendar className="h-3 w-3" /> {t('trips.changeTime')}
+          </ChipButton>
+        )}
+        {canModify && order.pickup.isAirport && (
+          <ChipButton onClick={() => setShowNote((v) => !v)} testId="trip-change-flight">
+            <FileText className="h-3 w-3" /> {t('trips.changeFlight')}
+          </ChipButton>
+        )}
+        <ChipButton onClick={() => setShowNote((v) => !v)} testId="trip-add-note">
+          <FileText className="h-3 w-3" /> {t('trips.addNote')}
+        </ChipButton>
+        <ChipButton onClick={() => setShowVoucher((v) => !v)} testId="trip-view-voucher">
+          <QrCode className="h-3 w-3" /> {showVoucher ? t('customer.activity.hideVoucher') : t('customer.activity.viewVoucher')}
+        </ChipButton>
+        {order.status === 'COMPLETED' && !invoiceRequested && (
+          <ChipButton
+            onClick={() => {
+              requestInvoice(order.id)
+              setInvoiceRequested(true)
+            }}
+            testId="trip-request-invoice"
+          >
+            <FileText className="h-3 w-3" /> {t('trips.requestInvoice')}
+          </ChipButton>
+        )}
+        {invoiceRequested && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-600">{t('trips.invoiceIssued')}</span>}
+        {order.status === 'COMPLETED' && (
+          <ChipButton testId="trip-book-again">
+            <RefreshCw className="h-3 w-3" /> {t('trips.bookAgain')}
+          </ChipButton>
+        )}
+        {canCancel && (
+          <ChipButton
+            tone="red"
+            onClick={() => requestCancellation(order.id, t('trips.cancelReasonDefault'))}
+            testId="trip-request-cancel"
+          >
+            <X className="h-3 w-3" /> {t('trips.requestCancellation')}
+          </ChipButton>
+        )}
+        {!ticketCreated ? (
+          <ChipButton
+            onClick={() => {
+              createSupportTicket(order.id, order.customer.name, t('trips.supportSubjectDefault', { orderNo: order.orderNo }), 'General')
+              setTicketCreated(true)
+            }}
+            testId="trip-create-ticket"
+          >
+            <MessageSquareWarning className="h-3 w-3" /> {t('trips.createTicket')}
+          </ChipButton>
+        ) : (
+          <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-[11px] font-medium text-cyan-600">{t('trips.ticketCreated')}</span>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {showReschedule && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-3 overflow-hidden">
+            <div className="flex gap-2">
+              <input
+                type="datetime-local"
+                value={rescheduleValue}
+                onChange={(e) => setRescheduleValue(e.target.value)}
+                data-testid="trip-reschedule-input"
+                className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-blue-400"
+              />
+              <button
+                onClick={() => {
+                  rescheduleOrder(order.id, new Date(rescheduleValue).toISOString())
+                  setShowReschedule(false)
+                }}
+                data-testid="trip-reschedule-confirm"
+                className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                {t('trips.save')}
+              </button>
+            </div>
+          </motion.div>
+        )}
+        {showNote && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-3 overflow-hidden">
+            <div className="flex gap-2">
+              <input
+                value={order.pickup.isAirport ? order.flightNumber ?? noteInput : noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                placeholder={t('trips.notePlaceholder')}
+                data-testid="trip-note-input"
+                className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-blue-400"
+              />
+              <button
+                onClick={() => {
+                  addOrderNote(order.id, noteInput)
+                  if (order.pickup.isAirport) updateFlightNumber(order.id, noteInput.toUpperCase())
+                  setShowNote(false)
+                }}
+                data-testid="trip-note-save"
+                className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                {t('trips.save')}
+              </button>
+            </div>
+          </motion.div>
+        )}
+        {showVoucher && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-3 overflow-hidden rounded-xl border border-dashed border-slate-200 p-4 text-center">
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-lg bg-white p-2 shadow-sm ring-1 ring-slate-100">
+              <QRCodeSVG value={JSON.stringify({ orderNo: order.orderNo, pickup: pickupName, dropoff: dropoffName })} size={88} />
+            </div>
+            <p className="mt-2 font-mono text-xs font-bold text-slate-800">{order.orderNo}</p>
+            <p className="mt-1 text-[10.5px] text-slate-400">{t('trips.pin', { pin: order.pickupPin })}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {order.statusHistory.length > 0 && (
+        <details className="mt-3 text-[11px]">
+          <summary className="cursor-pointer font-medium text-slate-500">{t('customer.statusTimeline')}</summary>
+          <ol className="mt-2 space-y-1 pl-2">
+            {order.statusHistory.map((h) => (
+              <li key={h.id} className="flex items-center gap-2 text-slate-500">
+                <span className="h-1 w-1 rounded-full bg-slate-300" />
+                {orderStatusLabel(h.status, lang)} · {formatClock(new Date(h.at).toISOString(), lang)}
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
+    </motion.div>
+  )
+}
+
+function ChipButton({
+  children,
+  onClick,
+  tone = 'default',
+  testId,
+}: {
+  children: ReactNode
+  onClick?: () => void
+  tone?: 'default' | 'red'
+  testId?: string
+}) {
+  return (
+    <button
+      onClick={onClick}
+      data-testid={testId}
+      className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+        tone === 'red' ? 'bg-red-50 text-red-500 hover:bg-red-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
