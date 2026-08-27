@@ -30,6 +30,7 @@ connected, real-time system even though each app is designed and branded as a ge
 | **Fleet OS — Flight Board** (航班看板) | `/fleet-os/flights` | — (new) | — |
 | **Fleet OS — Account Management** (帳號管理) | `/fleet-os/accounts` | — (new) | — |
 | **Fleet OS — Operating Parameters** (營運參數) | `/fleet-os/params` | — (new) | — |
+| **Fleet OS — Access Audit & Visitor Security** (門禁存取紀錄) | `/fleet-os/access-logs`, `/fleet-os/security` | — (new) | yes — `/fleet-os/security` redirects to `/fleet-os/access-logs` |
 | Fleet OS — Administration (roles, privacy/audit, system health) | `/fleet-os/admin` | — (new) | — |
 | Driver App | `/driver` | — | — |
 | Customer App | `/customer` | — | — |

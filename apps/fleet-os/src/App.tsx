@@ -29,6 +29,7 @@ import TranslationQaPanel from './panels/fleetos/TranslationQaPanel'
 import FlightBoardPanel from './panels/fleetos/FlightBoardPanel'
 import AccountsPanel from './panels/fleetos/AccountsPanel'
 import OperatingParametersPanel from './panels/fleetos/OperatingParametersPanel'
+import AccessLogsPanel from './panels/fleetos/AccessLogsPanel'
 
 function AppContent() {
   const { isLocked } = useGatekeeper()
@@ -70,6 +71,8 @@ function AppContent() {
         <Route path="/fleet-os/flights" element={<FlightBoardPanel />} />
         <Route path="/fleet-os/accounts" element={<AccountsPanel />} />
         <Route path="/fleet-os/params" element={<OperatingParametersPanel />} />
+        <Route path="/fleet-os/access-logs" element={<AccessLogsPanel />} />
+        <Route path="/fleet-os/security" element={<Navigate to="/fleet-os/access-logs" replace />} />
       </Routes>
       <DemoModeSwitcher />
     </>

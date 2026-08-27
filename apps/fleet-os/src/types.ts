@@ -847,3 +847,29 @@ export interface AuthSession {
   displayName: string | null
   email: string | null
 }
+
+// ---------------------------------------------------------------------------
+// Visitor IP & Security Access Logs
+// ---------------------------------------------------------------------------
+export type AccessAuthMethod = 'PASSCODE' | 'LINE_2FA' | 'DEMO_1CLICK'
+export type AccessAttemptStatus = 'SUCCESS' | 'FAILED_INVALID_PASSCODE' | 'FAILED_INVALID_OTP'
+
+export interface AccessLogEntry {
+  id: string
+  timestamp: number
+  ip: string
+  city: string
+  region: string
+  country: string
+  countryCode: string
+  latitude?: number
+  longitude?: number
+  device: string
+  browser: string
+  os: string
+  userAgent: string
+  authMethod: AccessAuthMethod
+  status: AccessAttemptStatus
+  inputIdentifier?: string
+}
+

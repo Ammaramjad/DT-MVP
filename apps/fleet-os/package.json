@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test:e2e:smoke": "node e2e/smoke.mjs",
     "test:e2e:gatekeeper": "node e2e/gatekeeper-auth.mjs",
+    "test:e2e:access-logs": "node e2e/access-logs.mjs",
     "test:e2e:lifecycle": "node e2e/lifecycle.mjs",
     "test:e2e:vehicle-pricing": "node e2e/vehicle-pricing.mjs",
     "test:e2e:realism-features": "node e2e/realism-features.mjs",

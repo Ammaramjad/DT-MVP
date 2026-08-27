@@ -48,7 +48,7 @@ export function ClientGatekeeper() {
   const handleVerifyLineOtp = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     setLineError(null)
-    const success = unlockWithLineOtp(lineOtp)
+    const success = unlockWithLineOtp(lineOtp, lineIdentifier.trim() || 'line_user')
     if (!success) {
       setLineError(t('gatekeeper.line.invalidOtp'))
     }

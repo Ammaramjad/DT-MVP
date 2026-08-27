@@ -43,6 +43,7 @@ const MODULES = [
   { to: '/fleet-os/flights', labelKey: 'fleetos.nav.flights', icon: Plane },
   { to: '/fleet-os/accounts', labelKey: 'fleetos.nav.accounts', icon: Headset },
   { to: '/fleet-os/params', labelKey: 'fleetos.nav.params', icon: Settings2 },
+  { to: '/fleet-os/access-logs', labelKey: 'fleetos.nav.accessLogs', icon: ShieldCheck },
   { to: '/fleet-os/admin', labelKey: 'fleetos.nav.admin', icon: ShieldCheck },
 ]
 

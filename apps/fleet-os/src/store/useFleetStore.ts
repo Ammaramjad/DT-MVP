@@ -1,5 +1,8 @@
 import { create } from 'zustand'
 import type {
+  AccessAuthMethod,
+  AccessAttemptStatus,
+  AccessLogEntry,
   AppNotification,
   AuditEntry,
   AuditLogEntry,
@@ -60,6 +63,7 @@ import { DEFAULT_CATEGORY_FOR_TYPE, VEHICLE_CATEGORY_CATALOG } from '../data/veh
 import { suggestDriver } from '../lib/dispatch'
 import { buildCapacityForecast } from '../lib/capacity'
 import { DEFAULT_OPERATING_PARAMS, SEED_STAFF_ACCOUNTS } from '../data/fleetOsSeed'
+import { loadStoredAccessLogs, saveStoredAccessLogs, createAccessLogEntry } from '../lib/geoTracker'
 import {
   computeWaitingFee,
   LAST_MINUTE_AUTO_CANCEL_DEMO_MS,
@@ -109,6 +113,9 @@ interface FleetState {
   globalAuditLog: AuditLogEntry[]
   staffAccounts: StaffAccount[]
   operatingParams: OperatingParams
+
+  /** Security Access Logs & Visitor Geolocation tracking */
+  accessLogs: AccessLogEntry[]
 
   /** Simulated Dynamic Pricing Service state — see `lib/dynamicPricing.ts`. */
   zoneConditions: ZoneCondition[]
@@ -222,6 +229,10 @@ interface FleetState {
   setNotificationPreference: (customerId: string, key: keyof NotificationPreference, v: boolean) => void
   requestPrivacyAction: (customerId: string, kind: 'DATA_DOWNLOAD' | 'DELETE_ACCOUNT') => void
   setConsentMarketing: (customerId: string, v: boolean) => void
+
+  // ---- Visitor IP & Access Security Log Actions ----
+  recordAccessAttempt: (authMethod: AccessAuthMethod, status: AccessAttemptStatus, inputIdentifier?: string) => Promise<AccessLogEntry>
+  clearAccessLogs: () => void
 }
 
 function pushNotification(
@@ -595,6 +606,8 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   globalAuditLog: fleetOsSeed.globalAuditLog,
   staffAccounts: SEED_STAFF_ACCOUNTS,
   operatingParams: DEFAULT_OPERATING_PARAMS,
+
+  accessLogs: loadStoredAccessLogs(),
 
   zoneConditions: buildInitialZoneConditions(),
   pricingRules: DEFAULT_PRICING_RULES,
@@ -1809,6 +1822,23 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     set((s) => ({ customerProfiles: s.customerProfiles.map((c) => (c.id === customerId ? { ...c, privacyRequests: [{ id: genId('priv'), kind, status: 'PENDING', requestedAt: Date.now() }, ...c.privacyRequests] } : c)) })),
   setConsentMarketing: (customerId, v) =>
     set((s) => ({ customerProfiles: s.customerProfiles.map((c) => (c.id === customerId ? { ...c, consentMarketing: v } : c)) })),
+
+  recordAccessAttempt: async (authMethod, status, inputIdentifier) => {
+    const entry = await createAccessLogEntry(authMethod, status, inputIdentifier)
+    set((s) => {
+      const updated = [entry, ...s.accessLogs].slice(0, 500)
+      saveStoredAccessLogs(updated)
+      return { accessLogs: updated }
+    })
+    return entry
+  },
+
+  clearAccessLogs: () => {
+    set(() => {
+      saveStoredAccessLogs([])
+      return { accessLogs: [] }
+    })
+  },
 }))
 
 // Dev/demo-only escape hatch for e2e/artifact scripts that need to drive the

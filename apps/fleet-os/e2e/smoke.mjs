@@ -26,8 +26,9 @@ const routes = [
   '/fleet-os/translation-qa',
   '/fleet-os/flights',
   '/fleet-os/accounts',
-  '/fleet-os/params',
-  '/fleet-os/admin',
+    '/fleet-os/params',
+    '/fleet-os/access-logs',
+    '/fleet-os/admin',
   '/driver',
   '/customer',
 ]
