@@ -55,6 +55,50 @@ export type VoucherStatus = 'NOT_ISSUED' | 'ISSUED' | 'REDEEMED' | 'VOID'
 
 export type VehicleType = 'SEDAN' | 'SUV' | 'VAN' | 'LUXURY' | 'MINIBUS'
 
+/**
+ * Customer-facing vehicle *service categories* — the client brief's 10-category
+ * catalogue used for the vehicle-selection/recommendation UI, dynamic pricing,
+ * and dispatch matching. Each category maps onto one of the five physical
+ * `VehicleType` groups above (e.g. the 6-seater van, 9-seater van, VIP van and
+ * accessible van are all physically `VAN`s) but carries its own capacity,
+ * luggage, accessibility, and pricing profile — mirroring how modern
+ * ride-hailing "product types" sit on top of a smaller set of physical
+ * vehicle classes. See `src/data/vehicleCatalog.ts`.
+ */
+export type VehicleCategory =
+  | 'ECONOMY_SEDAN'
+  | 'COMFORT_SEDAN'
+  | 'PREMIUM_SEDAN'
+  | 'SUV'
+  | 'VAN_6'
+  | 'VAN_9'
+  | 'LUXURY_SEDAN'
+  | 'LUXURY_VAN'
+  | 'ACCESSIBLE'
+  | 'CHARTER_MINIBUS'
+
+/** Fleet-inventory feature flags used both for customer eligibility filtering
+ * and the Fleet OS vehicle-inventory module's feature chips. */
+export type VehicleFeature = 'CHILD_SEAT' | 'WHEELCHAIR_ACCESS' | 'VIP_INTERIOR' | 'WIFI' | 'MEET_AND_GREET' | 'LARGE_LUGGAGE'
+
+/** Derived (not stored) operational state shown in the Fleet OS vehicle
+ * inventory module — see `lib/fleetVehicles.ts#vehicleOperationalStatus`. */
+export type VehicleOperationalStatus = 'AVAILABLE' | 'ASSIGNED' | 'EN_ROUTE' | 'OCCUPIED' | 'OFFLINE' | 'MAINTENANCE' | 'DOCUMENT_ISSUE'
+
+/** Demo API simulation — see `lib/dynamicPricing.ts`. In production these would be
+ * populated by a real weather API and a real demand/telemetry pipeline. */
+export type WeatherCondition = 'CLEAR' | 'RAIN' | 'HEAVY_RAIN' | 'TYPHOON_WARNING'
+export type DemandLevel = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'
+
+/** Accessibility/special-assistance requirements captured during booking and
+ * carried through to vehicle eligibility filtering + driver matching. */
+export interface PassengerRequirements {
+  childSeat: boolean
+  wheelchair: boolean
+  pet: boolean
+  specialAssistance: string
+}
+
 export type DriverTier = 'OWNED_FLEET' | 'PAID_MEMBER' | 'OUTSIDE_CONTRACTOR'
 
 export type DriverStatus = 'AVAILABLE' | 'PENDING_RESPONSE' | 'BUSY' | 'OFFLINE' | 'BREAK'
@@ -183,9 +227,19 @@ export interface Vehicle {
   id: string
   plate: string
   type: VehicleType
+  category: VehicleCategory
   colorHex: string
   capacity: number
+  luggageCapacity: number
   driverId: string
+  serviceZone: TaiwanRegion
+  features: VehicleFeature[]
+  insuranceStatus: 'VALID' | 'EXPIRING' | 'EXPIRED'
+  complianceStatus: 'OK' | 'FLAGGED'
+  /** Fleet Manager "maintenance block" — while set (epoch ms in the future),
+   * this vehicle must never be offered to customers or the dispatch engine. */
+  maintenanceUntil: number | null
+  maintenanceReason: string | null
 }
 
 export interface RoutePoint {
@@ -207,17 +261,70 @@ export interface RoutePath {
 }
 
 /** Itemized fare breakdown shown to the customer at quotation/booking time
- * (Phase 1 depth item: "visible fare breakdown with named surcharges"). */
+ * (Phase 1 depth item: "visible fare breakdown with named surcharges").
+ * Extended for Phase 3's simulated dynamic-pricing engine — every additional
+ * line item here is always shown to the customer before checkout (never a
+ * hidden fee), per the client brief's transparency requirement. */
 export interface FareBreakdown {
   baseFare: number
   distanceCost: number
   timeCost: number
+  demandAdjustment: number
+  weatherAdjustment: number
+  nightSurcharge: number
+  holidaySurcharge: number
   airportSurcharge: number
+  tollFee: number
+  parkingFee: number
   waitingFee: number
+  vipSurcharge: number
   subtotal: number
   discount: number
   couponCode: string | null
   total: number
+
+  /** Dynamic-pricing context captured at quotation time so the customer-facing
+   * "calm explanation" and the Fleet OS Dynamic Pricing module can both render
+   * a consistent story for this exact fare. */
+  demandLevel: DemandLevel
+  weatherCondition: WeatherCondition
+  appliedSurchargePct: number
+  fairnessCapApplied: boolean
+  /** Internal-only (Fleet OS): what the supplier/driver side nets vs. the
+   * platform's margin on this fare — never shown to the customer. */
+  supplierPrice: number
+  platformMargin: number
+  explanationKey: string | null
+  explanationParams?: Record<string, string | number>
+}
+
+/** One zone's live simulated conditions — "Demo API simulation" per the
+ * client brief. Real Weather/Maps/fleet-GPS/supplier-availability APIs would
+ * replace this feed without changing any downstream consumer. */
+export interface ZoneCondition {
+  region: TaiwanRegion
+  weather: WeatherCondition
+  demand: DemandLevel
+  updatedAt: number
+}
+
+/** Fleet-Manager-configurable dynamic pricing rules, edited from
+ * `/fleet-os/pricing/dynamic` with every change written to an audit log. */
+export interface PricingRules {
+  maxSurgeMultiplierPct: number
+  weatherSurchargePct: Record<WeatherCondition, number>
+  demandSurchargePct: Record<DemandLevel, number>
+  minAvailableVehiclesBeforeSurge: number
+  lowAvailabilitySurchargePct: number
+  vipSurchargePct: number
+  nightSurchargePct: number
+  nightStartHour: number
+  nightEndHour: number
+  holidaySurchargePct: number
+  zoneSurcharges: Record<TaiwanRegion, number>
+  roundingIncrement: number
+  transparencyMessage: string
+  transparencyMessageZh: string
 }
 
 export type StatusActor = 'SYSTEM' | 'DISPATCHER' | 'DRIVER' | 'CUSTOMER' | 'SUPPLIER' | 'PAYMENT'
@@ -260,6 +367,8 @@ export interface Order {
   pickup: LocationRef
   dropoff: LocationRef
   vehicleType: VehicleType
+  vehicleCategory: VehicleCategory
+  passengerRequirements: PassengerRequirements
   passengers: number
   luggage: number
   notes: string
@@ -319,6 +428,7 @@ export interface BookingInput {
   dropoffId: string
   scheduledTime: string
   vehicleType: VehicleType
+  vehicleCategory: VehicleCategory
   passengers: number
   luggage: number
   customer: CustomerInfo
@@ -326,7 +436,11 @@ export interface BookingInput {
   notes: string
   couponCode?: string | null
   quotationVersion?: number
+  passengerRequirements?: PassengerRequirements
+  /** @deprecated use `passengerRequirements.childSeat` — kept so any older
+   * call site that only sets these two booleans keeps compiling. */
   childSeat?: boolean
+  /** @deprecated use `passengerRequirements.wheelchair` */
   wheelchair?: boolean
   invoiceRequested?: boolean
 }

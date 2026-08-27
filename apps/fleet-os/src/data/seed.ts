@@ -1,9 +1,35 @@
-import type { AppNotification, CustomerProfile, Driver, DriverStats, DocumentRecord, Order, OrderStatus, Vehicle } from '../types'
-import { getLocation, LOCATIONS } from './locations'
+import type { AppNotification, CustomerProfile, Driver, DriverStats, DocumentRecord, Order, OrderStatus, PassengerRequirements, TaiwanRegion, Vehicle, VehicleCategory } from '../types'
+import { getLocation, LOCATIONS, REGIONS } from './locations'
 import { buildRoutePath, evaluateRoute } from '../lib/geo'
 import { computeFareBreakdown, estimateDurationMin, genId } from '../lib/pricing'
 import { lookupFlight } from '../lib/flight'
 import { buildShiftSchedule } from '../lib/capacity'
+import { DEFAULT_CATEGORY_FOR_TYPE, VEHICLE_CATEGORY_CATALOG } from '../lib/../data/vehicleCatalog'
+
+const NO_REQUIREMENTS: PassengerRequirements = { childSeat: false, wheelchair: false, pet: false, specialAssistance: '' }
+
+/** Rotates a physical vehicle type through its customer-facing sub-categories
+ * so the 24-vehicle seed fleet covers all 10 categories with realistic
+ * distribution (e.g. every 4th VAN-typed vehicle is the wheelchair-accessible
+ * one) rather than collapsing every physical type down to one category. */
+const SEDAN_ROTATION: VehicleCategory[] = ['ECONOMY_SEDAN', 'COMFORT_SEDAN', 'PREMIUM_SEDAN']
+const VAN_ROTATION: VehicleCategory[] = ['VAN_6', 'VAN_9', 'ACCESSIBLE', 'LUXURY_VAN']
+const occurrenceByType: Record<Vehicle['type'], number> = { SEDAN: 0, SUV: 0, VAN: 0, LUXURY: 0, MINIBUS: 0 }
+function categoryForVehicleType(type: Vehicle['type']): VehicleCategory {
+  const occurrence = occurrenceByType[type]++
+  if (type === 'SEDAN') return SEDAN_ROTATION[occurrence % SEDAN_ROTATION.length]
+  if (type === 'VAN') return VAN_ROTATION[occurrence % VAN_ROTATION.length]
+  return DEFAULT_CATEGORY_FOR_TYPE[type]
+}
+
+const SERVICE_ZONE_ROTATION: TaiwanRegion[] = REGIONS.map((r) => r.key)
+function zoneForIndex(i: number): TaiwanRegion {
+  // Weight the rotation so Greater Taipei/Taoyuan (where the live simulation
+  // actually runs) gets the bulk of the fleet, with a handful of vehicles
+  // seeded into every other Taiwan zone for the Fleet OS supply/demand chart.
+  const weighted: TaiwanRegion[] = ['TAIPEI', 'TAIPEI', 'NEW_TAIPEI', 'TAOYUAN', 'TAOYUAN', ...SERVICE_ZONE_ROTATION]
+  return weighted[i % weighted.length]
+}
 
 function iso(daysFromNow: number, hour: number, minute = 0): string {
   const d = new Date()
@@ -20,7 +46,9 @@ function doc(number: string, expiresAt: string, status: DocumentRecord['status']
   return { number, expiresAt, status, ocrStatus, lastUpdatedAt: iso(-Math.floor(Math.random() * 60), 9) }
 }
 
-export const SEED_VEHICLES: Vehicle[] = [
+type BaseVehicleSeed = Pick<Vehicle, 'id' | 'plate' | 'type' | 'colorHex' | 'capacity' | 'driverId'>
+
+const BASE_VEHICLE_SEEDS: BaseVehicleSeed[] = [
   { id: 'veh-1', plate: 'ABC-5581', type: 'SEDAN', colorHex: '#22d3ee', capacity: 3, driverId: 'drv-1' },
   { id: 'veh-2', plate: 'AFG-2210', type: 'SUV', colorHex: '#a855f7', capacity: 5, driverId: 'drv-2' },
   { id: 'veh-3', plate: 'AKT-7754', type: 'VAN', colorHex: '#fbbf24', capacity: 7, driverId: 'drv-3' },
@@ -34,8 +62,35 @@ const EXTRA_VEHICLE_TYPES: Vehicle['type'][] = ['SEDAN', 'SUV', 'VAN', 'SEDAN', 
 const EXTRA_VEHICLE_COLORS = ['#22d3ee', '#a855f7', '#fbbf24', '#f472b6', '#a3e635', '#38bdf8', '#fb923c', '#60a5fa', '#f87171', '#34d399', '#e879f9', '#facc15', '#4ade80', '#818cf8', '#fb7185', '#2dd4bf', '#c084fc']
 for (let i = 0; i < 17; i++) {
   const id = `drv-${8 + i}`
-  SEED_VEHICLES.push({ id: `veh-${8 + i}`, plate: `A${(10 + i).toString(36).toUpperCase()}-${4000 + i * 37}`, type: EXTRA_VEHICLE_TYPES[i], colorHex: EXTRA_VEHICLE_COLORS[i], capacity: { SEDAN: 3, SUV: 5, VAN: 7, LUXURY: 3, MINIBUS: 12 }[EXTRA_VEHICLE_TYPES[i]], driverId: id })
+  BASE_VEHICLE_SEEDS.push({ id: `veh-${8 + i}`, plate: `A${(10 + i).toString(36).toUpperCase()}-${4000 + i * 37}`, type: EXTRA_VEHICLE_TYPES[i], colorHex: EXTRA_VEHICLE_COLORS[i], capacity: { SEDAN: 3, SUV: 5, VAN: 7, LUXURY: 3, MINIBUS: 12 }[EXTRA_VEHICLE_TYPES[i]], driverId: id })
 }
+
+/** Expands each base (plate/type/capacity) seed into a full `Vehicle` record
+ * with the Phase 4 fleet-inventory fields — customer-facing category,
+ * luggage capacity, service zone, feature set, and insurance/compliance/
+ * maintenance state. A small, deterministic slice of the fleet is seeded
+ * with an expiring/flagged document or an active maintenance block so the
+ * Fleet OS `/fleet-os/vehicles` module and the dispatch-eligibility filter
+ * both have real "excluded vehicle" cases to demo out of the box. */
+export const SEED_VEHICLES: Vehicle[] = BASE_VEHICLE_SEEDS.map((v, i) => {
+  const category = categoryForVehicleType(v.type)
+  const catalogEntry = VEHICLE_CATEGORY_CATALOG[category]
+  const serviceZone = zoneForIndex(i)
+  const insuranceStatus: Vehicle['insuranceStatus'] = i === 12 ? 'EXPIRED' : i % 8 === 3 ? 'EXPIRING' : 'VALID'
+  const complianceStatus: Vehicle['complianceStatus'] = i === 19 ? 'FLAGGED' : 'OK'
+  const underMaintenance = i === 9
+  return {
+    ...v,
+    category,
+    luggageCapacity: catalogEntry.maxLuggage,
+    serviceZone,
+    features: catalogEntry.features,
+    insuranceStatus,
+    complianceStatus,
+    maintenanceUntil: underMaintenance ? Date.now() + 3 * 3_600_000 : null,
+    maintenanceReason: underMaintenance ? 'Scheduled brake service' : null,
+  } satisfies Vehicle
+})
 
 const BASE_DRIVERS: Omit<
   Driver,
@@ -203,6 +258,8 @@ function buildOrderBase(params: {
   pickupId: string
   dropoffId: string
   vehicleType: Order['vehicleType']
+  vehicleCategory?: VehicleCategory
+  passengerRequirements?: PassengerRequirements
   passengers: number
   luggage: number
   scheduledTime: string
@@ -231,6 +288,8 @@ function buildOrderBase(params: {
     pickup,
     dropoff,
     vehicleType: params.vehicleType,
+    vehicleCategory: params.vehicleCategory ?? DEFAULT_CATEGORY_FOR_TYPE[params.vehicleType],
+    passengerRequirements: params.passengerRequirements ?? NO_REQUIREMENTS,
     passengers: params.passengers,
     luggage: params.luggage,
     notes: params.notes ?? '',
@@ -407,6 +466,7 @@ function buildBulkActiveOrder(id: string, orderNo: string, status: OrderStatus, 
     pickupId,
     dropoffId,
     vehicleType,
+    vehicleCategory: DEFAULT_CATEGORY_FOR_TYPE[vehicleType],
     passengers: 1 + Math.floor(Math.random() * 5),
     luggage: Math.floor(Math.random() * 4),
     scheduledTime: new Date(Date.now() + (20 + Math.random() * 200) * 60_000).toISOString(),
@@ -460,6 +520,7 @@ function buildBulkCompletedOrder(id: string, orderNo: string, ageMinutes: number
     pickupId,
     dropoffId,
     vehicleType,
+    vehicleCategory: DEFAULT_CATEGORY_FOR_TYPE[vehicleType],
     passengers: 1 + Math.floor(Math.random() * 5),
     luggage: Math.floor(Math.random() * 4),
     scheduledTime: new Date(createdAt + 30 * 60_000).toISOString(),
@@ -526,6 +587,7 @@ export function createSeedState(): {
     id: 'ord-1', orderNo: 'FP-1042', channel: 'KKday', pickupId: 'tpe-airport', dropoffId: 'grand-hyatt', vehicleType: 'SUV', passengers: 3, luggage: 3,
     scheduledTime: iso(0, new Date().getHours() + 2), customer: { name: 'Haruto Sasaki', phone: '+81 90-1234-5678', email: 'haruto.s@example.com' },
     flightNumber: 'NH851', notes: 'Family with a toddler, prefers child seat if available.',
+    passengerRequirements: { ...NO_REQUIREMENTS, childSeat: true },
   })
   o1.supplierStatus = 'CONFIRMED'
   orders.push(o1)

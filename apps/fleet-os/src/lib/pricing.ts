@@ -1,35 +1,16 @@
 import type { FareBreakdown, VehicleType } from '../types'
+import { DEFAULT_CATEGORY_FOR_TYPE, VEHICLE_CATEGORY_CATALOG } from '../data/vehicleCatalog'
+import { computeDynamicFareBreakdown, DEFAULT_PRICING_RULES } from './dynamicPricing'
 
 // Simulated "auto pricing by distance / time / vehicle type" logic
-// (Phase 2 module: Route Cost Logic), now broken into named line items so
-// the customer sees exactly what they're paying for (Phase 1 depth item:
-// "visible fare breakdown with named surcharges").
-const BASE_FARE: Record<VehicleType, number> = {
-  SEDAN: 350,
-  SUV: 550,
-  VAN: 750,
-  LUXURY: 1200,
-  MINIBUS: 1600,
-}
-
-const PER_KM_RATE: Record<VehicleType, number> = {
-  SEDAN: 18,
-  SUV: 24,
-  VAN: 28,
-  LUXURY: 42,
-  MINIBUS: 34,
-}
-
-const PER_MIN_RATE: Record<VehicleType, number> = {
-  SEDAN: 2.2,
-  SUV: 2.8,
-  VAN: 3.2,
-  LUXURY: 5,
-  MINIBUS: 4,
-}
-
-const AIRPORT_SURCHARGE = 150
-const WAITING_FEE_PER_MIN = 6
+// (Phase 2 module: Route Cost Logic). `computeFareBreakdown` below is kept as
+// the simple/legacy entry point (used by seed data + ambient orders, which
+// don't carry a live zone/weather/demand context) — it now delegates to the
+// full simulated Dynamic Pricing Service (`lib/dynamicPricing.ts`) with
+// neutral "clear weather / normal demand" conditions, so the numbers it
+// produces are unchanged from before that engine existed. Real bookings made
+// through the Customer App call `computeDynamicFareBreakdown` directly with
+// the live zone/weather/demand context instead.
 
 export interface CouponDef {
   code: string
@@ -59,28 +40,31 @@ export function computeFareBreakdown(
   durationMin: number,
   vehicleType: VehicleType,
   isAirport: boolean,
-  opts: { waitingMinutes?: number; couponCode?: string | null } = {},
+  opts: { waitingMinutes?: number; couponCode?: string | null; scheduledTimeIso?: string } = {},
 ): FareBreakdown {
-  const baseFare = BASE_FARE[vehicleType]
-  const distanceCost = Math.round(distanceKm * PER_KM_RATE[vehicleType])
-  const timeCost = Math.round(durationMin * PER_MIN_RATE[vehicleType])
-  const airportSurcharge = isAirport ? AIRPORT_SURCHARGE : 0
-  const waitingMinutes = Math.max(0, Math.min(90, opts.waitingMinutes ?? 0))
-  const waitingFee = Math.round(waitingMinutes * WAITING_FEE_PER_MIN)
-  const subtotalRaw = baseFare + distanceCost + timeCost + airportSurcharge + waitingFee
-  const subtotal = Math.round(subtotalRaw / 10) * 10
-
+  const category = VEHICLE_CATEGORY_CATALOG[DEFAULT_CATEGORY_FOR_TYPE[vehicleType]]
   const coupon = findCoupon(opts.couponCode)
-  const discount = coupon ? (coupon.kind === 'PERCENT' ? Math.round(subtotal * (coupon.value / 100)) : Math.min(subtotal, coupon.value)) : 0
-  const total = Math.max(0, Math.round((subtotal - discount) / 10) * 10)
+  // Legacy 2-arg discount math (percent-of-subtotal / fixed) is resolved after
+  // the subtotal is known, so pass 0 into the engine and re-derive it below —
+  // keeps this call site's coupon semantics identical to the pre-Phase-3 code.
+  const preview = computeDynamicFareBreakdown({
+    category,
+    distanceKm,
+    durationMin,
+    isAirport,
+    pickupZone: undefined,
+    scheduledTimeIso: opts.scheduledTimeIso ?? new Date().toISOString(),
+    waitingMinutes: opts.waitingMinutes,
+    availableVehiclesInZone: 999,
+    weather: 'CLEAR',
+    demand: 'NORMAL',
+    rules: DEFAULT_PRICING_RULES,
+  })
+  const discount = coupon ? (coupon.kind === 'PERCENT' ? Math.round(preview.subtotal * (coupon.value / 100)) : Math.min(preview.subtotal, coupon.value)) : 0
+  const total = Math.max(0, Math.round((preview.subtotal - discount) / 10) * 10)
 
   return {
-    baseFare,
-    distanceCost,
-    timeCost,
-    airportSurcharge,
-    waitingFee,
-    subtotal,
+    ...preview,
     discount,
     couponCode: coupon ? coupon.code : null,
     total,
