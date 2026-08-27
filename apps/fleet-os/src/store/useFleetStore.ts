@@ -3,6 +3,8 @@ import type {
   AppNotification,
   AuditEntry,
   AuditLogEntry,
+  AuthMethod,
+  AuthSession,
   BookingInput,
   Campaign,
   CampaignStatus,
@@ -49,6 +51,12 @@ import { buildInitialZoneConditions, computeDynamicFareBreakdown, countAvailable
 import { DEFAULT_CATEGORY_FOR_TYPE, VEHICLE_CATEGORY_CATALOG } from '../data/vehicleCatalog'
 import { suggestDriver } from '../lib/dispatch'
 import { buildCapacityForecast } from '../lib/capacity'
+import {
+  computeWaitingFee,
+  LAST_MINUTE_AUTO_CANCEL_DEMO_MS,
+  MAJOR_FLIGHT_SHIFT_MINUTES,
+  WAITING_GRACE_MINUTES,
+} from '../lib/serviceRules'
 
 const NO_PASSENGER_REQUIREMENTS: PassengerRequirements = { childSeat: false, wheelchair: false, pet: false, specialAssistance: '' }
 
@@ -96,6 +104,9 @@ interface FleetState {
   pricingRules: PricingRules
   categoryPriceOverrides: Partial<Record<VehicleCategory, { baseFare: number; perKmRate: number; perMinRate: number }>>
 
+  /** Lightweight, fully-simulated account access (no real backend/session). */
+  authSession: AuthSession
+
   createOrder: (input: BookingInput & { simulateFailure?: boolean }) => Order
   retryPayment: (orderId: string) => void
   assignOrder: (orderId: string, driverId?: string) => void
@@ -118,6 +129,19 @@ interface FleetState {
   rescheduleOrder: (orderId: string, newIso: string) => void
   addOrderNote: (orderId: string, note: string) => void
   updateFlightNumber: (orderId: string, flightNumber: string) => void
+
+  /** Realism/depth additions inspired by 機場快綫 Airport Express and 萬馬接送
+   * Wanma Transfer — see `lib/serviceRules.ts` for every rule's provenance. */
+  revealDriverInfoNow: (orderId: string) => void
+  agreeToWaitForLatePassenger: (orderId: string) => void
+  simulateLatePassenger: (orderId: string) => void
+  simulateFlightEvent: (orderId: string, kind: 'LANDED' | 'DIVERTED' | 'MAJOR_DELAY') => void
+  addOrderWaypoint: (orderId: string, label: string) => void
+  removeOrderWaypoint: (orderId: string, waypointId: string) => void
+
+  loginWithLine: () => void
+  loginWithEmail: (email: string, displayName?: string) => void
+  logout: () => void
 
   setAutoDispatch: (v: boolean) => void
   setAmbientOrders: (v: boolean) => void
@@ -236,7 +260,8 @@ function startDispatchAttempt(
   return { order: updatedOrder, notifications: nextNotifications }
 }
 
-export function classifyOrderType(pickupId: string, dropoffId: string): Order['type'] {
+export function classifyOrderType(pickupId: string, dropoffId: string, forceCharter?: boolean): Order['type'] {
+  if (forceCharter) return 'HOURLY_CHARTER'
   const pickup = getLocation(pickupId)
   const dropoff = getLocation(dropoffId)
   if (pickup.isAirport) return 'AIRPORT_PICKUP'
@@ -267,7 +292,8 @@ function buildOrderFromInput(
 ): Order {
   const pickup = getLocation(input.pickupId)
   const dropoff = getLocation(input.dropoffId)
-  const type = classifyOrderType(input.pickupId, input.dropoffId)
+  const isCharter = !!input.charterHours && input.charterHours > 0
+  const type = classifyOrderType(input.pickupId, input.dropoffId, isCharter)
   const id = genId('ord')
   const routeToDropoff = getCachedRoute(pickup, dropoff) ?? buildRoutePath(pickup, dropoff, `${id}-leg2`)
   const flightInfo = input.flightNumber ? lookupFlight(input.flightNumber, input.scheduledTime) : null
@@ -299,6 +325,8 @@ function buildOrderFromInput(
     demand: zoneCondition?.demand ?? 'NORMAL',
     rules: context.pricingRules,
     couponCode: input.couponCode ?? null,
+    charterHours: input.charterHours ?? null,
+    mountainRoute: input.mountainRoute ?? false,
   })
   // Coupon discount math stays in `lib/pricing.ts`'s legacy percent/fixed
   // shape (rather than duplicating it inside the pure pricing engine) so the
@@ -369,6 +397,14 @@ function buildOrderFromInput(
       : null,
     invoiceRequested: false,
     invoiceIssued: false,
+    bookingUrgency: input.bookingUrgency ?? 'STANDARD',
+    flightLandedAt: flightInfo?.status === 'LANDED' ? now : null,
+    driverInfoRevealOverride: false,
+    paymentMethod: input.paymentMethod ?? 'card',
+    lateFeeAmount: null,
+    lateFeeWaitMinutes: null,
+    waitingFeeAgreed: false,
+    waypoints: input.waypoints ?? [],
   }
 }
 
@@ -378,9 +414,13 @@ function buildOrderFromInput(
  * brief without needing async store mutations for the common success path. */
 function fastForwardToConfirmed(order: Order): Order {
   const now = Date.now()
-  let next: Order = { ...order, paymentStatus: 'PAID', status: 'PAID' }
+  // Cash-on-arrival/drop-off (Airport Express's payment option) is only
+  // *authorized* now — the app never captures it; it's marked PAID once the
+  // trip actually completes and cash changes hands (see `tick()`).
+  const isCash = order.paymentMethod === 'cash'
+  let next: Order = { ...order, paymentStatus: isCash ? 'AUTHORIZED' : 'PAID', status: 'PAID' }
   next = { ...next, statusHistory: [...next.statusHistory, { id: genId('hist'), status: 'PAID', at: now + 400, actor: 'PAYMENT' }] }
-  next = appendAudit(next, 'PAYMENT', 'Payment captured', `${next.fareBreakdown.total.toLocaleString()} TWD`)
+  next = appendAudit(next, 'PAYMENT', isCash ? 'Payment method authorized (cash on arrival)' : 'Payment captured', isCash ? `${next.fareBreakdown.total.toLocaleString()} TWD due in cash` : `${next.fareBreakdown.total.toLocaleString()} TWD`)
 
   if (next.supplierStatus === 'PENDING') {
     next = { ...next, status: 'SUPPLIER_PENDING', statusHistory: [...next.statusHistory, { id: genId('hist'), status: 'SUPPLIER_PENDING', at: now + 600, actor: 'SYSTEM' }] }
@@ -393,6 +433,39 @@ function fastForwardToConfirmed(order: Order): Order {
   next = { ...next, voucherStatus: 'ISSUED' }
   next = appendAudit(next, 'SYSTEM', 'E-voucher issued', next.orderNo)
   return next
+}
+
+/** Shared by both the last-minute-unmatched and major-flight-change auto-
+ * cancel triggers: cancels an order and, if it had captured payment, opens
+ * a refund request — mirroring the manual `resolveCancellation` approval
+ * path but fired automatically by the simulation rather than a dispatcher. */
+function autoCancelWithRefund(
+  order: Order,
+  reasonDetail: string,
+  refundRequests: RefundRequest[],
+  globalAuditLog: AuditLogEntry[],
+): { order: Order; refundRequests: RefundRequest[]; globalAuditLog: AuditLogEntry[] } {
+  const needsRefund = order.paymentStatus === 'PAID' || order.paymentStatus === 'AUTHORIZED'
+  let next = appendHistory({ ...order, status: 'CANCELLED', cancellationReason: reasonDetail }, 'SYSTEM')
+  next = appendAudit(next, 'SYSTEM', 'Automatically cancelled', reasonDetail)
+
+  let nextRefunds = refundRequests
+  let nextAuditLog = globalAuditLog
+  if (needsRefund && order.paymentStatus === 'PAID') {
+    next = appendHistory({ ...next, status: 'REFUND_PENDING', paymentStatus: 'REFUND_PENDING' }, 'SYSTEM')
+    const refund: RefundRequest = {
+      id: genId('rfd'), orderId: order.id, orderNo: order.orderNo, customerName: order.customer.name,
+      amount: order.priceEstimate, reason: reasonDetail, status: 'PENDING', requestedAt: Date.now(), resolvedAt: null,
+    }
+    nextRefunds = [refund, ...nextRefunds]
+    nextAuditLog = pushGlobalAudit(nextAuditLog, 'system', `Auto-cancelled ${order.orderNo}: opened refund request`, 'Order', order.id)
+  } else if (needsRefund) {
+    // Cash bookings never captured a real payment — nothing to refund, just
+    // confirm no charge was made.
+    next = { ...next, paymentStatus: 'UNPAID' }
+  }
+
+  return { order: next, refundRequests: nextRefunds, globalAuditLog: nextAuditLog }
 }
 
 function randomAmbientInput(): BookingInput {
@@ -480,6 +553,8 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   zoneConditions: buildInitialZoneConditions(),
   pricingRules: DEFAULT_PRICING_RULES,
   categoryPriceOverrides: {},
+
+  authSession: { isLoggedIn: false, method: null, displayName: null, email: null },
 
   createOrder: (input) => {
     const ctx = get()
@@ -607,10 +682,22 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     const order = get().orders.find((o) => o.id === orderId)
     if (!order || order.status !== 'ARRIVED') return false
     if (order.pickupPin !== pin.trim()) return false
+
+    // Wanma-style late-boarding waiting fee: free for the first 15 minutes,
+    // then billed in 30-minute blocks at a per-vehicle-category cash rate —
+    // captured here (once, at the moment of pickup) so it survives onto the
+    // trip-completion receipt without being folded into the app-collected
+    // `fareBreakdown`.
+    const waitMinutes = order.waitStartedAt ? Math.round((Date.now() - order.waitStartedAt) / 60_000) : 0
+    const lateFee = waitMinutes > 0 ? computeWaitingFee(order.vehicleCategory, waitMinutes) : 0
+
     set((s) => ({
-      orders: s.orders.map((o) =>
-        o.id === orderId ? appendHistory({ ...o, status: 'PASSENGER_ONBOARD', pickedUpAt: Date.now(), legProgress: 0, waitStartedAt: null }, 'DRIVER') : o,
-      ),
+      orders: s.orders.map((o) => {
+        if (o.id !== orderId) return o
+        let next = appendHistory({ ...o, status: 'PASSENGER_ONBOARD', pickedUpAt: Date.now(), legProgress: 0, waitStartedAt: null, lateFeeAmount: lateFee, lateFeeWaitMinutes: waitMinutes }, 'DRIVER')
+        if (lateFee > 0) next = appendAudit(next, 'DRIVER', 'Late-boarding waiting fee charged (cash)', `${waitMinutes} min wait \u00b7 NT$${lateFee.toLocaleString()}`)
+        return next
+      }),
       notifications: pushNotification(s.notifications, 'SUCCESS', 'notif.passengerPickedUp.title', 'notif.passengerPickedUp.message', undefined, orderId),
     }))
     return true
@@ -793,6 +880,75 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     }))
   },
 
+  revealDriverInfoNow: (orderId) =>
+    set((s) => ({
+      orders: s.orders.map((o) => (o.id === orderId ? appendAudit({ ...o, driverInfoRevealOverride: true }, 'SYSTEM', 'Driver contact details revealed early (demo)') : o)),
+    })),
+
+  agreeToWaitForLatePassenger: (orderId) =>
+    set((s) => ({
+      orders: s.orders.map((o) => (o.id === orderId ? appendAudit({ ...o, waitingFeeAgreed: true }, 'DRIVER', 'Agreed by phone to keep waiting for a late passenger') : o)),
+    })),
+
+  // Demo-only trigger so a tester/e2e script can put an ARRIVED order past
+  // the 15-minute free grace period instantly, without waiting on real
+  // wall-clock time, to exercise the Wanma-style waiting-fee flow.
+  simulateLatePassenger: (orderId) =>
+    set((s) => ({
+      orders: s.orders.map((o) =>
+        o.id === orderId && o.status === 'ARRIVED' ? { ...o, waitStartedAt: Date.now() - (WAITING_GRACE_MINUTES + 20) * 60_000 } : o,
+      ),
+    })),
+
+  // Demo-only trigger (mirrors `toggleDemoNoResponse`) so a tester/e2e script
+  // can force the flight-status transitions that drive the last-minute
+  // auto-cancel and major-flight-change full-refund rules without waiting
+  // on the randomized `driftFlightStatus` simulation.
+  simulateFlightEvent: (orderId, kind) => {
+    set((s) => {
+      const order = s.orders.find((o) => o.id === orderId)
+      if (!order || !order.flightInfo) return {}
+      const now = Date.now()
+      if (kind === 'LANDED') {
+        return {
+          orders: s.orders.map((o) =>
+            o.id === orderId && o.flightInfo ? { ...o, flightInfo: { ...o.flightInfo, status: 'LANDED' }, flightLandedAt: now } : o,
+          ),
+        }
+      }
+      if (kind === 'DIVERTED') {
+        return {
+          orders: s.orders.map((o) => (o.id === orderId && o.flightInfo ? { ...o, flightInfo: { ...o.flightInfo, status: 'DIVERTED' } } : o)),
+        }
+      }
+      const delayMinutes = MAJOR_FLIGHT_SHIFT_MINUTES + 15
+      return {
+        orders: s.orders.map((o) =>
+          o.id === orderId && o.flightInfo
+            ? { ...o, flightInfo: { ...o.flightInfo, status: 'DELAYED', delayMinutes, estimatedTime: new Date(new Date(o.flightInfo.scheduledTime).getTime() + delayMinutes * 60_000).toISOString() } }
+            : o,
+        ),
+      }
+    })
+  },
+
+  addOrderWaypoint: (orderId, label) =>
+    set((s) => ({
+      orders: s.orders.map((o) =>
+        o.id === orderId ? appendAudit({ ...o, waypoints: [...o.waypoints, { id: genId('wp'), label }] }, 'CUSTOMER', 'Added a stop', label) : o,
+      ),
+    })),
+
+  removeOrderWaypoint: (orderId, waypointId) =>
+    set((s) => ({
+      orders: s.orders.map((o) => (o.id === orderId ? { ...o, waypoints: o.waypoints.filter((w) => w.id !== waypointId) } : o)),
+    })),
+
+  loginWithLine: () => set({ authSession: { isLoggedIn: true, method: 'LINE' as AuthMethod, displayName: 'LINE User', email: null } }),
+  loginWithEmail: (email, displayName) =>
+    set({ authSession: { isLoggedIn: true, method: 'EMAIL' as AuthMethod, displayName: displayName ?? email.split('@')[0], email } }),
+  logout: () => set({ authSession: { isLoggedIn: false, method: null, displayName: null, email: null } }),
+
   setAutoDispatch: (v) => set({ autoDispatchEnabled: v }),
   setAmbientOrders: (v) => set({ ambientOrdersEnabled: v }),
   setFocusOrder: (id) => set({ focusOrderId: id }),
@@ -945,18 +1101,82 @@ export const useFleetStore = create<FleetState>((set, get) => ({
         return { ...order, legProgress: nextProgress, currentPos: pos }
       }
 
-      if (order.flightInfo && ACTIVE_STATUS_SET.has(order.status) && Math.random() < 0.06) {
+      if (order.flightInfo && ACTIVE_STATUS_SET.has(order.status) && order.status !== 'PASSENGER_ONBOARD' && Math.random() < 0.06) {
         const drifted = driftFlightStatus(order.flightInfo)
         if (drifted.status !== order.flightInfo.status) {
           notifications = pushNotification(notifications, drifted.status === 'DELAYED' ? 'WARNING' : 'INFO', 'notif.flightUpdated.title', 'notif.flightUpdated.message', { flightNumber: drifted.flightNumber, status: drifted.status.replace('_', ' '), delay: drifted.status === 'DELAYED' ? ` (+${drifted.delayMinutes}m)` : '' }, order.id)
         }
-        return { ...order, flightInfo: drifted }
+        // Wanma-style flight-aware airport buffer: record the moment the
+        // flight first actually lands, which both the last-minute
+        // auto-cancel rule below and the driver-facing free-wait/fee
+        // escalation window (`lib/serviceRules.ts`) key off of.
+        const flightLandedAt = drifted.status === 'LANDED' && !order.flightLandedAt ? now : order.flightLandedAt
+        return { ...order, flightInfo: drifted, flightLandedAt }
       }
 
       return order
     })
 
-    set({ orders, drivers, notifications, zoneConditions, tickCount: s.tickCount + 1 })
+    // ---- Airport-Express-style auto-cancel: a LAST_MINUTE, flight-based
+    // airport-pickup booking that is still unmatched (never reached
+    // DRIVER_EN_ROUTE) once the demo-compressed equivalent of the real
+    // 30-minutes-after-landing window has elapsed is cancelled for free and,
+    // if it had captured a card payment, automatically refunded. ----
+    let refundRequests = s.refundRequests
+    let globalAuditLog = s.globalAuditLog
+    orders = orders.map((order) => {
+      if (order.bookingUrgency !== 'LAST_MINUTE' || order.type !== 'AIRPORT_PICKUP') return order
+      if (!order.flightLandedAt || !['CONFIRMED', 'DRIVER_MATCHING'].includes(order.status)) return order
+      if (now - order.flightLandedAt < LAST_MINUTE_AUTO_CANCEL_DEMO_MS) return order
+
+      const result = autoCancelWithRefund(
+        order,
+        'Best-effort last-minute request auto-cancelled: no driver matched within the post-landing window (free of charge)',
+        refundRequests,
+        globalAuditLog,
+      )
+      refundRequests = result.refundRequests
+      globalAuditLog = result.globalAuditLog
+      notifications = pushNotification(notifications, 'ERROR', 'notif.lastMinuteAutoCancelled.title', 'notif.lastMinuteAutoCancelled.message', { orderNo: order.orderNo }, order.id)
+      return result.order
+    })
+
+    // ---- Wanma-style full-refund-on-major-flight-change: a diversion, or a
+    // schedule shift of `MAJOR_FLIGHT_SHIFT_MINUTES`+ from what was booked,
+    // triggers an automatic cancellation + full refund for any order that
+    // hasn't already picked the passenger up. ----
+    orders = orders.map((order) => {
+      if (!order.flightInfo || order.status === 'PASSENGER_ONBOARD' || !ACTIVE_STATUS_SET.has(order.status)) return order
+      const isDiverted = order.flightInfo.status === 'DIVERTED'
+      const isMajorDelay = order.flightInfo.status === 'DELAYED' && order.flightInfo.delayMinutes >= MAJOR_FLIGHT_SHIFT_MINUTES
+      if (!isDiverted && !isMajorDelay) return order
+
+      const reason = isDiverted
+        ? `Flight ${order.flightInfo.flightNumber} diverted to a different airport — automatically cancelled with a full refund`
+        : `Flight ${order.flightInfo.flightNumber} shifted ${order.flightInfo.delayMinutes} min from the booked schedule — automatically cancelled with a full refund`
+      const result = autoCancelWithRefund(order, reason, refundRequests, globalAuditLog)
+      refundRequests = result.refundRequests
+      globalAuditLog = result.globalAuditLog
+      if (order.driverId) drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, status: 'AVAILABLE' } : d))
+      notifications = pushNotification(
+        notifications,
+        'ERROR',
+        isDiverted ? 'notif.flightDivertedCancelled.title' : 'notif.flightMajorDelayCancelled.title',
+        isDiverted ? 'notif.flightDivertedCancelled.message' : 'notif.flightMajorDelayCancelled.message',
+        { orderNo: order.orderNo, flightNumber: order.flightInfo.flightNumber },
+        order.id,
+      )
+      return result.order
+    })
+
+    // Cash-on-arrival/drop-off (Airport Express's payment option) is only
+    // ever *authorized* through the app — it becomes PAID the moment the
+    // trip actually completes and cash genuinely changes hands.
+    orders = orders.map((order) =>
+      order.status === 'COMPLETED' && order.paymentMethod === 'cash' && order.paymentStatus === 'AUTHORIZED' ? { ...order, paymentStatus: 'PAID' } : order,
+    )
+
+    set({ orders, drivers, notifications, zoneConditions, refundRequests, globalAuditLog, tickCount: s.tickCount + 1 })
   },
 
   setSupplierStatus: (id, status) =>
