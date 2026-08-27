@@ -46,16 +46,13 @@ try {
   await page.waitForTimeout(1000)
   await shot('01_booking_empty')
 
-  log('2. Fill booking form (Songshan Airport -> Grand Hyatt, SUV)')
+  log('2. Fill booking form (Songshan Airport -> Grand Hyatt, SUV) — Step 1: Fare Estimate')
   await page.selectOption('select >> nth=1', 'tsa-airport') // pickup
   await page.selectOption('select >> nth=2', 'grand-hyatt') // dropoff
   await page.click('[data-testid="vehicle-option-SUV"]')
   await page.click('button:has-text("Random")')
   await page.click('button:has-text("Look up")')
   await page.waitForTimeout(1200)
-  await page.fill('input[placeholder="Jane Doe"]', 'Emily Carter')
-  await page.fill('input[placeholder="+886 912-345-678"]', '+1 415-555-0142')
-  await page.fill('input[placeholder="jane@example.com"]', 'emily.carter@example.com')
   await shot('02_booking_filled')
 
   // Sanity check for the vehicle-photo-cropping fix: the SUV card's photo
@@ -65,9 +62,17 @@ try {
   const previewPhoto = page.locator('[data-testid="vehicle-preview-photo"]')
   await previewPhoto.waitFor({ state: 'visible' })
 
+  log('2b. Continue to Step 2: Payment Method')
+  await page.click('[data-testid="booking-step1-continue"]')
+  await page.waitForSelector('[data-testid="checkout-payment-card"]')
+  await page.fill('input[placeholder="Jane Doe"]', 'Emily Carter')
+  await page.fill('input[placeholder="+886 912-345-678"]', '+1 415-555-0142')
+  await page.fill('input[placeholder="jane@example.com"]', 'emily.carter@example.com')
+
   // Checkout now requires an explicit consent checkbox (client-brief checkout
   // depth item) before the Confirm Booking button becomes enabled.
   await page.check('[data-testid="checkout-consent"]')
+  await shot('02b_booking_payment_step')
 
   log('3. Submit booking')
   await page.click('[data-testid="checkout-confirm-booking"]')

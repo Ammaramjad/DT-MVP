@@ -131,6 +131,10 @@ try {
   await page.waitForTimeout(300)
   await shot('07_accessible_selected')
 
+  log('6b. Continue to Step 2: Payment Method')
+  await page.click('[data-testid="booking-step1-continue"]')
+  await page.waitForSelector('[data-testid="checkout-payment-card"]')
+
   log('7. Fill contact info, accept consent, and submit the booking')
   await page.fill('input[placeholder="Jane Doe"]', 'Wei-Ting Huang')
   await page.fill('input[placeholder="+886 912-345-678"]', '+886 933-222-111')
