@@ -6,11 +6,8 @@ import {
   MessageSquare,
   Lock,
   ArrowRight,
-  CheckCircle2,
   AlertTriangle,
   Smartphone,
-  Sparkles,
-  Zap,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useLang } from '../../i18n'
@@ -19,7 +16,7 @@ import { LINE_DEMO_OTP, useGatekeeper } from '../../lib/gatekeeper'
 
 export function ClientGatekeeper() {
   const { t, lang, setLang } = useLang()
-  const { unlockWithPasscode, unlockWithLineOtp, unlockDemoOneClick } = useGatekeeper()
+  const { unlockWithPasscode, unlockWithLineOtp } = useGatekeeper()
 
   const [tab, setTab] = useState<'line' | 'passcode'>('line')
   const [passcode, setPasscode] = useState('')
@@ -67,7 +64,7 @@ export function ClientGatekeeper() {
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex flex-col items-center justify-center overflow-y-auto bg-mission-950/95 p-4 backdrop-blur-2xl sm:p-6"
+      className="fixed inset-0 z-[1000] flex min-h-screen w-screen flex-col items-center justify-center overflow-y-auto bg-slate-950 p-4 sm:p-6"
       data-testid="client-gatekeeper-overlay"
     >
       {/* Background glowing gradients */}
@@ -98,23 +95,11 @@ export function ClientGatekeeper() {
                 <p className="mt-0.5 text-xs text-slate-200">
                   {t('gatekeeper.line.pushBannerBody', { code: LINE_DEMO_OTP })}
                 </p>
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLineOtp(LINE_DEMO_OTP)
-                      unlockWithLineOtp(LINE_DEMO_OTP)
-                    }}
-                    data-testid="line-banner-fill-and-unlock-btn"
-                    className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/30"
-                  >
-                    <CheckCircle2 className="h-3 w-3" />
-                    {t('gatekeeper.line.oneClickApprove')}
-                  </button>
+                <div className="mt-2 flex items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setShowPushNotification(false)}
-                    className="text-[10px] text-slate-400 hover:text-slate-200"
+                    className="rounded-lg bg-slate-800/80 px-2.5 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-700/80 hover:text-white transition"
                   >
                     Dismiss
                   </button>
@@ -265,16 +250,9 @@ export function ClientGatekeeper() {
             {/* OTP Input Form once sent */}
             <form onSubmit={handleVerifyLineOtp} className="space-y-3">
               <div>
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-medium text-slate-300">
-                    {t('gatekeeper.line.otpLabel')}
-                  </label>
-                  {otpSent && (
-                    <span className="text-[10px] font-semibold text-emerald-400">
-                      Code: {LINE_DEMO_OTP}
-                    </span>
-                  )}
-                </div>
+                <label className="block text-xs font-medium text-slate-300">
+                  {t('gatekeeper.line.otpLabel')}
+                </label>
                 <input
                   type="text"
                   value={lineOtp}
@@ -304,22 +282,6 @@ export function ClientGatekeeper() {
                 <ArrowRight className="h-4 w-4" />
               </button>
             </form>
-
-            {/* 1-Click Approval Simulation */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setLineOtp(LINE_DEMO_OTP)
-                  unlockDemoOneClick()
-                }}
-                data-testid="gatekeeper-line-1click-approve-btn"
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
-              >
-                <Zap className="h-3.5 w-3.5" />
-                <span>{t('gatekeeper.line.oneClickApprove')}</span>
-              </button>
-            </div>
           </div>
         )}
 
@@ -337,14 +299,9 @@ export function ClientGatekeeper() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-medium text-slate-300">
-                  {t('gatekeeper.passcode.inputLabel')}
-                </label>
-                <span className="text-[10px] text-slate-400">
-                  {t('gatekeeper.passcode.hint')}
-                </span>
-              </div>
+              <label className="block text-xs font-medium text-slate-300">
+                {t('gatekeeper.passcode.inputLabel')}
+              </label>
               <input
                 type="password"
                 value={passcode}
@@ -373,19 +330,6 @@ export function ClientGatekeeper() {
               <span>{t('gatekeeper.passcode.unlockButton')}</span>
               <ArrowRight className="h-4 w-4" />
             </button>
-
-            {/* 1-Click Demo Unlock */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={unlockDemoOneClick}
-                data-testid="gatekeeper-1click-demo-btn"
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 py-2 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-500/20"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-                <span>{t('gatekeeper.passcode.quickDemo')}</span>
-              </button>
-            </div>
           </form>
         )}
 

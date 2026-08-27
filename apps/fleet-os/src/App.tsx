@@ -33,9 +33,12 @@ import OperatingParametersPanel from './panels/fleetos/OperatingParametersPanel'
 function AppContent() {
   const { isLocked } = useGatekeeper()
 
+  if (isLocked) {
+    return <ClientGatekeeper />
+  }
+
   return (
     <>
-      {isLocked && <ClientGatekeeper />}
       <NotificationToaster />
       <Routes>
         <Route path="/" element={<LandingPanel />} />
