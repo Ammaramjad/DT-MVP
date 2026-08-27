@@ -212,6 +212,14 @@ function freshOrderShell(id: string, orderNo: string): Pick<
   | 'pickupInstructions'
   | 'invoiceRequested'
   | 'invoiceIssued'
+  | 'bookingUrgency'
+  | 'flightLandedAt'
+  | 'driverInfoRevealOverride'
+  | 'paymentMethod'
+  | 'lateFeeAmount'
+  | 'lateFeeWaitMinutes'
+  | 'waitingFeeAgreed'
+  | 'waypoints'
 > {
   const now = Date.now()
   return {
@@ -248,6 +256,14 @@ function freshOrderShell(id: string, orderNo: string): Pick<
     pickupInstructions: null,
     invoiceRequested: false,
     invoiceIssued: false,
+    bookingUrgency: 'STANDARD',
+    flightLandedAt: null,
+    driverInfoRevealOverride: true,
+    paymentMethod: 'card',
+    lateFeeAmount: null,
+    lateFeeWaitMinutes: null,
+    waitingFeeAgreed: false,
+    waypoints: [],
   }
 }
 

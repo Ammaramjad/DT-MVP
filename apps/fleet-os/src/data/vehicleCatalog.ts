@@ -108,6 +108,9 @@ export interface VehicleCategoryEntry {
   baseFare: number
   perKmRate: number
   perMinRate: number
+  /** Hourly Charter (計時包車) rate, TWD/hr — see `lib/serviceRules.ts` and
+   * `lib/dynamicPricing.ts`'s charter-mode branch. */
+  hourlyRate: number
 }
 
 export const VEHICLE_CATEGORY_CATALOG: Record<VehicleCategory, VehicleCategoryEntry> = {
@@ -127,6 +130,7 @@ export const VEHICLE_CATEGORY_CATALOG: Record<VehicleCategory, VehicleCategoryEn
     baseFare: 280,
     perKmRate: 16,
     perMinRate: 2.0,
+    hourlyRate: 850,
   },
   COMFORT_SEDAN: {
     category: 'COMFORT_SEDAN',
@@ -144,6 +148,7 @@ export const VEHICLE_CATEGORY_CATALOG: Record<VehicleCategory, VehicleCategoryEn
     baseFare: 350,
     perKmRate: 18,
     perMinRate: 2.2,
+    hourlyRate: 950,
   },
   PREMIUM_SEDAN: {
     category: 'PREMIUM_SEDAN',
@@ -161,6 +166,7 @@ export const VEHICLE_CATEGORY_CATALOG: Record<VehicleCategory, VehicleCategoryEn
     baseFare: 480,
     perKmRate: 22,
     perMinRate: 2.6,
+    hourlyRate: 1150,
   },
   SUV: {
     category: 'SUV',
@@ -178,6 +184,7 @@ export const VEHICLE_CATEGORY_CATALOG: Record<VehicleCategory, VehicleCategoryEn
     baseFare: 550,
     perKmRate: 24,
     perMinRate: 2.8,
+    hourlyRate: 1300,
   },
   VAN_6: {
     category: 'VAN_6',
@@ -195,6 +202,7 @@ export const VEHICLE_CATEGORY_CATALOG: Record<VehicleCategory, VehicleCategoryEn
     baseFare: 750,
     perKmRate: 28,
     perMinRate: 3.2,
+    hourlyRate: 1500,
   },
   VAN_9: {
     category: 'VAN_9',
@@ -212,6 +220,7 @@ export const VEHICLE_CATEGORY_CATALOG: Record<VehicleCategory, VehicleCategoryEn
     baseFare: 980,
     perKmRate: 32,
     perMinRate: 3.6,
+    hourlyRate: 1800,
   },
   LUXURY_SEDAN: {
     category: 'LUXURY_SEDAN',
@@ -229,6 +238,7 @@ export const VEHICLE_CATEGORY_CATALOG: Record<VehicleCategory, VehicleCategoryEn
     baseFare: 1200,
     perKmRate: 42,
     perMinRate: 5.0,
+    hourlyRate: 2400,
   },
   LUXURY_VAN: {
     category: 'LUXURY_VAN',
@@ -246,6 +256,7 @@ export const VEHICLE_CATEGORY_CATALOG: Record<VehicleCategory, VehicleCategoryEn
     baseFare: 1800,
     perKmRate: 48,
     perMinRate: 5.6,
+    hourlyRate: 3200,
   },
   ACCESSIBLE: {
     category: 'ACCESSIBLE',
@@ -263,6 +274,7 @@ export const VEHICLE_CATEGORY_CATALOG: Record<VehicleCategory, VehicleCategoryEn
     baseFare: 700,
     perKmRate: 26,
     perMinRate: 3.0,
+    hourlyRate: 1400,
   },
   CHARTER_MINIBUS: {
     category: 'CHARTER_MINIBUS',
@@ -280,6 +292,7 @@ export const VEHICLE_CATEGORY_CATALOG: Record<VehicleCategory, VehicleCategoryEn
     baseFare: 1600,
     perKmRate: 34,
     perMinRate: 4.0,
+    hourlyRate: 2000,
   },
 }
 

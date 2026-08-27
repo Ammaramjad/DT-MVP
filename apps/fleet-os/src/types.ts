@@ -147,7 +147,7 @@ export interface DriverStats {
 
 export type BookingChannel = 'Website' | 'LINE@' | 'KKday' | 'Booking.com' | 'Klook' | 'Phone / Agent' | 'ezTravel'
 
-export type FlightStatusKind = 'ON_TIME' | 'DELAYED' | 'BOARDING' | 'LANDED'
+export type FlightStatusKind = 'ON_TIME' | 'DELAYED' | 'BOARDING' | 'LANDED' | 'DIVERTED'
 
 export interface FlightInfo {
   flightNumber: string
@@ -157,6 +157,29 @@ export interface FlightInfo {
   scheduledTime: string
   estimatedTime: string
   delayMinutes: number
+}
+
+/**
+ * Booking urgency tier — inspired by 機場快綫 Airport Express's "保證有車"
+ * (guaranteed vehicle, booked with normal lead time) vs. "24小時內臨時預約"
+ * (same-day/last-minute, 15 min-24 hr ahead, explicitly best-effort/NOT
+ * guaranteed). See `lib/serviceRules.ts` for the matching windows and the
+ * simulated auto-cancel-if-unmatched-within-30-minutes-of-landing rule.
+ */
+export type BookingUrgency = 'STANDARD' | 'LAST_MINUTE'
+
+/** Simulated payment method at checkout — 'CASH' models the competitor
+ * pattern of "pay online by card, or cash on arrival/drop-off." No real
+ * payment gateway is ever involved. */
+export type PaymentMethodKey = 'card' | 'linepay' | 'applepay' | 'cash'
+
+/** One informal, non-routed waypoint a customer can add to a booking —
+ * modeled on 機場快綫's "multi-stop pickup/drop-off support" and 萬馬接送's
+ * "~5 minutes per intermediate stop" policy. Kept fare-neutral (advertised
+ * as a free perk) and purely informational for the map/route simulation. */
+export interface TripWaypoint {
+  id: string
+  label: string
 }
 
 export type TaiwanRegion =
@@ -278,6 +301,10 @@ export interface FareBreakdown {
   parkingFee: number
   waitingFee: number
   vipSurcharge: number
+  /** Hourly Charter (計時包車) line items — see 萬馬接送's product rules.
+   * `charterHours` is null for ordinary point-to-point trips. */
+  charterHours: number | null
+  mountainSurcharge: number
   subtotal: number
   discount: number
   couponCode: string | null
@@ -420,6 +447,31 @@ export interface Order {
   } | null
   invoiceRequested: boolean
   invoiceIssued: boolean
+
+  /** Booking urgency tier — see `BookingUrgency`. */
+  bookingUrgency: BookingUrgency
+  /** Epoch ms when the linked flight's status first became `LANDED` — used
+   * to drive the last-minute 30-minute auto-cancel-if-unmatched rule and
+   * the flight-aware airport-ready-buffer/waiting-fee escalation. */
+  flightLandedAt: number | null
+  /** Demo-only override so a tester/e2e script can force the driver-info
+   * reveal without waiting for the real time window — mirrors the existing
+   * `demoForceNoResponse` convention. */
+  driverInfoRevealOverride: boolean
+  /** Simulated payment method chosen at checkout. */
+  paymentMethod: PaymentMethodKey
+  /** Cash-collected late-boarding/no-show waiting fee (Wanma-style, paid to
+   * the driver in cash, per-30-minute block after a 15-minute grace period)
+   * — set once at pickup verification, never bundled into `fareBreakdown`
+   * since it is never captured through the app. */
+  lateFeeAmount: number | null
+  lateFeeWaitMinutes: number | null
+  /** Set by the driver over the phone once a late passenger is confirmed to
+   * still be coming — mirrors 萬馬接送's "driver agrees by phone to wait." */
+  waitingFeeAgreed: boolean
+  /** Informal multi-stop support (client trust signal: "completely free ...
+   * multi-stop pickup/drop-off support"). */
+  waypoints: TripWaypoint[]
 }
 
 export interface BookingInput {
@@ -443,6 +495,12 @@ export interface BookingInput {
   /** @deprecated use `passengerRequirements.wheelchair` */
   wheelchair?: boolean
   invoiceRequested?: boolean
+  bookingUrgency?: BookingUrgency
+  paymentMethod?: PaymentMethodKey
+  waypoints?: TripWaypoint[]
+  /** Hourly Charter (計時包車) inputs — see `lib/dynamicPricing.ts`. */
+  charterHours?: number | null
+  mountainRoute?: boolean
 }
 
 export type NotificationKind = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR'
@@ -681,4 +739,17 @@ export interface AuditLogEntry {
   action: string
   targetType: string
   targetId: string
+}
+
+// ---------------------------------------------------------------------------
+// Lightweight, fully-simulated account access (LINE quick login, email
+// login/registration) — no real backend/session; see `AccountAccessModal`.
+// ---------------------------------------------------------------------------
+export type AuthMethod = 'LINE' | 'EMAIL'
+
+export interface AuthSession {
+  isLoggedIn: boolean
+  method: AuthMethod | null
+  displayName: string | null
+  email: string | null
 }
