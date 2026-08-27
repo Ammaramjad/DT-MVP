@@ -25,6 +25,11 @@ connected, real-time system even though each app is designed and branded as a ge
 | Fleet OS — Driver Compliance | `/fleet-os/compliance` | — (new) | — |
 | Fleet OS — Finance / Settlement | `/fleet-os/finance` | — (new) | — |
 | Fleet OS — Reports | `/fleet-os/reports` | — (new) | — |
+| **Fleet OS — Manual Order Entry** (手動開單) | `/fleet-os/manual-order` | — (new) | — |
+| **Fleet OS — Translation Proofreading** (翻譯校對) | `/fleet-os/translation-qa` | — (new) | — |
+| **Fleet OS — Flight Board** (航班看板) | `/fleet-os/flights` | — (new) | — |
+| **Fleet OS — Account Management** (帳號管理) | `/fleet-os/accounts` | — (new) | — |
+| **Fleet OS — Operating Parameters** (營運參數) | `/fleet-os/params` | — (new) | — |
 | Fleet OS — Administration (roles, privacy/audit, system health) | `/fleet-os/admin` | — (new) | — |
 | Driver App | `/driver` | — | — |
 | Customer App | `/customer` | — | — |
@@ -213,6 +218,38 @@ already models one trip at a time end-to-end.
 - **Account surface**: Customer App → Account → "Continue with LINE"/"Continue with Email", and the order-lookup
   card (try a real order number from a confirmation screen, or a bogus one to see the not-found state).
 
+## Fleet OS scheduling-dashboard audit (workhive.uk reference round)
+
+The client referenced a live "Fleet OS" scheduling dashboard (Chinese: 排班總覽 / Schedule Overview) as a target for
+feature parity. This round re-verified, screen by screen, that every genuine feature on that reference dashboard has
+a real, working equivalent here — not just a visual placeholder.
+
+| Reference feature | Status before this round | What was done |
+|---|---|---|
+| 排班總覽 Schedule Overview (KPI cards, 30-day capacity heatmap, shift split, hourly volume chart) | Present — `/fleet-os` dashboard + Analytics/Reports tabs | Verified fully present; no change needed |
+| 排班管理 Shift Management (driver × day matrix) | Present — `DriverScheduleMatrix` under Roster → Schedule | Verified fully present; no change needed |
+| 本日班表 Today's Roster (per-driver job list, shift/status filters) | **Missing** — no per-driver "today's jobs" view existed | Added as a new **Today's Roster** tab in `/fleet-os/roster` (`TodayRosterBoard.tsx`): shift/status filters, reassignment + shift-adjustment counters, expandable per-driver job list |
+| 訂單總表 Order List | Present — Orders & Dispatch queue with the full 16-state badge set | Verified fully present; our version is deeper (16 states vs. the reference's simpler status set) |
+| 手動開單 Manual Order Entry | **Missing** — no staff-facing "key in a phone booking" form existed | Added `/fleet-os/manual-order` (`ManualOrderPanel.tsx`) — creates a real `CONFIRMED` order in the shared store |
+| 航班看板 Flight Board | **Missing** — flight data only existed inline on individual order cards, no dedicated board | Added `/fleet-os/flights` (`FlightBoardPanel.tsx`) — aggregates every flight linked to today's orders live, with delay-severity highlighting and an auto-refresh note |
+| 車隊地圖 Fleet Map incl. anomaly/unresponsive-driver legend | Partially present — unresponsive drivers already pulsed red on the map, but there was no legend/filter UI or click-through detail | Enhanced `FleetMapView.tsx`: tier legend doubles as a filter, an "unresponsive only" isolate toggle, click-through to a new **Driver Task Panel**, and a full-viewport **Big Screen** mode |
+| 司機管理 Driver Management by tier | Present — Driver Roster tab, tier badges throughout | Verified fully present; no change needed |
+| 帳號管理 Account Management (staff logins + driver login toggle) | **Missing** — no staff-account CRUD and no way to disable a driver's app login independent of dispatch status | Added `/fleet-os/accounts` (`AccountsPanel.tsx`) — staff account create/disable, driver login enable/disable |
+| 營運參數 Operating Parameters (shift windows, roster publish lead time, etc.) | **Missing** — these values existed as hardcoded constants, not an editable settings screen | Added `/fleet-os/params` (`OperatingParametersPanel.tsx`) — editable, audit-logged system-wide scheduling config |
+| 翻譯校對 Translation Proofreading (AI-pretranslated order notes needing human review) | **Missing** entirely — no concept of foreign-language order notes existed | Added `/fleet-os/translation-qa` (`TranslationQaPanel.tsx`) plus `lib/translation.ts`: orders from foreign OTA/LINE channels with a foreign-sounding customer name deterministically get an AI-pretranslated Chinese draft + original-language source text queued for review |
+| Manual Excel export / other back-office-only tooling unrelated to airport-transfer dispatch | N/A | Deliberately **not** built — out of scope for this platform's actual data domain, consistent with earlier rounds' documented judgment calls |
+
+Everything in the "What was done" column above is a real, store-backed feature (not a static mock): Manual Order
+Entry creates an actual order; Translation Proofreading edits are saved via `submitTranslationReview`; Account
+Management's enable/disable toggles flip real `staffAccounts`/`driver.loginEnabled` state; Operating Parameters
+writes to the compliance audit log on save; the Flight Board is derived live from the order list rather than a
+separate mock feed; and Today's Roster reads the same live driver/order state as the rest of Fleet OS.
+
+One incidental bug was found and fixed during verification: the Operating Parameters "Save" button (and any future
+header-right action button) could render directly underneath the fixed `DemoModeSwitcher` pill's hit area,
+making it unclickable at common viewport widths. `PanelHeader.tsx` now reserves a permanent right-side gutter so
+every module's header-right button stays clear of that pill.
+
 ## Module-by-module rundown
 
 ### Marketplace (`/marketplace`) — OTA-style discovery
@@ -286,7 +323,10 @@ Customer App.
   drivers, anomalies, revenue), a filterable order queue with the full 16-state badge set, per-order multi-channel
   dispatch/escalation log and Status Audit Timeline, a live Taiwan map with animated driver markers, a notification
   feed, driver-document expiry alerts, the Analytics & Reports dashboard, and Capacity Forecast / Driver Schedule /
-  Fleet Roster tabs.
+  Fleet Roster tabs. The Fleet Map itself (`FleetMapView.tsx`, shared by both the Leaflet renderer and the offline
+  SVG fallback) adds a tier legend that doubles as a click-to-filter control, an "unresponsive drivers only" isolate
+  toggle, click-through from any driver marker to a **Driver Task Panel** (current job, dispatch log, status
+  timeline), and a full-viewport **Big Screen** mode for an ops-room display.
 - **Suppliers** (`/fleet-os/suppliers`) — supplier list (Klook/KKday/ezTravel/Booking.com/Direct-style adapters)
   with commission %, active orders, rating, avg. confirmation time, and pause/activate/suspend actions per
   supplier — modeling the supplier-adapter pattern (product/availability/pricing/booking/status/cancellation).
@@ -316,7 +356,24 @@ Customer App.
   approve/reject actions that drive the order back through `CANCELLATION_REQUESTED → CANCELLED → REFUND_PENDING →
   REFUNDED`.
 - **Driver Roster** (`/fleet-os/roster`) — fleet breakdown by tier (owned fleet/paid member/outside contractor) and
-  live unresponsive-driver flags.
+  live unresponsive-driver flags, plus **Schedule** (driver × day shift matrix) and **Today's Roster** tabs — the
+  latter groups today's jobs per on-shift driver with shift/status filters, reassignment and shift-adjustment
+  counters, and an expandable per-driver job list (time, type, route, status, price).
+- **Manual Order Entry** (`/fleet-os/manual-order`) — a dispatcher/counter-staff form (手動開單) for phone or walk-in
+  bookings: type (airport pickup/drop-off/tour charter), source, flight number, customer info, pickup/drop-off,
+  vehicle type, quoted price, and notes — submitting creates a real `CONFIRMED` order directly in the shared store.
+- **Translation Proofreading** (`/fleet-os/translation-qa`) — a queue (翻譯校對) of orders whose free-text notes
+  arrived from a foreign-language OTA/LINE channel and were AI-pretranslated into a Traditional Chinese working
+  draft; staff review the original text side by side with the editable draft and confirm it before it's treated as
+  final.
+- **Flight Board** (`/fleet-os/flights`) — every today's flight (航班看板) that has at least one linked order,
+  aggregated live from the shared order list: direction (arrival/departure/mixed), gate, scheduled vs. estimated
+  time, delay severity, linked-order count, and the drivers already matched to that flight.
+- **Account Management** (`/fleet-os/accounts`) — staff logins (帳號管理: create/disable support & admin accounts)
+  and a driver tab to enable/disable each driver's app-login access, independent of their on-shift/dispatch status.
+- **Operating Parameters** (`/fleet-os/params`) — system-wide scheduling configuration (營運參數): day-shift
+  start/end hour, night-/day-shift roster publish lead time, driver planning window, and the Flight Board
+  auto-refresh interval — every save is written to the compliance audit log with the acting account.
 - **Driver Compliance** (`/fleet-os/compliance`) — document expiry/OCR review across the whole fleet (the Fleet OS
   side of the Driver App's own document center).
 - **Finance / Settlement** (`/fleet-os/finance`) — payout records surfaced in the Driver App's Earnings screen.
