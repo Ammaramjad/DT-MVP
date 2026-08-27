@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, KeyRound, ListTree, Luggage, MessageCircle, MonitorSmartphone, Phone, Plane, QrCode, ShieldCheck, Star, Users, X } from 'lucide-react'
+import { Car, Copy, KeyRound, ListTree, Luggage, MessageCircle, MonitorSmartphone, Phone, Plane, QrCode, ShieldCheck, Star, UserRound, Users, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { CustomerProfile, Driver, Order, Vehicle } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
 import { StatusStepper } from '../ui/StatusStepper'
-import { OrderTypeBadge, FlightBadge, ChannelBadge } from '../ui/OrderBadges'
+import { OrderTypeBadge, FlightBadge, ChannelBadge, UrgencyBadge } from '../ui/OrderBadges'
 import { CountdownRing } from '../ui/CountdownRing'
 import { RouteMapView } from '../map/RouteMapView'
 import { BookingHistoryCard } from './BookingHistoryCard'
@@ -13,6 +13,7 @@ import { VehicleCard } from '../vehicles/VehicleCard'
 import { FareBreakdownCard } from '../vehicles/FareBreakdownCard'
 import { formatClock, formatRelative, formatTWD, orderStatusLabel, ticksToMinutesLabel } from '../../lib/format'
 import { remainingDistanceKm } from '../../lib/geo'
+import { isDriverInfoRevealed, isVehicleSubstituted } from '../../lib/selectors'
 import { useLang } from '../../i18n'
 
 /** The Customer App's "Activity" tab — a polished Uber/55688-style live
@@ -25,6 +26,7 @@ export function ActivityScreen({
   onSelectOrder,
   driver,
   vehicle,
+  vehicles = [],
   profile,
   liveOrders,
   onGoToSafety,
@@ -34,16 +36,21 @@ export function ActivityScreen({
   onSelectOrder: (id: string) => void
   driver: Driver | undefined
   vehicle: Vehicle | undefined
+  vehicles?: Vehicle[]
   profile: CustomerProfile | null
   liveOrders: Order[]
   onGoToSafety?: () => void
 }) {
   const { t, lang } = useLang()
   const requestCancellation = useFleetStore((s) => s.requestCancellation)
+  const revealDriverInfoNow = useFleetStore((s) => s.revealDriverInfoNow)
   const [copied, setCopied] = useState(false)
   const [messaged, setMessaged] = useState(false)
   const [showVoucher, setShowVoucher] = useState(false)
   const [cancelRequested, setCancelRequested] = useState(false)
+
+  const driverRevealed = isDriverInfoRevealed(order)
+  const substituted = isVehicleSubstituted(order, vehicles)
 
   useEffect(() => {
     if (!copied) return
@@ -99,7 +106,10 @@ export function ActivityScreen({
             <p className="font-mono text-sm font-bold text-slate-800">{order.orderNo}</p>
             <p className="text-xs text-slate-400">{t('customer.scheduled', { clock: formatClock(order.scheduledTime, lang) })}</p>
           </div>
-          <OrderTypeBadge type={order.type} />
+          <div className="flex flex-col items-end gap-1.5">
+            <OrderTypeBadge type={order.type} />
+            <UrgencyBadge urgency={order.bookingUrgency} />
+          </div>
         </div>
 
         {isCancelled ? (
@@ -128,8 +138,8 @@ export function ActivityScreen({
           </motion.div>
         )}
 
-        {isDispatched && driver && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4 rounded-xl bg-slate-50 p-3.5">
+        {isDispatched && driver && driverRevealed && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4 rounded-xl bg-slate-50 p-3.5" data-testid="customer-driver-revealed-card">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">{driver.avatarEmoji}</div>
               <div className="flex-1">
@@ -170,6 +180,32 @@ export function ActivityScreen({
               )}
             </AnimatePresence>
           </motion.div>
+        )}
+
+        {/* Driver-info-reveal timing (萬馬接送) — full driver contact details
+            are withheld until the trip's reveal window/dispatch. A demo
+            "reveal now" shortcut is offered so the state is watchable
+            without waiting on real wall-clock time. */}
+        {isDispatched && driver && !driverRevealed && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 flex items-center justify-between gap-2 rounded-xl bg-slate-50 p-3.5"
+            data-testid="customer-driver-not-revealed-card"
+          >
+            <span className="flex items-center gap-2 text-xs font-medium text-slate-500">
+              <UserRound className="h-4 w-4" /> {t('trips.driverNotRevealedYet')}
+            </span>
+            <button onClick={() => revealDriverInfoNow(order.id)} data-testid="customer-reveal-driver-now" className="text-[11px] font-semibold text-blue-600 hover:underline">
+              {t('trips.revealNowDemo')}
+            </button>
+          </motion.div>
+        )}
+
+        {substituted && !isDone && !isCancelled && (
+          <div className="mt-3 flex items-center gap-1.5 rounded-xl bg-amber-50 px-3.5 py-2.5 text-[11px] text-amber-700" data-testid="customer-vehicle-substituted-notice">
+            <Car className="h-3.5 w-3.5" /> {t('trips.vehicleSubstituted')}
+          </div>
         )}
 
         {isDispatched && !isDone && !isCancelled && (
@@ -291,6 +327,13 @@ export function ActivityScreen({
             <FareBreakdownCard fareBreakdown={order.fareBreakdown} distanceKm={order.distanceKm} durationMin={order.durationMin} />
           </div>
         </details>
+
+        {order.lateFeeAmount != null && order.lateFeeAmount > 0 && (
+          <div className="mt-2 flex items-center justify-between rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs text-amber-700" data-testid="customer-waiting-fee-notice">
+            <span>{t('trips.waitingFeeCharged', { min: order.lateFeeWaitMinutes ?? 0 })}</span>
+            <span className="font-semibold">{t('pricing.cashToDriver', { amount: formatTWD(order.lateFeeAmount) })}</span>
+          </div>
+        )}
 
         {order.statusHistory.length > 0 && (
           <div className="mt-4 rounded-xl bg-slate-50 p-3.5">

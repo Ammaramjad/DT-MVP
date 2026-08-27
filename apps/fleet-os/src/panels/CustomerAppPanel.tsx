@@ -89,6 +89,7 @@ export default function CustomerAppPanel() {
               onSelectOrder={setFocusOrder}
               driver={driver}
               vehicle={vehicle}
+              vehicles={vehicles}
               profile={customerProfile}
               liveOrders={customerLiveOrders}
               onGoToSafety={() => setTab('SAFETY')}
