@@ -33,6 +33,7 @@ import { EarningsScreen } from '../components/driver/EarningsScreen'
 import { ActivityScreen } from '../components/driver/ActivityScreen'
 import { AccountScreen } from '../components/driver/AccountScreen'
 import { VehicleCard } from '../components/vehicles/VehicleCard'
+import { EmergencyReportModal } from '../components/driver/EmergencyReportModal'
 import type { Order } from '../types'
 import { formatClock, formatTWD, ticksToMinutesLabel } from '../lib/format'
 import { remainingDistanceKm } from '../lib/geo'
@@ -55,6 +56,8 @@ export default function DriverPanel() {
   const agreeToWaitForLatePassenger = useFleetStore((s) => s.agreeToWaitForLatePassenger)
   const simulateLatePassenger = useFleetStore((s) => s.simulateLatePassenger)
 
+  const reportDriverEmergency = useFleetStore((s) => s.reportDriverEmergency)
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false)
   const [tab, setTab] = useState<DriverTab>('HOME')
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null)
   const [pinInput, setPinInput] = useState('')
@@ -90,7 +93,7 @@ export default function DriverPanel() {
   const remainingTicks = activeLeg ? activeLeg.durationTicks * (1 - activeOrder!.legProgress) : 0
 
   return (
-    <div className="min-h-screen bg-mission-950 bg-noise pb-24 text-white">
+    <div className="min-h-screen bg-mission-950 bg-noise pb-24 text-white" data-testid="driver-app-shell">
       {/* Standalone Driver App header — deliberately minimal, no admin/control-center
           chrome. Online/offline availability is front-and-center, Uber-driver-style. */}
       <div className="sticky top-0 z-[700] border-b border-white/10 bg-mission-950/90 px-4 py-3 backdrop-blur-xl" data-testid="driver-app-header">
@@ -121,6 +124,11 @@ export default function DriverPanel() {
               {t('driver.onTrip')}
             </Badge>
           )}
+          {driver.status === 'INCIDENT' && (
+            <Badge tone="pink" pulse>
+              {t('driver.incidentMode')}
+            </Badge>
+          )}
           {driver.status === 'PENDING_RESPONSE' && (
             <Badge tone="pink" pulse>
               {t('driver.awaitingResponse')}
@@ -145,6 +153,7 @@ export default function DriverPanel() {
                     remainingKm={remainingKm}
                     remainingTicks={remainingTicks}
                     onStart={() => startTrip(activeOrder.id)}
+                    onOpenEmergency={() => setShowEmergencyModal(true)}
                     pinInput={pinInput}
                     onPinChange={setPinInput}
                     pinError={pinError}
@@ -223,6 +232,20 @@ export default function DriverPanel() {
       {/* Full-screen incoming-request takeover — shows above whichever tab is
           active, exactly like the real Uber Driver app. */}
       <AnimatePresence>{incomingRequest && <IncomingRequestModal key={incomingRequest.id} order={incomingRequest} />}</AnimatePresence>
+
+      {/* Dedicated Emergency Report Modal */}
+      <AnimatePresence>
+        {showEmergencyModal && activeOrder && (
+          <EmergencyReportModal
+            orderNo={activeOrder.orderNo}
+            onClose={() => setShowEmergencyModal(false)}
+            onSubmit={(data) => {
+              reportDriverEmergency(activeOrder.id, data.incidentType, data)
+              setShowEmergencyModal(false)
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -296,6 +319,7 @@ function TripInProgress({
   remainingKm,
   remainingTicks,
   onStart,
+  onOpenEmergency,
   pinInput,
   onPinChange,
   pinError,
@@ -308,6 +332,7 @@ function TripInProgress({
   remainingKm: number
   remainingTicks: number
   onStart: () => void
+  onOpenEmergency: () => void
   pinInput: string
   onPinChange: (v: string) => void
   pinError: boolean
@@ -321,8 +346,33 @@ function TripInProgress({
   const isLate = waitMinutes > WAITING_GRACE_MINUTES
   const feePreview = isLate ? computeWaitingFee(order.vehicleCategory, waitMinutes) : 0
   const isForfeitable = waitMinutes > WAITING_FEE_FORFEIT_MINUTES && !order.waitingFeeAgreed
+  const isIncidentReported = order.incidentReportedAt !== undefined && order.emergencyStatus === 'INCIDENT_REPORTED'
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      {/* If this order has an active incident reported by this driver */}
+      {isIncidentReported ? (
+        <div className="border-b border-rose-500/30 bg-rose-950/40 p-4" data-testid="driver-incident-mode-banner">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-500/20 text-rose-400 ring-1 ring-rose-500/40">
+              <ShieldAlert className="h-6 w-6" />
+            </span>
+            <div>
+              <p className="text-sm font-bold text-rose-300">{t('driver.emergency.incidentActiveTitle')}</p>
+              <p className="text-xs text-rose-200/80">{t('driver.emergency.incidentActiveSubtitle')}</p>
+            </div>
+          </div>
+          <div className="mt-3 rounded-xl border border-rose-500/20 bg-black/40 p-3 text-xs text-slate-300 space-y-1.5">
+            <p className="font-semibold text-rose-300">
+              {t('driver.emergency.typeLabel')}: {t(`driver.emergency.type${order.incidentType === 'MEDICAL_EMERGENCY' ? 'Medical' : order.incidentType === 'BREAKDOWN' ? 'Breakdown' : order.incidentType === 'ROAD_BLOCK' ? 'RoadBlock' : 'Accident'}`)}
+            </p>
+            <p>{t('driver.emergency.passengerSafety')}: {order.incidentDetails?.passengerSafe ? t('driver.emergency.passengerSafe') : t('driver.emergency.passengerInjured')}</p>
+            {order.incidentDetails?.note && <p className="text-slate-400">{order.incidentDetails.note}</p>}
+            <p className="pt-1 text-[11px] text-cyan-300">✓ {t('driver.emergency.rescueCoordinating')}</p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <div className="flex items-center justify-between">
           <span className="font-mono text-sm font-bold">{order.orderNo}</span>
@@ -367,8 +417,7 @@ function TripInProgress({
         )}
       </div>
 
-      {/* Turn-by-turn-style map focus: a larger, more prominent map than the
-          old compact card, with the next-action button pinned directly below it. */}
+      {/* Turn-by-turn-style map focus */}
       <div className="h-56 overflow-hidden">
         <RouteMapView order={order} />
       </div>
@@ -387,7 +436,20 @@ function TripInProgress({
           </div>
         )}
 
-        {order.status === 'ARRIVED' && (
+        {/* Prominent Emergency SOS / Report Accident Action */}
+        {!isIncidentReported && (
+          <button
+            type="button"
+            onClick={onOpenEmergency}
+            data-testid="driver-report-emergency-btn"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/15 py-2.5 text-xs font-bold text-rose-300 shadow-sm transition hover:bg-rose-500/25 active:scale-[0.98]"
+          >
+            <ShieldAlert className="h-4 w-4 text-rose-400" />
+            {t('driver.emergency.reportSosBtn')}
+          </button>
+        )}
+
+        {order.status === 'ARRIVED' && !isIncidentReported && (
           <div className="rounded-xl border border-white/10 bg-white/5 p-3.5" data-testid="driver-pin-entry">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t('driver.enterPickupPin')}</p>
             <div className="mt-2 flex items-center gap-2">
@@ -405,9 +467,7 @@ function TripInProgress({
             </div>
             {pinError && <p className="mt-1.5 text-[11px] text-red-300">{t('driver.pinIncorrect')}</p>}
 
-            {/* Late-boarding waiting fee (萬馬接送): free for the first 15
-                minutes, then billed in 30-minute cash blocks once the
-                driver agrees by phone to keep waiting. */}
+            {/* Late-boarding waiting fee */}
             {order.waitStartedAt && (
               <div className="mt-2.5 rounded-lg bg-white/5 p-2.5" data-testid="driver-wait-timer">
                 <div className="flex items-center justify-between text-[11px] text-slate-300">
@@ -446,7 +506,9 @@ function TripInProgress({
           </div>
         )}
 
-        <ActionButton status={order.status} onStart={onStart} onVerifyPin={onVerifyPin} pinReady={pinInput.length === 4} />
+        {!isIncidentReported && (
+          <ActionButton status={order.status} onStart={onStart} onVerifyPin={onVerifyPin} pinReady={pinInput.length === 4} />
+        )}
 
         <OperatorSupportButton order={order} />
       </div>

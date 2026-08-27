@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Car, Copy, KeyRound, ListTree, Luggage, MessageCircle, MonitorSmartphone, Phone, Plane, QrCode, ShieldCheck, Star, UserRound, Users, X } from 'lucide-react'
+import { Car, Check, Copy, KeyRound, ListTree, Luggage, MessageCircle, MonitorSmartphone, Phone, Plane, QrCode, ShieldAlert, ShieldCheck, Siren, Star, UserRound, Users, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { CustomerProfile, Driver, Order, Vehicle } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
@@ -69,6 +69,10 @@ export function ActivityScreen({
   const isCancelled = order.status === 'CANCELLED'
   const isPendingDriver = order.status === 'DRIVER_MATCHING'
   const activeAttempt = order.dispatchAttempts[order.dispatchAttempts.length - 1]
+  const isEmergencyActive = order.incidentReportedAt !== undefined && order.emergencyStatus !== 'RESOLVED'
+  const isRescueDispatched = order.emergencyStatus === 'RESCUE_DISPATCHED' || order.emergencyStatus === 'RESCUE_EN_ROUTE' || order.emergencyStatus === 'RESCUE_ARRIVED'
+  const rescueDriver = useFleetStore((s) => s.drivers).find((d) => d.id === order.rescueDriverId)
+  const rescueVehicle = useFleetStore((s) => s.vehicles).find((v) => v.id === rescueDriver?.vehicleId)
 
   const activeLeg =
     order.status === 'DRIVER_EN_ROUTE' || order.status === 'ASSIGNED' || order.status === 'CONFIRMED' ? order.routeToPickup : order.routeToDropoff
@@ -111,6 +115,99 @@ export function ActivityScreen({
             <UrgencyBadge urgency={order.bookingUrgency} />
           </div>
         </div>
+
+        {/* Calming, reassuring Emergency Reassurance Card */}
+        {isEmergencyActive && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mt-4 overflow-hidden rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-amber-50 p-4 shadow-md ring-1 ring-rose-100"
+            data-testid="customer-emergency-reassurance-card"
+          >
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-500 text-white shadow-md shadow-rose-500/30">
+                <ShieldAlert className="h-5 w-5" />
+              </span>
+              <div className="flex-1">
+                <p className="text-xs font-bold uppercase tracking-wider text-rose-600">
+                  {t('customer.emergency.incidentNoticeTitle')}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-800 leading-snug">
+                  {t('customer.emergency.reassuranceMessage')}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {t('customer.emergency.originalDriverIncidentNote', {
+                    driver: driver ? `${lang === 'zh' ? driver.nameZh : driver.name}` : '司機',
+                    type: order.incidentType ? t(`driver.emergency.type${order.incidentType === 'MEDICAL_EMERGENCY' ? 'Medical' : order.incidentType === 'BREAKDOWN' ? 'Breakdown' : order.incidentType === 'ROAD_BLOCK' ? 'RoadBlock' : 'Accident'}`) : '',
+                  })}
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Action Buttons */}
+            <div className="mt-3.5 grid grid-cols-3 gap-2 border-t border-rose-100 pt-3">
+              <button
+                onClick={onGoToSafety}
+                data-testid="customer-emergency-hotline-btn"
+                className="flex flex-col items-center justify-center gap-1 rounded-xl bg-white p-2 text-center text-[11px] font-semibold text-rose-700 shadow-sm ring-1 ring-rose-200 hover:bg-rose-50"
+              >
+                <Phone className="h-4 w-4 text-rose-500" />
+                <span>{t('customer.emergency.callHotline')}</span>
+              </button>
+
+              <button
+                onClick={() => setCopied(true)}
+                data-testid="customer-emergency-share-btn"
+                className="flex flex-col items-center justify-center gap-1 rounded-xl bg-white p-2 text-center text-[11px] font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+              >
+                {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-slate-500" />}
+                <span>{copied ? t('customer.emergency.statusShared') : t('customer.emergency.shareStatus')}</span>
+              </button>
+
+              <button
+                onClick={onGoToSafety}
+                data-testid="customer-emergency-sos-btn"
+                className="flex flex-col items-center justify-center gap-1 rounded-xl bg-rose-600 p-2 text-center text-[11px] font-semibold text-white shadow-sm shadow-rose-600/30 hover:bg-rose-700"
+              >
+                <Siren className="h-4 w-4" />
+                <span>{t('customer.emergency.emergencySos')}</span>
+              </button>
+            </div>
+
+            {/* Replacement Driver Details (Once Dispatched) */}
+            {isRescueDispatched && rescueDriver && (
+              <div className="mt-3.5 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3" data-testid="customer-rescue-driver-card">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                  ✓ {t('customer.emergency.replacementDriverEnRoute')}
+                </p>
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">
+                    {rescueDriver.avatarEmoji}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-slate-800">
+                      {lang === 'zh' ? rescueDriver.nameZh : rescueDriver.name}{' '}
+                      <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                        {t('customer.emergency.rescueDriverBadge')}
+                      </span>
+                    </p>
+                    <p className="text-xs text-slate-600">
+                      {rescueVehicle?.plate} · <Star className="inline h-3 w-3 fill-amber-400 text-amber-400" /> {rescueDriver.rating.toFixed(1)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+                      aria-label={t('customer.activity.callDriver')}
+                    >
+                      <Phone className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {isCancelled ? (
           <div className="mt-4 rounded-xl bg-red-50 p-4 text-center text-sm text-red-500">{t('customer.cancelled')}</div>

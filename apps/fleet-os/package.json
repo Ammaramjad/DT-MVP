@@ -12,6 +12,7 @@
     "test:e2e:lifecycle": "node e2e/lifecycle.mjs",
     "test:e2e:vehicle-pricing": "node e2e/vehicle-pricing.mjs",
     "test:e2e:realism-features": "node e2e/realism-features.mjs",
+    "test:e2e:emergency-rescue": "node e2e/emergency-rescue.mjs",
     "demo:escalation": "node e2e/demo-escalation.mjs",
     "demo:features": "node e2e/demo-features.mjs",
     "demo:screenshots": "node e2e/demo-screenshots.mjs",

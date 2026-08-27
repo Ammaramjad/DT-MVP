@@ -62,6 +62,35 @@ export function suggestDriver(order: Order, drivers: Driver[], vehicles: Vehicle
   return scored[0]?.driverId ?? null
 }
 
+export function rankRescueDrivers(
+  order: Order,
+  drivers: Driver[],
+  vehicles: Vehicle[],
+  accidentLocation: { lat: number; lng: number },
+): { driver: Driver; vehicle: Vehicle; distanceKm: number; etaMinutes: number; score: number }[] {
+  const available = drivers.filter((d) => d.status === 'AVAILABLE' && d.id !== order.originalDriverId)
+  const vehicleById = new Map(vehicles.map((v) => [v.id, v]))
+
+  const ranked = available
+    .map((d) => {
+      const vehicle = vehicleById.get(d.vehicleId)
+      if (!vehicle || !vehicleSatisfiesOrder(vehicle, order)) return null
+
+      const distanceKm = haversineKm(d.lat, d.lng, accidentLocation.lat, accidentLocation.lng)
+      const etaMinutes = Math.max(3, Math.round(distanceKm * 2.2))
+      const tierRank = TIER_PRIORITY.indexOf(d.tier)
+      const categoryMatch = vehicle.category === order.vehicleCategory ? 0 : 1
+
+      // Combined ranking score (lower is better)
+      const score = distanceKm * 1.5 + tierRank * 5 + categoryMatch * 3
+      return { driver: d, vehicle, distanceKm, etaMinutes, score }
+    })
+    .filter((x): x is { driver: Driver; vehicle: Vehicle; distanceKm: number; etaMinutes: number; score: number } => x !== null)
+
+  ranked.sort((a, b) => a.score - b.score)
+  return ranked
+}
+
 export function driverDisplayLabel(driver: Driver | undefined | null, lang: Lang = 'en'): string {
   if (!driver) return translate(lang, 'unassigned')
   return `${driver.name} · ${driver.nameZh}`

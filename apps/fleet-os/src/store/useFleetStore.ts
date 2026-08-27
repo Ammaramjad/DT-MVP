@@ -15,6 +15,9 @@ import type {
   Driver,
   DriverStats,
   DriverWorkingMode,
+  EmergencyStatus,
+  IncidentDetails,
+  IncidentType,
   LocationRef,
   ManualOrderInput,
   NotificationChannel,
@@ -153,6 +156,16 @@ interface FleetState {
   simulateFlightEvent: (orderId: string, kind: 'LANDED' | 'DIVERTED' | 'MAJOR_DELAY') => void
   addOrderWaypoint: (orderId: string, label: string) => void
   removeOrderWaypoint: (orderId: string, waypointId: string) => void
+
+  /** Phase 2 Blueprint module: 緊急處理 + 臨時調度系統 (Emergency & Rescue Dispatch) */
+  reportDriverEmergency: (
+    orderId: string,
+    incidentType: IncidentType,
+    details: { note: string; passengerSafe: boolean; needsAmbulance: boolean; vehicleTowed: boolean },
+  ) => void
+  dispatchRescueDriver: (orderId: string, replacementDriverId: string) => void
+  acceptRescueMission: (orderId: string, driverId: string) => void
+  resolveEmergencyIncident: (orderId: string) => void
 
   loginWithLine: () => void
   loginWithEmail: (email: string, displayName?: string) => void
@@ -1086,6 +1099,295 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       orders: s.orders.map((o) => (o.id === orderId ? { ...o, waypoints: o.waypoints.filter((w) => w.id !== waypointId) } : o)),
     })),
 
+  reportDriverEmergency: (orderId, incidentType, details) => {
+    set((s) => {
+      const order = s.orders.find((o) => o.id === orderId)
+      if (!order) return {}
+
+      const originalDriver = s.drivers.find((d) => d.id === order.driverId)
+      const currentPos = order.currentPos ?? (originalDriver ? { lat: originalDriver.lat, lng: originalDriver.lng, x: originalDriver.svgX, y: originalDriver.svgY } : { lat: order.pickup.lat, lng: order.pickup.lng, x: order.pickup.svgX, y: order.pickup.svgY })
+      const reportedLocation = {
+        lat: currentPos.lat,
+        lng: currentPos.lng,
+        x: currentPos.x,
+        y: currentPos.y,
+        address: `${order.pickup.name} 往 ${order.dropoff.name} 途中 (事故地點)`,
+      }
+
+      const fullIncidentDetails: IncidentDetails = {
+        note: details.note || 'Driver reported roadside emergency',
+        passengerSafe: details.passengerSafe,
+        needsAmbulance: details.needsAmbulance,
+        vehicleTowed: details.vehicleTowed,
+        reportedLocation,
+      }
+
+      const originalDriverId = order.driverId ?? undefined
+
+      let nextOrder: Order = {
+        ...order,
+        incidentReportedAt: Date.now(),
+        incidentType,
+        incidentDetails: fullIncidentDetails,
+        originalDriverId,
+        isEmergencyRescue: true,
+        emergencyStatus: 'INCIDENT_REPORTED',
+      }
+
+      nextOrder = appendAudit(
+        nextOrder,
+        'DRIVER',
+        `緊急事故回報 (${incidentType})`,
+        `司機回報事故：${fullIncidentDetails.note} · 乘客安全：${details.passengerSafe ? '是' : '需關注/就醫'} · 救護車：${details.needsAmbulance ? '需要 (119)' : '不需要'}`,
+      )
+
+      const updatedDrivers = s.drivers.map((d) =>
+        d.id === originalDriverId
+          ? {
+              ...d,
+              status: 'INCIDENT' as const,
+            }
+          : d,
+      )
+
+      const notifications = pushNotification(
+        s.notifications,
+        'ERROR',
+        'notif.emergencyIncident.title',
+        'notif.emergencyIncident.message',
+        {
+          orderNo: order.orderNo,
+          incidentType,
+          driverName: originalDriver?.name ?? 'Driver',
+          driverNameZh: originalDriver?.nameZh ?? '司機',
+        },
+        orderId,
+      )
+
+      const globalAuditLog = pushGlobalAudit(
+        s.globalAuditLog,
+        originalDriver ? `${originalDriver.name} (${originalDriver.nameZh})` : 'Driver',
+        `回報緊急事件 ${incidentType} (訂單 ${order.orderNo}) - 乘客安全: ${details.passengerSafe ? '安全' : '需協助'}`,
+        'Order',
+        order.id,
+      )
+
+      return {
+        orders: s.orders.map((o) => (o.id === orderId ? nextOrder : o)),
+        drivers: updatedDrivers,
+        notifications,
+        globalAuditLog,
+        focusOrderId: orderId,
+      }
+    })
+  },
+
+  dispatchRescueDriver: (orderId, replacementDriverId) => {
+    const s = get()
+    const order = s.orders.find((o) => o.id === orderId)
+    const replacementDriver = s.drivers.find((d) => d.id === replacementDriverId)
+    if (!order || !replacementDriver || replacementDriver.status !== 'AVAILABLE') return
+
+    const accidentPos = order.currentPos ?? {
+      lat: order.incidentDetails?.reportedLocation.lat ?? order.pickup.lat,
+      lng: order.incidentDetails?.reportedLocation.lng ?? order.pickup.lng,
+      x: order.incidentDetails?.reportedLocation.x ?? order.pickup.svgX,
+      y: order.incidentDetails?.reportedLocation.y ?? order.pickup.svgY,
+    }
+
+    const accidentLocationRef: LocationRef = {
+      id: `${order.id}-accident-spot`,
+      name: `Accident Location (${order.pickup.name} -> ${order.dropoff.name})`,
+      nameZh: `事故接駁地點 (${order.pickup.nameZh} 往 ${order.dropoff.nameZh})`,
+      address: order.incidentDetails?.reportedLocation.address ?? '即時事故救援定位點',
+      lat: accidentPos.lat,
+      lng: accidentPos.lng,
+      svgX: accidentPos.x,
+      svgY: accidentPos.y,
+      isAirport: false,
+    }
+
+    const replacementDriverLoc = driverAsLocation(replacementDriver)
+    const routeToAccident =
+      getCachedRoute(replacementDriverLoc, accidentLocationRef) ??
+      buildRoutePath(replacementDriverLoc, accidentLocationRef, `${order.id}-rescue-leg1-${replacementDriver.id}`)
+
+    const routeFromAccidentToDropoff =
+      getCachedRoute(accidentLocationRef, order.dropoff) ??
+      buildRoutePath(accidentLocationRef, order.dropoff, `${order.id}-rescue-leg2-${order.dropoff.id}`)
+
+    const attempt: DispatchAttempt = {
+      id: genId('dsp'),
+      orderId: order.id,
+      stage: 1,
+      driverId: replacementDriver.id,
+      driverName: replacementDriver.name,
+      channels: ['IN_APP', 'PHONE_CALL', 'LINE'],
+      sentAt: Date.now(),
+      respondBy: Date.now() + 15000,
+      status: 'AWAITING_RESPONSE',
+      resolvedAt: null,
+      simulateNoResponse: false,
+    }
+
+    let nextOrder: Order = {
+      ...order,
+      status: 'DRIVER_MATCHING',
+      emergencyStatus: 'RESCUE_DISPATCHED',
+      rescueDriverId: replacementDriver.id,
+      pendingDriverId: replacementDriver.id,
+      dispatchAttempts: [...order.dispatchAttempts, attempt],
+      routeToPickup: routeToAccident,
+      routeToDropoff: routeFromAccidentToDropoff,
+      legProgress: 0,
+    }
+
+    nextOrder = appendAudit(
+      nextOrder,
+      'DISPATCHER',
+      '指派緊急救援司機 (Rescue Re-dispatch)',
+      `已指派救援車輛/司機：${replacementDriver.name} (${replacementDriver.nameZh}) 前往事故地點接駁乘客`,
+    )
+
+    const updatedDrivers = s.drivers.map((d) =>
+      d.id === replacementDriver.id ? { ...d, status: 'PENDING_RESPONSE' as const } : d,
+    )
+
+    const notifications = pushNotification(
+      s.notifications,
+      'WARNING',
+      'notif.rescueDispatched.title',
+      'notif.rescueDispatched.message',
+      {
+        orderNo: order.orderNo,
+        driverName: replacementDriver.name,
+        driverNameZh: replacementDriver.nameZh,
+      },
+      orderId,
+      ['IN_APP', 'LINE', 'PHONE_CALL'],
+      replacementDriver.id,
+    )
+
+    const globalAuditLog = pushGlobalAudit(
+      s.globalAuditLog,
+      'ops.dispatcher',
+      `指派救援司機 ${replacementDriver.name} 前往支援訂單 ${order.orderNo}`,
+      'Order',
+      order.id,
+    )
+
+    set({
+      orders: s.orders.map((o) => (o.id === orderId ? nextOrder : o)),
+      drivers: updatedDrivers,
+      notifications,
+      globalAuditLog,
+    })
+
+    if (routeToAccident.source === 'SYNTHETIC') {
+      scheduleRouteHydration(order.id, 'routeToPickup', replacementDriverLoc, accidentLocationRef)
+    }
+  },
+
+  acceptRescueMission: (orderId, driverId) => {
+    const s = get()
+    const order = s.orders.find((o) => o.id === orderId)
+    const driver = s.drivers.find((d) => d.id === driverId)
+    if (!order || !driver) return
+
+    const vehicle = s.vehicles.find((v) => v.id === driver.vehicleId)
+    const lastIndex = order.dispatchAttempts.length - 1
+    const attempts = order.dispatchAttempts.map((a, i) =>
+      i === lastIndex ? { ...a, status: 'ACCEPTED' as const, resolvedAt: Date.now() } : a,
+    )
+
+    let nextOrder: Order = {
+      ...order,
+      status: 'DRIVER_EN_ROUTE',
+      emergencyStatus: 'RESCUE_EN_ROUTE',
+      driverId: driver.id,
+      vehicleId: vehicle?.id ?? null,
+      pendingDriverId: null,
+      dispatchAttempts: attempts,
+      legProgress: 0,
+    }
+
+    nextOrder = appendHistory(nextOrder, 'DRIVER')
+    nextOrder = appendAudit(
+      nextOrder,
+      'DRIVER',
+      '救援司機已接受任務 (Rescue Accepted)',
+      `${driver.name} (${driver.nameZh}) 已接單並即刻驅車前往事故現場接駁`,
+    )
+
+    const updatedDrivers = s.drivers.map((d) =>
+      d.id === driver.id ? { ...d, status: 'BUSY' as const, stats: bumpStats(d.stats, 'accepted') } : d,
+    )
+
+    const notifications = pushNotification(
+      s.notifications,
+      'SUCCESS',
+      'notif.rescueAccepted.title',
+      'notif.rescueAccepted.message',
+      {
+        orderNo: order.orderNo,
+        driverName: driver.name,
+        driverNameZh: driver.nameZh,
+      },
+      orderId,
+    )
+
+    const globalAuditLog = pushGlobalAudit(
+      s.globalAuditLog,
+      `${driver.name} (${driver.nameZh})`,
+      `接受緊急救援任務 (訂單 ${order.orderNo})`,
+      'Order',
+      order.id,
+    )
+
+    set({
+      orders: s.orders.map((o) => (o.id === orderId ? nextOrder : o)),
+      drivers: updatedDrivers,
+      notifications,
+      globalAuditLog,
+    })
+  },
+
+  resolveEmergencyIncident: (orderId) => {
+    set((s) => {
+      const order = s.orders.find((o) => o.id === orderId)
+      if (!order) return {}
+
+      let nextOrder: Order = {
+        ...order,
+        emergencyStatus: 'RESOLVED',
+      }
+      nextOrder = appendAudit(nextOrder, 'DISPATCHER', '緊急事故已結案 (Emergency Resolved)', '安全處理流程確認完畢')
+
+      const notifications = pushNotification(
+        s.notifications,
+        'SUCCESS',
+        'notif.emergencyResolved.title',
+        'notif.emergencyResolved.message',
+        { orderNo: order.orderNo },
+        orderId,
+      )
+
+      const globalAuditLog = pushGlobalAudit(
+        s.globalAuditLog,
+        'ops.safety',
+        `結案緊急事故紀錄 (訂單 ${order.orderNo})`,
+        'Order',
+        order.id,
+      )
+
+      return {
+        orders: s.orders.map((o) => (o.id === orderId ? nextOrder : o)),
+        notifications,
+        globalAuditLog,
+      }
+    })
+  },
+
   loginWithLine: () => set({ authSession: { isLoggedIn: true, method: 'LINE' as AuthMethod, displayName: 'LINE User', email: null } }),
   loginWithEmail: (email, displayName) =>
     set({ authSession: { isLoggedIn: true, method: 'EMAIL' as AuthMethod, displayName: displayName ?? email.split('@')[0], email } }),
@@ -1204,8 +1506,11 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       const driver = drivers.find((d) => d.id === order.pendingDriverId)
       if (!driver) return order
 
+      const isRescue = order.isEmergencyRescue && order.emergencyStatus === 'RESCUE_DISPATCHED'
+
+      // For rescue missions, let the driver UI or explicit acceptance handle it rather than background random auto-accept
       const timedOut = now >= attempt.respondBy
-      const shouldAutoAccept = !order.demoForceNoResponse && !timedOut && Math.random() < AUTO_ACCEPT_CHANCE_PER_TICK
+      const shouldAutoAccept = !isRescue && !order.demoForceNoResponse && !timedOut && Math.random() < AUTO_ACCEPT_CHANCE_PER_TICK
 
       if (shouldAutoAccept) {
         const vehicle = s.vehicles.find((v) => v.id === driver.vehicleId)
@@ -1222,7 +1527,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
 
       if (!timedOut) return order
 
-      if (attempt.stage === 1) {
+      if (attempt.stage === 1 && !isRescue) {
         const resolvedAttempts = order.dispatchAttempts.map((a, i) => (i === attemptIndex ? { ...a, status: 'TIMED_OUT' as const, resolvedAt: now } : a))
         const { order: escalated, notifications: nextNotifications } = startDispatchAttempt({ ...order, dispatchAttempts: resolvedAttempts }, driver, 2, notifications, 'SYSTEM')
         notifications = nextNotifications
@@ -1241,13 +1546,29 @@ export const useFleetStore = create<FleetState>((set, get) => ({
 
     orders = orders.map((order) => {
       if (order.status === 'DRIVER_EN_ROUTE' && order.routeToPickup) {
+        // If an emergency is reported and rescue has not yet arrived/dispatched, pause movement
+        if (order.incidentReportedAt && order.emergencyStatus === 'INCIDENT_REPORTED') {
+          return order
+        }
         const step = 1 / order.routeToPickup.durationTicks
         const nextProgress = order.legProgress + step
         if (nextProgress >= 1) {
-          notifications = pushNotification(notifications, 'SUCCESS', 'notif.driverArrived.title', 'notif.driverArrived.message', { orderNo: order.orderNo }, order.id)
+          const isRescueLeg = order.isEmergencyRescue && order.emergencyStatus === 'RESCUE_EN_ROUTE'
+          notifications = pushNotification(
+            notifications,
+            'SUCCESS',
+            isRescueLeg ? 'notif.rescueArrived.title' : 'notif.driverArrived.title',
+            isRescueLeg ? 'notif.rescueArrived.message' : 'notif.driverArrived.message',
+            { orderNo: order.orderNo },
+            order.id,
+          )
           const pos = { lat: order.pickup.lat, lng: order.pickup.lng, x: order.pickup.svgX, y: order.pickup.svgY }
           drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, lat: pos.lat, lng: pos.lng, svgX: pos.x, svgY: pos.y } : d))
-          return appendHistory({ ...order, status: 'ARRIVED', legProgress: 1, currentPos: pos, waitStartedAt: now }, 'SYSTEM')
+          const nextEmergencyStatus: EmergencyStatus | undefined = isRescueLeg ? 'RESCUE_ARRIVED' : order.emergencyStatus
+          return appendHistory(
+            { ...order, status: 'ARRIVED', legProgress: 1, currentPos: pos, waitStartedAt: now, emergencyStatus: nextEmergencyStatus },
+            'SYSTEM',
+          )
         }
         const pos = evaluateRoute(order.routeToPickup, nextProgress)
         drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, lat: pos.lat, lng: pos.lng, svgX: pos.x, svgY: pos.y } : d))
@@ -1255,13 +1576,17 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       }
 
       if (order.status === 'PASSENGER_ONBOARD' && order.routeToDropoff) {
+        // If an emergency is reported and rescue has not yet picked up, freeze car at incident spot
+        if (order.incidentReportedAt && order.emergencyStatus === 'INCIDENT_REPORTED') {
+          return order
+        }
         const step = 1 / order.routeToDropoff.durationTicks
         const nextProgress = order.legProgress + step
         if (nextProgress >= 1) {
           notifications = pushNotification(notifications, 'SUCCESS', 'notif.tripCompleted.title', 'notif.tripCompleted.message', { orderNo: order.orderNo }, order.id)
           drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, status: 'AVAILABLE' } : d))
           const pos = { lat: order.dropoff.lat, lng: order.dropoff.lng, x: order.dropoff.svgX, y: order.dropoff.svgY }
-          return appendHistory({ ...order, status: 'COMPLETED', legProgress: 1, currentPos: pos }, 'SYSTEM')
+          return appendHistory({ ...order, status: 'COMPLETED', legProgress: 1, currentPos: pos, emergencyStatus: order.isEmergencyRescue ? 'RESOLVED' : order.emergencyStatus }, 'SYSTEM')
         }
         const pos = evaluateRoute(order.routeToDropoff, nextProgress)
         drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, lat: pos.lat, lng: pos.lng, svgX: pos.x, svgY: pos.y } : d))

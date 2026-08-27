@@ -1,3 +1,14 @@
+export type IncidentType = 'ACCIDENT' | 'BREAKDOWN' | 'MEDICAL_EMERGENCY' | 'ROAD_BLOCK'
+export type EmergencyStatus = 'INCIDENT_REPORTED' | 'RESCUE_DISPATCHED' | 'RESCUE_EN_ROUTE' | 'RESCUE_ARRIVED' | 'RESOLVED'
+
+export interface IncidentDetails {
+  note: string
+  passengerSafe: boolean
+  needsAmbulance: boolean
+  vehicleTowed: boolean
+  reportedLocation: { lat: number; lng: number; x: number; y: number; address?: string }
+}
+
 export type OrderType = 'AIRPORT_PICKUP' | 'AIRPORT_DROPOFF' | 'TOUR_CHARTER' | 'INTERCITY_TRANSFER' | 'HOURLY_CHARTER'
 
 /**
@@ -101,7 +112,7 @@ export interface PassengerRequirements {
 
 export type DriverTier = 'OWNED_FLEET' | 'PAID_MEMBER' | 'OUTSIDE_CONTRACTOR'
 
-export type DriverStatus = 'AVAILABLE' | 'PENDING_RESPONSE' | 'BUSY' | 'OFFLINE' | 'BREAK'
+export type DriverStatus = 'AVAILABLE' | 'PENDING_RESPONSE' | 'BUSY' | 'OFFLINE' | 'BREAK' | 'INCIDENT'
 export type DriverWorkingMode = 'AIRPORT_PRIORITY' | 'CITY_PRIORITY' | 'ANY'
 
 /** Phase 2 multi-channel driver notification module. */
@@ -487,6 +498,15 @@ export interface Order {
   translationStatus: TranslationStatus
   sourceLanguage: SourceLanguage | null
   originalNoteText: string | null
+
+  /** Phase 2 Blueprint module: 緊急處理 + 臨時調度系統 (Emergency & Rescue Dispatch) */
+  incidentReportedAt?: number
+  incidentType?: IncidentType
+  incidentDetails?: IncidentDetails
+  originalDriverId?: string
+  rescueDriverId?: string
+  isEmergencyRescue?: boolean
+  emergencyStatus?: EmergencyStatus
 }
 
 export type TranslationStatus = 'NOT_NEEDED' | 'PENDING' | 'CONFIRMED'

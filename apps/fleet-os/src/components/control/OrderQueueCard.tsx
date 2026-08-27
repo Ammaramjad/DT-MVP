@@ -73,6 +73,11 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
         <span className="rounded-full bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-300" data-testid="order-card-vehicle-category">
           {t(`vehicle.category.${order.vehicleCategory}`)}
         </span>
+        {order.isEmergencyRescue && (
+          <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold text-rose-300 ring-1 ring-rose-500/40" data-testid="order-card-emergency-badge">
+            {t('common.emergencyBadge')}
+          </span>
+        )}
         {order.flightInfo && <FlightBadge status={order.flightInfo.status} />}
         {order.passengerRequirements.childSeat && (
           <span className="flex items-center gap-0.5 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300" title={t('driver.requirement.childSeat')}>

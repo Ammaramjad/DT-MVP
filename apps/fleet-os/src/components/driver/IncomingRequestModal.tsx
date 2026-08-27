@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Accessibility, Baby, CheckCircle2, Dog, Luggage, MapPin, MessageSquareText, Star, Users, X, Zap } from 'lucide-react'
+import { Accessibility, Baby, CheckCircle2, Dog, Luggage, MapPin, MessageSquareText, ShieldAlert, Siren, Star, Users, X, Zap } from 'lucide-react'
 import type { DeclineReason, Order } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
 import { CountdownRing } from '../ui/CountdownRing'
@@ -22,12 +22,22 @@ const DECLINE_REASONS: DeclineReason[] = ['TOO_FAR', 'LOW_FARE', 'VEHICLE_MISMAT
 export function IncomingRequestModal({ order }: { order: Order }) {
   const { t, lang } = useLang()
   const respondToDispatch = useFleetStore((s) => s.respondToDispatch)
+  const acceptRescueMission = useFleetStore((s) => s.acceptRescueMission)
   const [showDeclineReasons, setShowDeclineReasons] = useState(false)
   const attempt = order.dispatchAttempts[order.dispatchAttempts.length - 1]
   if (!attempt) return null
 
-  const isEscalated = attempt.stage === 2
+  const isRescueMission = order.isEmergencyRescue && order.emergencyStatus === 'RESCUE_DISPATCHED'
+  const isEscalated = attempt.stage === 2 && !isRescueMission
   const passengerRating = 4.3 + (order.orderNo.length % 7) * 0.1
+
+  const handleAccept = () => {
+    if (isRescueMission && attempt.driverId) {
+      acceptRescueMission(order.id, attempt.driverId)
+    } else {
+      respondToDispatch(order.id, true)
+    }
+  }
 
   return (
     <motion.div
@@ -43,18 +53,33 @@ export function IncomingRequestModal({ order }: { order: Order }) {
         exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 260, damping: 26 }}
         className={`relative flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-[28px] border-t sm:rounded-[28px] sm:border ${
-          isEscalated ? 'border-amber-400/40 bg-slate-900' : 'border-cyan-400/40 bg-slate-900'
+          isRescueMission
+            ? 'border-rose-500 bg-slate-900 shadow-2xl shadow-rose-950/80'
+            : isEscalated
+            ? 'border-amber-400/40 bg-slate-900'
+            : 'border-cyan-400/40 bg-slate-900'
         }`}
       >
+        {isRescueMission && (
+          <div className="bg-gradient-to-r from-rose-600 to-amber-600 px-4 py-2 text-center text-xs font-black uppercase tracking-wider text-white shadow-md">
+            <span className="flex items-center justify-center gap-1.5" data-testid="rescue-mission-banner">
+              <Siren className="h-4 w-4 animate-pulse" /> {t('driver.rescue.highPriorityBanner')}
+            </span>
+          </div>
+        )}
+
         <div className="flex flex-col items-center gap-3 px-6 pt-7">
           <motion.span
             animate={{ opacity: [1, 0.5, 1] }}
             transition={{ duration: 1.4, repeat: Infinity }}
-            className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide ${isEscalated ? 'text-amber-300' : 'text-cyan-300'}`}
+            className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide ${
+              isRescueMission ? 'text-rose-400' : isEscalated ? 'text-amber-300' : 'text-cyan-300'
+            }`}
           >
-            <Zap className="h-4 w-4" /> {isEscalated ? t('driver.escalatedRequest') : t('driver.incomingRequest')}
+            {isRescueMission ? <ShieldAlert className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+            {isRescueMission ? t('driver.rescue.missionTitle') : isEscalated ? t('driver.escalatedRequest') : t('driver.incomingRequest')}
           </motion.span>
-          <CountdownRing sentAt={attempt.sentAt} respondBy={attempt.respondBy} size={104} tone={isEscalated ? 'amber' : 'cyan'} />
+          <CountdownRing sentAt={attempt.sentAt} respondBy={attempt.respondBy} size={104} tone={isRescueMission ? 'red' : isEscalated ? 'amber' : 'cyan'} />
           <div className="flex flex-wrap justify-center gap-1.5">
             {attempt.channels.map((c) => (
               <ChannelBadge key={c} channel={c} />
@@ -63,6 +88,15 @@ export function IncomingRequestModal({ order }: { order: Order }) {
         </div>
 
         <div className="mt-5 flex-1 overflow-y-auto px-6">
+          {isRescueMission && (
+            <div className="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200 space-y-1">
+              <p className="font-bold flex items-center gap-1.5 text-rose-300">
+                <ShieldAlert className="h-4 w-4 text-rose-400" /> {t('driver.rescue.instructionsTitle')}
+              </p>
+              <p>{t('driver.rescue.instructionsBody', { pickup: lang === 'zh' ? order.pickup.nameZh : order.pickup.name, dest: lang === 'zh' ? order.dropoff.nameZh : order.dropoff.name })}</p>
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-2">
             <span className="font-mono text-base font-bold text-white">{order.orderNo}</span>
             <div className="flex items-center gap-1.5">
@@ -169,8 +203,8 @@ export function IncomingRequestModal({ order }: { order: Order }) {
                 <Button variant="secondary" size="lg" onClick={() => setShowDeclineReasons(true)} data-testid="decline-request-button">
                   <X className="h-5 w-5" /> {t('driver.decline')}
                 </Button>
-                <Button variant="success" size="lg" onClick={() => respondToDispatch(order.id, true)} data-testid="accept-request-button">
-                  <CheckCircle2 className="h-5 w-5" /> {t('driver.accept')}
+                <Button variant="success" size="lg" onClick={handleAccept} data-testid="accept-request-button">
+                  <CheckCircle2 className="h-5 w-5" /> {isRescueMission ? t('driver.rescue.acceptBtn') : t('driver.accept')}
                 </Button>
               </motion.div>
             )}

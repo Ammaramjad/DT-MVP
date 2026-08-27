@@ -501,6 +501,7 @@ npm run test:e2e:smoke             # visits every app/route (incl. every /fleet-
 npm run test:e2e:lifecycle         # books a real order and drives it through the full 16-state lifecycle across all apps
 npm run test:e2e:vehicle-pricing   # multi-vehicle-card selection, ineligibility, compare-3, dynamic pricing, both new Fleet OS modules, matching integration
 npm run test:e2e:realism-features  # urgency-tier auto-cancel, 3-step flow, Hourly Charter, driver-reveal timing, vehicle substitution, waiting fee, LINE/email login + order lookup
+npm run test:e2e:emergency-rescue  # Phase 2 emergency SOS, accident breakdown report, Fleet OS alert banner, rescue matching & mid-trip re-dispatch
 ```
 
 `test:e2e:lifecycle` is the best single proof that the "connected system" illusion works: it creates a booking,
