@@ -34,6 +34,7 @@ import { ActivityScreen } from '../components/driver/ActivityScreen'
 import { AccountScreen } from '../components/driver/AccountScreen'
 import { VehicleCard } from '../components/vehicles/VehicleCard'
 import { EmergencyReportModal } from '../components/driver/EmergencyReportModal'
+import { TaiwanInvoiceModal } from '../components/invoices/TaiwanInvoiceModal'
 import type { Order } from '../types'
 import { formatClock, formatTWD, ticksToMinutesLabel } from '../lib/format'
 import { remainingDistanceKm } from '../lib/geo'
@@ -252,11 +253,11 @@ export default function DriverPanel() {
 }
 
 function TripCompletionCard({ order, onDone }: { order: Order; onDone: () => void }) {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const rateCustomer = useFleetStore((s) => s.rateCustomer)
   const uploadTollEvidence = useFleetStore((s) => s.uploadTollEvidence)
   const [rating, setRating] = useState(order.customerRatingByDriver ?? 0)
-  const [receiptSent, setReceiptSent] = useState(false)
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
 
   return (
     <motion.div initial={{ scale: 0.94, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} data-testid="driver-trip-completion-card">
@@ -299,14 +300,43 @@ function TripCompletionCard({ order, onDone }: { order: Order; onDone: () => voi
           <Camera className="h-3.5 w-3.5" /> {order.tollParkingEvidenceUploaded ? t('driver.tollEvidenceUploaded') : t('driver.uploadTollEvidence')}
         </button>
         <button
-          onClick={() => setReceiptSent(true)}
-          disabled={receiptSent}
-          data-testid="driver-trigger-receipt"
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-slate-200 disabled:opacity-40 hover:bg-white/10"
+          onClick={() => setShowInvoiceModal(true)}
+          data-testid="driver-view-invoice-btn"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-cyan-400/30 bg-cyan-500/10 py-2.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20"
         >
-          <Receipt className="h-3.5 w-3.5" /> {receiptSent ? t('driver.receiptSent') : t('driver.triggerReceipt')}
+          <Receipt className="h-3.5 w-3.5 text-cyan-400" /> {lang === 'zh' ? '電子發票' : 'e-Invoice'}
         </button>
       </div>
+
+      {showInvoiceModal && (
+        <TaiwanInvoiceModal
+          invoice={{
+            id: `inv-${order.id}`,
+            invoiceNo: `AB-${order.orderNo.replace(/[^0-9]/g, '').slice(-8).padStart(8, '0') || '89234120'}`,
+            period: '115年07-08月',
+            issueDate: new Date().toISOString().replace('T', ' ').slice(0, 19),
+            type: order.invoiceRequested ? 'B2B' : 'B2C',
+            carrierType: order.invoiceRequested ? 'CORPORATE_UBN' : 'MEMBER_CARRIER',
+            carrierCode: order.invoiceRequested ? '23307688' : `${order.customer.phone}`,
+            buyerUbn: order.invoiceRequested ? '23307688' : undefined,
+            buyerTitle: order.invoiceRequested ? `${order.customer.name} (Corporate Account)` : undefined,
+            sellerUbn: '83294821',
+            sellerTitle: '走瘋派車智慧科技股份有限公司',
+            amountUntaxed: Math.round(order.priceEstimate / 1.05),
+            taxAmount: order.priceEstimate - Math.round(order.priceEstimate / 1.05),
+            amountTotal: order.priceEstimate,
+            randomCode: '8842',
+            orderId: order.id,
+            orderNo: order.orderNo,
+            customerName: order.customer.name,
+            customerPhone: order.customer.phone,
+            status: 'ISSUED',
+            mofSynced: true,
+            mofSyncTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          }}
+          onClose={() => setShowInvoiceModal(false)}
+        />
+      )}
 
       <Button fullWidth className="mt-4" onClick={onDone} data-testid="driver-trip-completion-done">
         {t('driver.completionDone')}

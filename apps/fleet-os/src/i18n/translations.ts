@@ -1556,6 +1556,62 @@ export const translations: Record<Lang, Record<string, string>> = {
     'fleetos.accessLogs.livePresence.surface.params': 'Fleet OS - Operating Parameters',
     'fleetos.accessLogs.livePresence.surface.accessLogs': 'Fleet OS - Access & Security Audit',
     'fleetos.accessLogs.livePresence.surface.fleetos': 'Fleet OS - Command Center',
+
+    // ---- Module Navigation additions ----
+    'fleetos.nav.forecast': 'AI Forecast',
+    'fleetos.nav.invoices': 'e-Invoice (GUI)',
+    'fleetos.nav.corporate': 'Corporate B2B',
+
+    // ---- Interactive Demo Tour (EN) ----
+    'demo.startTourBtn': 'Demo Tour',
+    'demo.startTourFull': 'Interactive Client Demo Tour',
+    'landing.startGuidedTour': 'Start Guided Tour',
+    'demoTour.step1.title': 'Customer Booking & Dynamic Pricing',
+    'demoTour.step1.desc': 'Customer selects route & vehicle with live flight lookup, urgency tiers, and transparent fee breakdown.',
+    'demoTour.step1.badge': 'Booking Engine',
+    'demoTour.step1.tips': 'Notice the live dual-currency converter and real-time flight telemetry sync.',
+    'demoTour.step2.title': 'Fleet OS Central Dispatch & Flight Tracking',
+    'demoTour.step2.desc': 'Mission-control dispatch center with live map markers, radar flight board, and auto-dispatch escalation.',
+    'demoTour.step2.badge': 'Fleet Command',
+    'demoTour.step2.tips': 'Watch auto-match algorithms assign optimal drivers and vehicles in sub-seconds.',
+    'demoTour.step3.title': 'Driver App Accept & Pickup PIN Verification',
+    'demoTour.step3.desc': 'Mobile driver view: receive push offers, accept trips, navigate live, and verify 4-digit pickup PIN.',
+    'demoTour.step3.badge': 'Driver Mobile',
+    'demoTour.step3.tips': 'Drivers can view electronic invoices and report emergency breakdowns with 1-click.',
+    'demoTour.step4.title': 'Customer Live Ride Tracking',
+    'demoTour.step4.desc': 'Uber-grade live tracking screen with moving GPS driver marker, flight status, and AI Concierge.',
+    'demoTour.step4.badge': 'Passenger App',
+    'demoTour.step4.tips': 'Click the floating AI Concierge bubble for instant meeting point instructions.',
+    'demoTour.step5.title': 'Mid-Trip Emergency SOS & Rescue Dispatch',
+    'demoTour.step5.desc': 'Accident reported mid-trip triggers instant emergency rescue drawer in Fleet OS to dispatch backup vehicles.',
+    'demoTour.step5.badge': 'Safety Ops',
+    'demoTour.step5.tips': 'Passenger safety protocols and replacement vehicle dispatch happen seamlessly.',
+    'demoTour.step6.title': 'Security Access Logs & Live Presence',
+    'demoTour.step6.desc': 'Enterprise visitor IP geolocation tracking, active session heartbeat, and Taiwan MOF tax settlement.',
+    'demoTour.step6.badge': 'Security & Compliance',
+    'demoTour.step6.tips': 'Shows real-time connected client telemetry and full audit trail compliance.',
+
+    // ---- AI Demand Forecast (EN) ----
+    'fleetos.forecast.title': 'AI Demand & Fleet Rebalance Forecast',
+    'fleetos.forecast.subtitle': 'Predictive machine learning demand forecasting, flight delay surge modeling, and auto-rebalance dispatch',
+
+    // ---- Taiwan e-Invoice (EN) ----
+    'fleetos.invoices.title': 'Taiwan Electronic Invoice (e-GUI) & Tax Center',
+    'fleetos.invoices.subtitle': 'Ministry of Finance compliant B2B/B2C e-invoice issuance, mobile barcode carrier, and void/allowance ledger',
+
+    // ---- Corporate B2B (EN) ----
+    'fleetos.corporate.title': 'Corporate B2B & Group Travel Portal',
+    'fleetos.corporate.subtitle': 'Enterprise corporate accounts, consolidated monthly billing, cost center management, and travel governance',
+
+    // ---- AI Concierge Prompts (EN) ----
+    'concierge.prompt.tpeT2.title': 'Taoyuan T2 Pickup',
+    'concierge.prompt.tpeT2.text': 'Taoyuan Airport Terminal 2 arrival meeting point and chauffeur guide',
+    'concierge.prompt.luggage.title': 'Luggage Calculator',
+    'concierge.prompt.luggage.text': 'Luggage capacity helper for large suitcases and passenger groups',
+    'concierge.prompt.flightDelay.title': 'Flight Delay Policy',
+    'concierge.prompt.flightDelay.text': 'How does real-time flight tracking adjust chauffeur arrival times?',
+    'concierge.prompt.sightseeing.title': 'Taiwan 1-Day Tours',
+    'concierge.prompt.sightseeing.text': 'Recommended scenic charter routes for Jiufen, Taroko, and Sun Moon Lake',
   },
   zh: {
     // ---- Common / nav ----
@@ -3083,6 +3139,62 @@ export const translations: Record<Lang, Record<string, string>> = {
     'fleetos.accessLogs.livePresence.surface.params': 'Fleet OS - 營運參數設定',
     'fleetos.accessLogs.livePresence.surface.accessLogs': 'Fleet OS - 門禁存取與安全',
     'fleetos.accessLogs.livePresence.surface.fleetos': 'Fleet OS - 調度總覽指揮中心',
+
+    // ---- Module Navigation additions (ZH) ----
+    'fleetos.nav.forecast': 'AI 需量預測',
+    'fleetos.nav.invoices': '電子發票 (e-GUI)',
+    'fleetos.nav.corporate': '企業簽約戶 (B2B)',
+
+    // ---- Interactive Demo Tour (ZH) ----
+    'demo.startTourBtn': '展示導覽',
+    'demo.startTourFull': '客戶互動展示導覽模式',
+    'landing.startGuidedTour': '啟動完整展示導覽',
+    'demoTour.step1.title': '步驟一：客戶預訂與動態透明定價',
+    'demoTour.step1.desc': '客戶端智慧選車、即時航班查詢、時效分級與完全透明之加價明細。',
+    'demoTour.step1.badge': '預訂引擎',
+    'demoTour.step1.tips': '可體驗即時多幣別切換與航班動態自動校準。',
+    'demoTour.step2.title': '步驟二：Fleet OS 中央派車與航班雷達',
+    'demoTour.step2.desc': '調度指揮中心即時地圖、航班動態看板與自動派車階梯升級機制。',
+    'demoTour.step2.badge': '調度中心',
+    'demoTour.step2.tips': '觀察智慧配對演算法於毫秒內自動媒合最適司機與車款。',
+    'demoTour.step3.title': '步驟三：司機端接單與驗證碼上車',
+    'demoTour.step3.desc': '司機手機端介面：接收推播派單、即時導航與輸入 4 位數上車 PIN 碼。',
+    'demoTour.step3.badge': '司機手機端',
+    'demoTour.step3.tips': '完成行程後司機可即時檢視電子發票並上傳單據。',
+    'demoTour.step4.title': '步驟四：乘客端即時車輛追蹤',
+    'demoTour.step4.desc': '媲美 Uber 的即時 GPS 地圖動態追蹤、司機資訊與 AI 智慧行程管家。',
+    'demoTour.step4.badge': '乘客端 App',
+    'demoTour.step4.tips': '點擊右下角 AI 行程管家可即時查詢航廈接機柱與行李空間。',
+    'demoTour.step5.title': '步驟五：行程中緊急 SOS 與救援調度',
+    'demoTour.step5.desc': '行駛中回報突發事故，Fleet OS 自動跳出緊急處理抽屜並秒級調派後備車輛。',
+    'demoTour.step5.badge': '安全營運',
+    'demoTour.step5.tips': '即時保障乘客安全並啟動備用車隊無縫轉接接駁。',
+    'demoTour.step6.title': '步驟六：安全門禁稽核與連線監控',
+    'demoTour.step6.desc': '企業級訪客 IP 地理定位追蹤、在線連線監控與財政部電子發票核銷中心。',
+    'demoTour.step6.badge': '安全合規',
+    'demoTour.step6.tips': '提供實時全球訪客連線遙測與完整合規稽核軌跡。',
+
+    // ---- AI Demand Forecast (ZH) ----
+    'fleetos.forecast.title': 'AI 智慧需量與車隊調度預測中心',
+    'fleetos.forecast.subtitle': '機器學習需求預測、航班延誤尖峰需量建模與一鍵全自動重平衡調派廣播',
+
+    // ---- Taiwan e-Invoice (ZH) ----
+    'fleetos.invoices.title': '台灣電子發票 (e-GUI) 與稅務結算中心',
+    'fleetos.invoices.subtitle': '合規財政部電子發票 B2B/B2C 開立、手機條碼載具、雙維條碼證明聯與作廢折讓管理',
+
+    // ---- Corporate B2B (ZH) ----
+    'fleetos.corporate.title': '企業客戶差旅與簽約月結入口',
+    'fleetos.corporate.subtitle': '管理企業客戶（台積電、聯發科等）、月結額度控管、差旅審批政策與成本中心歸屬',
+
+    // ---- AI Concierge Prompts (ZH) ----
+    'concierge.prompt.tpeT2.title': '桃機 T2 接機指引',
+    'concierge.prompt.tpeT2.text': '桃園機場第二航廈入境接機集合柱與專人舉牌接待指引',
+    'concierge.prompt.luggage.title': '行李件數試算',
+    'concierge.prompt.luggage.text': '多位乘客與大件行李箱空間與車型推薦建議',
+    'concierge.prompt.flightDelay.title': '班機延誤保證',
+    'concierge.prompt.flightDelay.text': '航班延誤或提早抵達時，系統如何全自動調整接送時間？',
+    'concierge.prompt.sightseeing.title': '台灣一日包車推薦',
+    'concierge.prompt.sightseeing.text': '九份十分、日月潭與太魯閣熱門景點包車路線推薦',
   },
 }
 

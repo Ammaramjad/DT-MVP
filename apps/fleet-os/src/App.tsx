@@ -4,6 +4,7 @@ import { useRealRouteHydration } from './hooks/useRealRouteHydration'
 import { useLivePresenceTracker } from './lib/livePresence'
 import { NotificationToaster } from './components/ui/NotificationToaster'
 import { DemoModeSwitcher } from './components/layout/DemoModeSwitcher'
+import { DemoTourDock } from './components/layout/DemoTourDock'
 import { LanguageProvider } from './i18n'
 import { GatekeeperProvider, useGatekeeper } from './lib/gatekeeper'
 import { ClientGatekeeper } from './components/security/ClientGatekeeper'
@@ -31,6 +32,9 @@ import FlightBoardPanel from './panels/fleetos/FlightBoardPanel'
 import AccountsPanel from './panels/fleetos/AccountsPanel'
 import OperatingParametersPanel from './panels/fleetos/OperatingParametersPanel'
 import AccessLogsPanel from './panels/fleetos/AccessLogsPanel'
+import ForecastPanel from './panels/fleetos/ForecastPanel'
+import InvoicesPanel from './panels/fleetos/InvoicesPanel'
+import CorporatePanel from './panels/fleetos/CorporatePanel'
 
 function AppContent() {
   const { isLocked } = useGatekeeper()
@@ -74,11 +78,16 @@ function AppContent() {
         <Route path="/fleet-os/manual-order" element={<ManualOrderPanel />} />
         <Route path="/fleet-os/translation-qa" element={<TranslationQaPanel />} />
         <Route path="/fleet-os/flights" element={<FlightBoardPanel />} />
+        <Route path="/fleet-os/forecast" element={<ForecastPanel />} />
+        <Route path="/fleet-os/analytics/forecast" element={<Navigate to="/fleet-os/forecast" replace />} />
+        <Route path="/fleet-os/invoices" element={<InvoicesPanel />} />
+        <Route path="/fleet-os/corporate" element={<CorporatePanel />} />
         <Route path="/fleet-os/accounts" element={<AccountsPanel />} />
         <Route path="/fleet-os/params" element={<OperatingParametersPanel />} />
         <Route path="/fleet-os/access-logs" element={<AccessLogsPanel />} />
         <Route path="/fleet-os/security" element={<Navigate to="/fleet-os/access-logs" replace />} />
       </Routes>
+      <DemoTourDock />
       <DemoModeSwitcher />
     </>
   )

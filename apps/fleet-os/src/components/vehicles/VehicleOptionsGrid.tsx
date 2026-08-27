@@ -7,6 +7,7 @@ import { computeDynamicFareBreakdown, countAvailableVehicles } from '../../lib/d
 import { useFleetStore } from '../../store/useFleetStore'
 import { hashSeed, mulberry32 } from '../../lib/geo'
 import { formatTWD } from '../../lib/format'
+import { formatDualCurrency, useCurrencyStore } from '../../lib/currency'
 import { useLang } from '../../i18n'
 
 /** A supplier-source badge per the client brief ("Direct Fleet, Klook,
@@ -238,6 +239,7 @@ function VehicleOptionCard({
   compareDisabled: boolean
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
+  const { currency } = useCurrencyStore()
   const entry = VEHICLE_CATEGORY_CATALOG[option.category]
 
   return (
@@ -304,6 +306,11 @@ function VehicleOptionCard({
                 <p className="text-[10px] text-slate-400 line-through">{formatTWD(option.fareBreakdown.subtotal - option.fareBreakdown.demandAdjustment - option.fareBreakdown.weatherAdjustment)}</p>
               )}
               <p className="text-base font-black text-slate-900">{formatTWD(option.fareBreakdown.total)}</p>
+              {currency !== 'TWD' && (
+                <p className="text-[10px] font-bold text-amber-600">
+                  {formatDualCurrency(option.fareBreakdown.total, currency).split('(')[1]?.replace(')', '') || ''}
+                </p>
+              )}
             </div>
           </div>
         )}

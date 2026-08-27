@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:e2e:smoke": "node e2e/smoke.mjs",
+    "test:e2e:enterprise": "node e2e/enterprise-suite.mjs",
     "test:e2e:gatekeeper": "node e2e/gatekeeper-auth.mjs",
     "test:e2e:access-logs": "node e2e/access-logs.mjs",
     "test:e2e:live-presence": "node e2e/live-presence.mjs",

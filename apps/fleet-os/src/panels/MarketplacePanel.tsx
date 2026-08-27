@@ -7,7 +7,8 @@ import { getLocation } from '../data/locations'
 import { PanelHeader } from '../components/layout/PanelHeader'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
-import { formatTWD } from '../lib/format'
+import { CurrencySelector } from '../components/ui/CurrencySelector'
+import { formatDualCurrency, useCurrencyStore } from '../lib/currency'
 import type { MarketplaceCategory, MarketplaceListing, MarketplaceSource, VehicleType } from '../types'
 import { DEFAULT_CATEGORY_FOR_TYPE } from '../data/vehicleCatalog'
 import { useLang } from '../i18n'
@@ -27,6 +28,7 @@ const VEHICLE_TYPES: (VehicleType | 'ALL')[] = ['ALL', 'SEDAN', 'SUV', 'VAN', 'L
 export default function MarketplacePanel() {
   const { t, lang } = useLang()
   const navigate = useNavigate()
+  const { currency } = useCurrencyStore()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<MarketplaceCategory | 'ALL'>('ALL')
   const [source, setSource] = useState<MarketplaceSource | 'ALL'>('ALL')
@@ -67,7 +69,12 @@ export default function MarketplacePanel() {
 
   return (
     <div className="min-h-screen bg-[#030712] bg-noise pb-28 text-white">
-      <PanelHeader title={t('marketplace.title')} subtitle={t('marketplace.subtitle')} icon={<Globe2 className="h-5 w-5" />} />
+      <PanelHeader
+        title={t('marketplace.title')}
+        subtitle={t('marketplace.subtitle')}
+        icon={<Globe2 className="h-5 w-5" />}
+        right={<CurrencySelector testId="marketplace-currency-selector" />}
+      />
 
       <div className="mx-auto mt-6 max-w-6xl px-4 sm:px-6">
         {/* Luxury Glass Filter Header */}
@@ -155,7 +162,7 @@ export default function MarketplacePanel() {
                 <div className="mt-4 flex items-baseline justify-between border-t border-white/5 pt-3">
                   <div>
                     <span className="text-xs text-slate-400">Total Fare: </span>
-                    <span className="text-xl font-black text-white">{formatTWD(listing.price)}</span>
+                    <span className="text-base font-black text-white">{formatDualCurrency(listing.price, currency)}</span>
                   </div>
                   <button onClick={() => setDetail(listing)} data-testid="marketplace-view-detail" className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 hover:underline">
                     {t('marketplace.viewDetails')}
@@ -194,7 +201,7 @@ export default function MarketplacePanel() {
                 </button>
               </div>
               <h3 className="mt-3 text-lg font-bold text-white">{lang === 'zh' ? detail.titleZh : detail.title}</h3>
-              <p className="mt-2 text-3xl font-black text-cyan-300">{formatTWD(detail.price)}</p>
+              <p className="mt-2 text-2xl font-black text-cyan-300">{formatDualCurrency(detail.price, currency)}</p>
               
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                 <InfoBox label={t('marketplace.vehicle')} value={t(`vehicle.type.${detail.vehicleType}`)} />

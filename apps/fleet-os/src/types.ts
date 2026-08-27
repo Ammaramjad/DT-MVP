@@ -873,3 +873,167 @@ export interface AccessLogEntry {
   inputIdentifier?: string
 }
 
+// ---------------------------------------------------------------------------
+// 1. Multi-Currency Live Converter
+// ---------------------------------------------------------------------------
+export type CurrencyCode = 'TWD' | 'USD' | 'JPY' | 'EUR' | 'HKD' | 'SGD' | 'CNY'
+
+export interface CurrencyConfig {
+  code: CurrencyCode
+  symbol: string
+  rate: number // units per 1 TWD
+  name: string
+  nameZh: string
+  decimals: number
+}
+
+// ---------------------------------------------------------------------------
+// 2. Interactive Client Demo & Guided Presentation Tour Mode
+// ---------------------------------------------------------------------------
+export type DemoTourStepId =
+  | 'STEP_1_BOOKING'
+  | 'STEP_2_DISPATCH'
+  | 'STEP_3_DRIVER'
+  | 'STEP_4_CUSTOMER'
+  | 'STEP_5_EMERGENCY'
+  | 'STEP_6_SECURITY'
+
+export interface DemoTourStep {
+  id: DemoTourStepId
+  stepNumber: number
+  titleKey: string
+  descKey: string
+  route: string
+  badgeKey: string
+  tipsKey: string
+}
+
+// ---------------------------------------------------------------------------
+// 3. AI Predictive Fleet Demand & Weather Forecasting
+// ---------------------------------------------------------------------------
+export interface ZoneDemandForecast {
+  zoneId: string
+  zoneName: string
+  zoneNameZh: string
+  region: TaiwanRegion
+  currentSupply: number
+  predictedDemand: number
+  deficitOrSurplus: number
+  demandTrend: 'SURGING' | 'HIGH' | 'STABLE' | 'LOW'
+  hourlyForecast: { hour: string; demand: number; supply: number; surgeFactor: number }[]
+  keyDriver: string
+  keyDriverZh: string
+}
+
+export interface RebalanceRecommendation {
+  id: string
+  sourceZone: string
+  sourceZoneZh: string
+  targetZone: string
+  targetZoneZh: string
+  recommendedVehicles: number
+  vehicleCategory: VehicleCategory
+  reason: string
+  reasonZh: string
+  estimatedTimeToSpikeMin: number
+  status: 'PENDING' | 'EXECUTED' | 'DISMISSED'
+  createdAt: number
+}
+
+export interface WeatherMatrixItem {
+  region: TaiwanRegion
+  regionNameZh: string
+  condition: WeatherCondition
+  temperatureC: number
+  precipitationProbability: number
+  typhoonAlertLevel: 'NONE' | 'SEA_WARNING' | 'LAND_WARNING'
+  surgeMultiplier: number
+  flightDelayRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+}
+
+// ---------------------------------------------------------------------------
+// 4. Taiwan Electronic Invoice (e-GUI / 電子發票)
+// ---------------------------------------------------------------------------
+export type EGuiType = 'B2C' | 'B2B'
+export type EGuiCarrierType = 'MOBILE_BARCODE' | 'CITIZEN_CERT' | 'MEMBER_CARRIER' | 'DONATION' | 'CORPORATE_UBN'
+export type EGuiStatus = 'ISSUED' | 'VOIDED' | 'ALLOWANCE'
+
+export interface EGuiInvoice {
+  id: string
+  invoiceNo: string
+  period: string
+  issueDate: string
+  type: EGuiType
+  carrierType: EGuiCarrierType
+  carrierCode: string
+  buyerUbn?: string
+  buyerTitle?: string
+  sellerUbn: string
+  sellerTitle: string
+  amountUntaxed: number
+  taxAmount: number
+  amountTotal: number
+  randomCode: string
+  orderId: string
+  orderNo: string
+  customerName: string
+  customerPhone: string
+  status: EGuiStatus
+  voidReason?: string
+  allowanceAmount?: number
+  mofSynced: boolean
+  mofSyncTime: string
+}
+
+// ---------------------------------------------------------------------------
+// 5. Corporate B2B & Group Travel
+// ---------------------------------------------------------------------------
+export interface CorporateAccount {
+  id: string
+  name: string
+  nameZh: string
+  ubn: string
+  contactPerson: string
+  contactEmail: string
+  monthlyCreditLimit: number
+  creditUsed: number
+  paymentTerms: 'NET_30' | 'NET_60'
+  accountManager: string
+  status: 'ACTIVE' | 'SUSPENDED' | 'REVIEW'
+  costCenters: string[]
+  policies: {
+    autoApproveUnder: number
+    requireApprovalForLuxury: boolean
+    allowedHours: 'ALL' | 'BUSINESS_HOURS'
+    airportOnly: boolean
+  }
+  employeeCount: number
+  activeRidesThisMonth: number
+  totalSpendThisYear: number
+}
+
+// ---------------------------------------------------------------------------
+// 6. Customer AI Travel Concierge Assistant
+// ---------------------------------------------------------------------------
+export interface AiConciergePrompt {
+  id: string
+  icon: string
+  titleKey: string
+  promptKey: string
+  category: 'AIRPORT' | 'LUGGAGE' | 'FLIGHT' | 'SIGHTSEEING'
+}
+
+export interface AiConciergeMessage {
+  id: string
+  sender: 'USER' | 'AI'
+  text: string
+  timestamp: number
+  cards?: {
+    title: string
+    subtitle?: string
+    badge?: string
+    items?: string[]
+  }[]
+}
+
+

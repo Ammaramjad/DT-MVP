@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, Car, Clock3, FileText, MessageSquareWarning, PlaneLanding, QrCode, RefreshCw, ShieldCheck, Star, UserRound, X } from 'lucide-react'
+import { Calendar, Car, Clock3, FileText, MessageSquareWarning, PlaneLanding, QrCode, RefreshCw, ShieldCheck, Star, UserRound, X, Receipt } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { Driver, Order, Vehicle, CustomerProfile } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
@@ -8,6 +8,7 @@ import { OrderTypeBadge, UrgencyBadge } from '../ui/OrderBadges'
 import { StatusBadge } from '../ui/OrderBadges'
 import { ActivityScreen } from './ActivityScreen'
 import { FareBreakdownCard } from '../vehicles/FareBreakdownCard'
+import { TaiwanInvoiceModal } from '../invoices/TaiwanInvoiceModal'
 import { formatClock, formatDateTime, formatTWD, orderStatusLabel } from '../../lib/format'
 import { isDriverInfoRevealed, isVehicleSubstituted } from '../../lib/selectors'
 import { FREE_CANCELLATION_WINDOW_HOURS } from '../../lib/serviceRules'
@@ -123,6 +124,7 @@ function TripCard({ order, vehicles, lang, t }: { order: Order; vehicles: Vehicl
   const simulateFlightEvent = useFleetStore((s) => s.simulateFlightEvent)
 
   const [showVoucher, setShowVoucher] = useState(false)
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [showReschedule, setShowReschedule] = useState(false)
   const [showNote, setShowNote] = useState(false)
   const [noteInput, setNoteInput] = useState(order.notes)
@@ -264,6 +266,10 @@ function TripCard({ order, vehicles, lang, t }: { order: Order; vehicles: Vehicl
         <ChipButton onClick={() => setShowVoucher((v) => !v)} testId="trip-view-voucher">
           <QrCode className="h-3 w-3" /> {showVoucher ? t('customer.activity.hideVoucher') : t('customer.activity.viewVoucher')}
         </ChipButton>
+        {/* Taiwan e-GUI Invoice proof modal trigger */}
+        <ChipButton onClick={() => setShowInvoiceModal(true)} testId="trip-view-egui-invoice">
+          <Receipt className="h-3 w-3 text-cyan-600" /> {lang === 'zh' ? '查看電子發票證明聯' : 'View e-GUI Invoice'}
+        </ChipButton>
         {order.status === 'COMPLETED' && !invoiceRequested && (
           <ChipButton
             onClick={() => {
@@ -383,6 +389,36 @@ function TripCard({ order, vehicles, lang, t }: { order: Order; vehicles: Vehicl
             ))}
           </ol>
         </details>
+      )}
+
+      {showInvoiceModal && (
+        <TaiwanInvoiceModal
+          invoice={{
+            id: `inv-${order.id}`,
+            invoiceNo: `AB-${order.orderNo.replace(/[^0-9]/g, '').slice(-8).padStart(8, '0') || '89234120'}`,
+            period: '115年07-08月',
+            issueDate: new Date(order.createdAt).toISOString().replace('T', ' ').slice(0, 19),
+            type: order.invoiceRequested ? 'B2B' : 'B2C',
+            carrierType: order.invoiceRequested ? 'CORPORATE_UBN' : 'MOBILE_BARCODE',
+            carrierCode: order.invoiceRequested ? '23307688' : '/AB12+CD',
+            buyerUbn: order.invoiceRequested ? '23307688' : undefined,
+            buyerTitle: order.invoiceRequested ? `${order.customer.name} (Corporate Account)` : undefined,
+            sellerUbn: '83294821',
+            sellerTitle: '走瘋派車智慧科技股份有限公司',
+            amountUntaxed: Math.round(order.priceEstimate / 1.05),
+            taxAmount: order.priceEstimate - Math.round(order.priceEstimate / 1.05),
+            amountTotal: order.priceEstimate,
+            randomCode: '8842',
+            orderId: order.id,
+            orderNo: order.orderNo,
+            customerName: order.customer.name,
+            customerPhone: order.customer.phone,
+            status: 'ISSUED',
+            mofSynced: true,
+            mofSyncTime: new Date(order.createdAt + 5000).toISOString().replace('T', ' ').slice(0, 19),
+          }}
+          onClose={() => setShowInvoiceModal(false)}
+        />
       )}
     </motion.div>
   )

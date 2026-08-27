@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Car, ClipboardList, Globe2, Home as HomeIcon, LayoutGrid, Lock, MapPinned, Radar, X } from 'lucide-react'
+import { Car, ClipboardList, Compass, Globe2, Home as HomeIcon, LayoutGrid, Lock, MapPinned, Radar, Sparkles, X } from 'lucide-react'
 import clsx from 'clsx'
 import { useLang } from '../../i18n'
 import { LANGS } from '../../i18n/translations'
 import { useGatekeeper } from '../../lib/gatekeeper'
+import { useDemoTourStore } from '../../lib/demoTour'
 
 const APPS = [
   { to: '/', labelKey: 'nav.home', icon: HomeIcon },
@@ -26,21 +27,35 @@ const APPS = [
 export function DemoModeSwitcher() {
   const { t, lang, setLang } = useLang()
   const { lock } = useGatekeeper()
+  const { startTour } = useDemoTourStore()
   const location = useLocation()
   const [open, setOpen] = useState(false)
 
   return (
     <div className="pointer-events-none fixed right-3 top-3 z-[950] sm:right-4 sm:top-4">
       <div className="pointer-events-auto flex flex-col items-end gap-2">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          data-testid="demo-switcher-toggle"
-          className="flex items-center gap-1.5 rounded-full border border-white/15 bg-slate-950/80 px-3 py-1.5 text-[11px] font-semibold text-slate-200 shadow-lg backdrop-blur-md transition hover:bg-slate-900"
-        >
-          {open ? <X className="h-3.5 w-3.5" /> : <LayoutGrid className="h-3.5 w-3.5 text-cyan-300" />}
-          {t('demo.switcherLabel')}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Direct Interactive Demo Tour Pill */}
+          <button
+            type="button"
+            onClick={() => startTour(0)}
+            data-testid="interactive-tour-trigger-pill"
+            className="flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-gradient-to-r from-cyan-950/90 via-indigo-950/90 to-purple-950/90 px-3 py-1.5 text-[11px] font-bold text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.3)] backdrop-blur-md transition hover:scale-105 hover:border-cyan-300 active:scale-95"
+          >
+            <Compass className="h-3.5 w-3.5 text-cyan-400 animate-spin-slow" />
+            <span>{t('demo.startTourBtn')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            data-testid="demo-switcher-toggle"
+            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-slate-950/80 px-3 py-1.5 text-[11px] font-semibold text-slate-200 shadow-lg backdrop-blur-md transition hover:bg-slate-900"
+          >
+            {open ? <X className="h-3.5 w-3.5" /> : <LayoutGrid className="h-3.5 w-3.5 text-cyan-300" />}
+            {t('demo.switcherLabel')}
+          </button>
+        </div>
 
         <AnimatePresence>
           {open && (
@@ -49,9 +64,28 @@ export function DemoModeSwitcher() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              className="w-60 overflow-hidden rounded-2xl border border-white/15 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-xl"
+              className="w-64 overflow-hidden rounded-2xl border border-white/15 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-xl"
               data-testid="demo-switcher-menu"
             >
+              {/* Interactive Presentation Tour trigger in menu */}
+              <div className="mb-1 rounded-xl bg-gradient-to-br from-cyan-950/60 to-blue-950/60 p-1.5 border border-cyan-400/30">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    startTour(0)
+                  }}
+                  data-testid="demo-menu-start-tour-btn"
+                  className="flex w-full items-center justify-between gap-2 rounded-lg bg-cyan-500/20 px-2.5 py-2 text-xs font-bold text-cyan-200 transition hover:bg-cyan-500/30"
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-cyan-300" />
+                    <span>{t('demo.startTourFull')}</span>
+                  </div>
+                  <span className="rounded bg-cyan-400/20 px-1 py-0.5 text-[9px] font-mono text-cyan-300">6 STEPS</span>
+                </button>
+              </div>
+
               <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('demo.switcherHint')}</p>
               {APPS.map((item) => {
                 const isActive =

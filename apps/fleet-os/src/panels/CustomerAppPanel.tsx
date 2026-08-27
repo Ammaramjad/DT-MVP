@@ -7,6 +7,7 @@ import { HomeScreen } from '../components/customer/HomeScreen'
 import { TripsScreen } from '../components/customer/TripsScreen'
 import { SafetyScreen } from '../components/customer/SafetyScreen'
 import { AccountScreen } from '../components/customer/AccountScreen'
+import { CustomerAiConciergeDrawer } from '../components/customer/CustomerAiConciergeDrawer'
 import { useLang } from '../i18n'
 
 const ACTIVE_STATUSES = ['CONFIRMED', 'DRIVER_MATCHING', 'ASSIGNED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'PASSENGER_ONBOARD']
@@ -113,6 +114,7 @@ export default function CustomerAppPanel() {
       </AnimatePresence>
 
       <CustomerTabBar active={tab} onChange={setTab} />
+      <CustomerAiConciergeDrawer />
     </div>
   )
 }

@@ -51,6 +51,9 @@ import { Stepper } from '../components/ui/Stepper'
 import { BookingProgressSteps } from '../components/ui/BookingProgressSteps'
 import { Button } from '../components/ui/Button'
 import { RouteMapView } from '../components/map/RouteMapView'
+import { CurrencySelector } from '../components/ui/CurrencySelector'
+import { SEED_CORPORATE_ACCOUNTS } from '../data/corporateSeed'
+import { Building2 } from 'lucide-react'
 import { useLang } from '../i18n'
 
 const CHANNELS: BookingInput['channel'][] = ['Website', 'LINE@', 'KKday', 'Booking.com', 'Klook', 'Phone / Agent']
@@ -145,6 +148,9 @@ export default function BookingPanel() {
   const [consent, setConsent] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodKey>('card')
   const [invoiceType, setInvoiceType] = useState<'PERSONAL' | 'COMPANY'>('PERSONAL')
+  const [isCorporateMode, setIsCorporateMode] = useState(false)
+  const [selectedCorpId, setSelectedCorpId] = useState(SEED_CORPORATE_ACCOUNTS[0].id)
+  const [selectedCostCenter, setSelectedCostCenter] = useState(SEED_CORPORATE_ACCOUNTS[0].costCenters[0])
   const [simulateDecline, setSimulateDecline] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const [lineSent, setLineSent] = useState(false)
@@ -456,7 +462,13 @@ export default function BookingPanel() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-white pb-32 text-slate-900">
-      <PanelHeader title={t('booking.title')} subtitle={t('booking.subtitle')} icon={<ClipboardList className="h-5 w-5" />} light />
+      <PanelHeader
+        title={t('booking.title')}
+        subtitle={t('booking.subtitle')}
+        icon={<ClipboardList className="h-5 w-5" />}
+        light
+        right={<CurrencySelector testId="booking-currency-selector" />}
+      />
 
       <BookingProgressSteps step={displayStep} labels={[t('booking.step1Label'), t('booking.step2Label'), t('booking.step3Label')]} />
 
@@ -940,6 +952,71 @@ export default function BookingPanel() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Corporate B2B Travel Mode Toggle */}
+              <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50/50 p-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-purple-600" />
+                    <div>
+                      <p className="text-xs font-bold text-purple-900">{lang === 'zh' ? '切換為企業差旅模式 (Corporate Profile)' : 'Switch to Corporate Travel Profile'}</p>
+                      <p className="text-[11px] text-purple-600">{lang === 'zh' ? '自動帶入企業統編月結與成本中心帳單' : 'Direct corporate billing & cost center assignment'}</p>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isCorporateMode}
+                    onChange={(e) => {
+                      setIsCorporateMode(e.target.checked)
+                      if (e.target.checked) {
+                        setInvoiceType('COMPANY')
+                      }
+                    }}
+                    data-testid="corporate-mode-toggle"
+                    className="h-4 w-4 accent-purple-600"
+                  />
+                </div>
+
+                {isCorporateMode && (
+                  <div className="mt-3 space-y-2 border-t border-purple-200/60 pt-2.5 text-xs">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-purple-800 mb-1">{lang === 'zh' ? '選擇簽約企業帳戶' : 'Select Corporate Client'}</label>
+                      <select
+                        value={selectedCorpId}
+                        onChange={(e) => {
+                          setSelectedCorpId(e.target.value)
+                          const acc = SEED_CORPORATE_ACCOUNTS.find((a) => a.id === e.target.value)
+                          if (acc) setSelectedCostCenter(acc.costCenters[0])
+                        }}
+                        data-testid="corporate-account-select"
+                        className="w-full rounded-xl border border-purple-300 bg-white px-2.5 py-1.5 text-xs text-purple-900 outline-none"
+                      >
+                        {SEED_CORPORATE_ACCOUNTS.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {lang === 'zh' ? a.nameZh : a.name} (UBN: {a.ubn})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-purple-800 mb-1">{lang === 'zh' ? '歸屬成本中心代碼 (Cost Center)' : 'Cost Center Tag'}</label>
+                      <select
+                        value={selectedCostCenter}
+                        onChange={(e) => setSelectedCostCenter(e.target.value)}
+                        data-testid="corporate-costcenter-select"
+                        className="w-full rounded-xl border border-purple-300 bg-white px-2.5 py-1.5 text-xs text-purple-900 outline-none"
+                      >
+                        {(SEED_CORPORATE_ACCOUNTS.find((a) => a.id === selectedCorpId)?.costCenters || []).map((cc) => (
+                          <option key={cc} value={cc}>
+                            {cc}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <label className="mt-4 flex items-start gap-2.5 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">

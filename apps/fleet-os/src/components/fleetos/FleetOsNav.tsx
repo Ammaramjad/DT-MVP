@@ -1,8 +1,10 @@
 import { NavLink } from 'react-router-dom'
 import {
   BadgeDollarSign,
+  Building2,
   Car,
   ClipboardEdit,
+  FileText,
   Gauge,
   Headset,
   LayoutGrid,
@@ -13,6 +15,7 @@ import {
   Settings2,
   ShieldCheck,
   Sparkles,
+  TrendingUp,
   Truck,
   Users2,
 } from 'lucide-react'
@@ -27,6 +30,9 @@ import { useLang } from '../../i18n'
  */
 const MODULES = [
   { to: '/fleet-os', end: true, labelKey: 'fleetos.nav.dashboard', icon: Gauge },
+  { to: '/fleet-os/forecast', labelKey: 'fleetos.nav.forecast', icon: TrendingUp },
+  { to: '/fleet-os/invoices', labelKey: 'fleetos.nav.invoices', icon: FileText },
+  { to: '/fleet-os/corporate', labelKey: 'fleetos.nav.corporate', icon: Building2 },
   { to: '/fleet-os/suppliers', labelKey: 'fleetos.nav.suppliers', icon: Truck },
   { to: '/fleet-os/catalog', labelKey: 'fleetos.nav.catalog', icon: Package },
   { to: '/fleet-os/pricing/dynamic', labelKey: 'fleetos.nav.pricingDynamic', icon: Gauge },

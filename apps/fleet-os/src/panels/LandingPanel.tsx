@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Car,
   ChevronRight,
+  Compass,
   Cpu,
   Gauge,
   Globe2,
@@ -24,6 +25,7 @@ import { Badge } from '../components/ui/Badge'
 import { useFleetStore } from '../store/useFleetStore'
 import { computeKpis } from '../lib/selectors'
 import { StatCounter } from '../components/ui/StatCounter'
+import { useDemoTourStore } from '../lib/demoTour'
 import { useLang } from '../i18n'
 
 const PHASE1_KEYS = [
@@ -54,6 +56,7 @@ export default function LandingPanel() {
   const { t } = useLang()
   const orders = useFleetStore((s) => s.orders)
   const drivers = useFleetStore((s) => s.drivers)
+  const { startTour } = useDemoTourStore()
   const kpis = computeKpis(orders, drivers)
 
   return (
@@ -101,11 +104,21 @@ export default function LandingPanel() {
             <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">{t('landing.heroDesc')}</p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3.5">
-              <Link
-                to="/booking"
+              <button
+                type="button"
+                onClick={() => startTour(0)}
+                data-testid="landing-start-tour-hero-btn"
                 className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-500 px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-cyan-500/30 transition hover:shadow-cyan-500/50 hover:scale-[1.02] active:scale-[0.98]"
               >
-                {t('landing.startDemo')} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                <Compass className="h-4 w-4 animate-spin-slow text-white" />
+                <span>{t('landing.startGuidedTour')}</span>
+                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+              </button>
+              <Link
+                to="/booking"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold text-slate-100 shadow-lg backdrop-blur-md transition hover:bg-white/10 hover:border-white/25"
+              >
+                {t('landing.startDemo')}
               </Link>
               <Link
                 to="/fleet-os"

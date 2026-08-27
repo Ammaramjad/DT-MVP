@@ -2,6 +2,7 @@ import { Info, ShieldCheck } from 'lucide-react'
 import type { FareBreakdown } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
 import { formatTWD } from '../../lib/format'
+import { formatDualCurrency, useCurrencyStore } from '../../lib/currency'
 import { useLang } from '../../i18n'
 
 /**
@@ -17,6 +18,7 @@ import { useLang } from '../../i18n'
 export function FareBreakdownCard({ fareBreakdown, distanceKm, durationMin }: { fareBreakdown: FareBreakdown; distanceKm: number; durationMin: number }) {
   const { t, lang } = useLang()
   const pricingRules = useFleetStore((s) => s.pricingRules)
+  const { currency } = useCurrencyStore()
   const fb = fareBreakdown
 
   // `explanationParams` carries raw enum values (category/zone/weather/demand)
@@ -67,7 +69,14 @@ export function FareBreakdownCard({ fareBreakdown, distanceKm, durationMin }: { 
         )}
         <div className="flex justify-between border-t border-slate-200 pt-1.5 text-sm font-bold text-slate-900">
           <dt>{t('booking.fareTotal')}</dt>
-          <dd>{formatTWD(fb.total)}</dd>
+          <dd className="text-right">
+            <div>{formatTWD(fb.total)}</div>
+            {currency !== 'TWD' && (
+              <div className="text-[11px] font-semibold text-amber-600">
+                {formatDualCurrency(fb.total, currency).split('(')[1]?.replace(')', '') || ''}
+              </div>
+            )}
+          </dd>
         </div>
       </dl>
 
