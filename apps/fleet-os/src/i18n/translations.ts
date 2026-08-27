@@ -158,6 +158,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     'checkout.paymentCard': 'Credit Card',
     'checkout.paymentLinePay': 'LINE Pay',
     'checkout.paymentApplePay': 'Apple Pay',
+    'checkout.paymentCash': 'Cash on Arrival',
+    'checkout.cashNotice': 'No charge now — pay the driver in cash on arrival or drop-off. The fare is authorized only, not captured.',
     'checkout.invoiceType': 'Invoice',
     'checkout.invoice.PERSONAL': 'Personal',
     'checkout.invoice.COMPANY': 'Company (GUI)',
@@ -200,6 +202,46 @@ export const translations: Record<Lang, Record<string, string>> = {
     'booking.voucherHint': 'Show this QR code to your driver, or keep the booking reference for your records.',
     'booking.printVoucher': 'Print / Save Trip Sheet',
     'booking.vehicleCategory': 'Choose Your Vehicle',
+
+    // ---- 3-step booking flow (機場快綫 Airport Express) ----
+    'booking.step1Label': 'Fare Estimate',
+    'booking.step2Label': 'Payment Method',
+    'booking.step3Label': 'Confirmation',
+    'booking.continueToPayment': 'Continue to Payment',
+    'booking.backToFareEstimate': 'Back to fare estimate',
+
+    // ---- Booking urgency tiers (Airport Express: 保證有車 vs. 24小時內臨時預約) ----
+    'booking.urgencyLabel': 'Booking Type',
+    'booking.urgencyStandard': 'Guaranteed Vehicle',
+    'booking.urgencyStandardDesc': 'Standard booking — a vehicle is confirmed for your trip.',
+    'booking.urgencyLastMinute': 'Last-Minute / Same-Day',
+    'booking.urgencyLastMinuteDesc': '15 min – 24 hr ahead · best-effort matching, not guaranteed.',
+    'booking.urgencyAutoCancelNotice':
+      'For flight-based pickups, this request is automatically cancelled free of charge if no driver is matched within {min} minutes of your flight actually landing.',
+    'booking.urgencyOutOfWindow': 'Last-minute requests are meant for 15 minutes to 24 hours ahead — consider Guaranteed Vehicle for this time.',
+    'booking.urgencyStandardShort': 'Guaranteed',
+    'booking.urgencyLastMinuteShort': 'Last-minute',
+
+    // ---- Multi-stop support (Airport Express trust signal) ----
+    'booking.waypointsLabel': 'Add a Stop (optional, free)',
+    'booking.waypointPlaceholder': 'e.g. Convenience store, hotel lobby',
+    'booking.waypointAdd': 'Add',
+    'booking.waypointsHint': 'Multi-stop pickup/drop-off is supported at no extra charge — please keep each stop brief.',
+
+    // ---- Hourly Charter / 計時包車 (Wanma Transfer) ----
+    'booking.charterToggleLabel': 'Book as Hourly Charter (計時包車)',
+    'booking.charterHoursLabel': 'Reserved hours',
+    'booking.charterHoursOption': '{n} hours',
+    'booking.charterMountainRoute': 'Route passes above 1,500m (mountain surcharge)',
+    'booking.charterExclusions': 'Hourly charter does not include tour guiding, itinerary planning, admission tickets, or meals. Get on/off freely within your reserved window.',
+
+    // ---- Trust / policy badges ----
+    'booking.trustFreeCancellation': 'Free cancellation ({h}h+ before pickup)',
+    'booking.trustCancellationWindowClosing': 'Free-cancellation window closing soon',
+    'booking.trustMultiStop': 'Multi-stop supported',
+    'booking.trustInsured': 'Licensed & insured vehicles',
+    'booking.trustSupport': '24-hour live support',
+
     // ---- Vehicle catalog ----
     'vehicle.seats': '{n} seats',
     'vehicle.type.SEDAN': 'Sedan',
@@ -263,6 +305,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'pricing.fareToll': 'Tolls',
     'pricing.fareParking': 'Parking',
     'pricing.fareVip': 'VIP service surcharge',
+    'pricing.fareCharterHours': 'Hourly charter ({hours} hrs reserved)',
+    'pricing.fareMountainSurcharge': 'Mountain-route surcharge (above 1,500m)',
+    'pricing.cashToDriver': '{amount} · cash to driver',
     'pricing.fairnessCapApplied': "This fare's dynamic adjustment was capped at {pct}% to keep pricing fair for you.",
     'pricing.transparencyNote': 'The final fare is always shown before payment — no hidden fees.',
     'pricing.demandLevel.LOW': 'Low',
@@ -332,6 +377,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     'control.unresponsiveBanner': '{name} was unresponsive on all channels — reassign to next available driver.',
     'control.demoNoResponseOn': 'Demo: driver will NOT respond',
     'control.demoNoResponseOff': 'Demo: simulate driver not responding',
+    'control.demoSimulateLanded': 'Demo: flight landed',
+    'control.demoSimulateDiverted': 'Demo: divert flight',
     'control.notificationLog': 'Notification log ({n})',
     'control.statusTimeline': 'Status Audit Timeline ({n})',
     'control.tripSheet': 'Trip Sheet',
@@ -421,6 +468,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     'driver.enterPickupPin': 'Ask passenger for their 4-digit pickup PIN',
     'driver.pinIncorrect': 'Incorrect PIN — please check with the passenger and try again',
     'driver.reportNoShow': 'Report passenger no-show',
+    'driver.waitingSince': 'Waiting {min} min',
+    'driver.agreeToWait': 'Agree by phone to keep waiting (charge cash fee)',
+    'driver.waitingFeeAgreed': 'Agreed to keep waiting — fee will be collected in cash at pickup',
+    'driver.waitingForfeitWarning': "Past {min} min with no agreement to wait — this booking may be forfeited with no refund",
+    'driver.simulateLatePassengerDemo': 'Demo: fast-forward past the 15-min grace period',
     'driver.tripCompleted': 'Trip Completed!',
     'driver.rateCustomer': 'Rate this passenger',
     'driver.uploadTollEvidence': 'Upload toll/parking receipt',
@@ -560,6 +612,14 @@ export const translations: Record<Lang, Record<string, string>> = {
     'trips.supportSubjectDefault': 'Question about order {orderNo}',
     'trips.ticketCreated': 'Support case opened',
     'trips.save': 'Save',
+
+    // ---- Driver-info-reveal / vehicle-substitution / waiting-fee realism (萬馬接送) ----
+    'trips.driverRevealed': 'Driver contact details are visible below',
+    'trips.driverNotRevealedYet': 'Driver details available closer to your trip',
+    'trips.revealNowDemo': 'Demo: reveal now',
+    'trips.vehicleSubstituted': 'Your vehicle was updated to an equivalent option',
+    'trips.waitingFeeCharged': 'Late-boarding waiting fee ({min} min wait)',
+    'trips.simulateFlightLandedDemo': 'Demo: fast-forward flight to landed',
     'trips.notePlaceholder': 'e.g. flight delayed 20 min, meet at Gate 3…',
     'trips.pin': 'Pickup PIN: {pin}',
 
@@ -591,6 +651,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'customer.home.quickAirportPickup': 'Airport Pickup',
     'customer.home.quickAirportDropoff': 'Airport Drop-off',
     'customer.home.quickTourCharter': 'Tour Charter',
+    'customer.home.quickHourlyCharter': 'Hourly Charter',
     'customer.home.activeTripTitle': 'Your ride is on the way',
     'customer.home.activeTripWaiting': "We're finding your driver",
     'customer.home.activeTripCta': 'Track Trip',
@@ -660,6 +721,35 @@ export const translations: Record<Lang, Record<string, string>> = {
     'account.requestDataDownload': 'Request a copy of my data',
     'account.requestDeleteAccount': 'Request account deletion',
     'account.requested': 'Requested',
+
+    // ---- Lightweight simulated account access (機場快綫 member login + 萬馬接送 LINE quick login) ----
+    'account.signInTitle': 'Sign in for faster checkout',
+    'account.loginWithLine': 'Continue with LINE',
+    'account.loginWithEmail': 'Continue with Email',
+    'account.emailPlaceholder': 'you@example.com',
+    'account.passwordPlaceholder': 'Password',
+    'account.loginOrRegister': 'Log in / Register',
+    'account.forgotPasswordDemo': 'Forgot password? (simulated — no email is actually sent)',
+    'account.loggedInAs': 'Signed in as {name}',
+
+    // ---- Order lookup by order number (機場快綫's 訂單查詢) ----
+    'account.orderLookupTitle': 'Order Lookup',
+    'account.orderLookupPlaceholder': 'Enter order number, e.g. FP-1024',
+    'account.orderLookupSubmit': 'Search',
+    'account.orderLookupNotFound': 'No order found with that number.',
+    'account.orderLookupView': 'View this trip →',
+
+    // ---- Passenger guidelines (乘客須知) & company info (公司簡介) ----
+    'account.passengerGuidelines': 'Passenger Guidelines',
+    'account.guideline1': 'Please be ready at the pickup point at your scheduled time — drivers wait free of charge for a limited grace period.',
+    'account.guideline2': 'Intermediate stops are supported but should be kept brief (around 5 minutes each).',
+    'account.guideline3': 'Restroom stops at highway rest areas are fine; shopping or dining stops are not included.',
+    'account.guideline4': 'For airport pickups, readiness is based on your flight\u2019s actual landing time, not the scheduled time.',
+    'account.guideline5': 'Cash payment methods are settled directly with the driver at drop-off or arrival.',
+    'account.companyInfo': 'Company Information',
+    'account.companyDesc': 'Zhaofeng Travel operates a fleet of legally registered, passenger-insured vehicles across Taiwan, specializing in airport transfers and private charters.',
+    'account.companyRegNo': 'Business registration no. 00000000 (demo placeholder)',
+    'account.companyContact': '24-hour support line: +886 2 0000-0000 · support@zhaofeng.demo',
 
     // ---- Booking history / profile ----
     'history.myBookings': 'My Bookings',
@@ -774,6 +864,12 @@ export const translations: Record<Lang, Record<string, string>> = {
     'notif.refundProcessed.message': 'Order {orderNo}: refund approved and issued to the customer.',
     'notif.refundRejected.title': 'Refund Rejected',
     'notif.refundRejected.message': 'Order {orderNo}: the refund request was rejected.',
+    'notif.lastMinuteAutoCancelled.title': 'Last-Minute Request Auto-Cancelled',
+    'notif.lastMinuteAutoCancelled.message': 'Order {orderNo}: best-effort request auto-cancelled free of charge — no driver was matched within the post-landing window.',
+    'notif.flightDivertedCancelled.title': 'Flight Diverted — Auto-Cancelled',
+    'notif.flightDivertedCancelled.message': "Order {orderNo}: flight {flightNumber} diverted to a different airport. Automatically cancelled with a full refund.",
+    'notif.flightMajorDelayCancelled.title': 'Major Flight Delay — Auto-Cancelled',
+    'notif.flightMajorDelayCancelled.message': 'Order {orderNo}: flight {flightNumber} shifted 2+ hours from the booked schedule. Automatically cancelled with a full refund.',
 
     'no.channels': 'No response',
 
@@ -1249,6 +1345,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     'checkout.paymentCard': '信用卡',
     'checkout.paymentLinePay': 'LINE Pay',
     'checkout.paymentApplePay': 'Apple Pay',
+    'checkout.paymentCash': '到達／下車時付現',
+    'checkout.cashNotice': '目前不會扣款——請於抵達或下車時以現金支付給司機。此車資僅為預先授權，尚未實際扣款。',
     'checkout.invoiceType': '發票',
     'checkout.invoice.PERSONAL': '個人',
     'checkout.invoice.COMPANY': '公司（統編）',
@@ -1291,6 +1389,45 @@ export const translations: Record<Lang, Record<string, string>> = {
     'booking.voucherHint': '請向司機出示此 QR Code，或保留訂單編號作為記錄。',
     'booking.printVoucher': '列印／儲存行程單',
     'booking.vehicleCategory': '選擇您的車輛',
+
+    // ---- 三步預訂流程（機場快綫）----
+    'booking.step1Label': '車資估算',
+    'booking.step2Label': '付款方式',
+    'booking.step3Label': '訂單確認',
+    'booking.continueToPayment': '前往付款',
+    'booking.backToFareEstimate': '返回車資估算',
+
+    // ---- 預訂緊急程度（機場快綫：保證有車 vs. 24小時內臨時預約）----
+    'booking.urgencyLabel': '預訂類型',
+    'booking.urgencyStandard': '保證有車',
+    'booking.urgencyStandardDesc': '標準預訂——為您的行程確保車輛。',
+    'booking.urgencyLastMinute': '臨時／當日預約',
+    'booking.urgencyLastMinuteDesc': '15 分鐘至 24 小時內出發 · 盡力配對，不保證有車。',
+    'booking.urgencyAutoCancelNotice': '若為以航班時間預約的機場接送，若在航班實際落地後 {min} 分鐘內仍未配對到司機，此訂單將自動免費取消。',
+    'booking.urgencyOutOfWindow': '臨時預約適用於 15 分鐘至 24 小時內出發的行程——此時間建議選擇「保證有車」。',
+    'booking.urgencyStandardShort': '保證有車',
+    'booking.urgencyLastMinuteShort': '臨時預約',
+
+    // ---- 多點停靠支援（機場快綫信任標誌）----
+    'booking.waypointsLabel': '新增停靠點（選填，免費）',
+    'booking.waypointPlaceholder': '例如：便利商店、飯店大廳',
+    'booking.waypointAdd': '新增',
+    'booking.waypointsHint': '多點上下車完全免費支援，請盡量縮短每個停靠點的停留時間。',
+
+    // ---- 計時包車（萬馬接送）----
+    'booking.charterToggleLabel': '改為計時包車預訂',
+    'booking.charterHoursLabel': '預約時數',
+    'booking.charterHoursOption': '{n} 小時',
+    'booking.charterMountainRoute': '行程經過海拔 1,500 公尺以上（山區附加費）',
+    'booking.charterExclusions': '計時包車不包含導覽解說、行程規劃、門票或餐食，於預約時間內可自由上下車。',
+
+    // ---- 信任／政策標誌 ----
+    'booking.trustFreeCancellation': '出發前 {h} 小時以上免費取消',
+    'booking.trustCancellationWindowClosing': '免費取消期限即將截止',
+    'booking.trustMultiStop': '支援多點停靠',
+    'booking.trustInsured': '合法登記並投保乘客險',
+    'booking.trustSupport': '24 小時真人客服',
+
     // ---- Vehicle catalog ----
     'vehicle.seats': '{n} 人座',
     'vehicle.type.SEDAN': '轎車',
@@ -1354,6 +1491,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'pricing.fareToll': '過路費',
     'pricing.fareParking': '停車費',
     'pricing.fareVip': 'VIP 服務加成',
+    'pricing.fareCharterHours': '計時包車（預約 {hours} 小時）',
+    'pricing.fareMountainSurcharge': '山區路線附加費（海拔 1,500 公尺以上）',
+    'pricing.cashToDriver': '{amount} · 現金支付司機',
     'pricing.fairnessCapApplied': '此車資的動態調整已上限為 {pct}%，以確保計價公平合理。',
     'pricing.transparencyNote': '結帳前一定會顯示最終總金額 — 絕無隱藏費用。',
     'pricing.demandLevel.LOW': '低',
@@ -1420,6 +1560,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     'control.unresponsiveBanner': '{name} 在所有管道均未回應 — 請重新指派給下一位可用司機。',
     'control.demoNoResponseOn': '演示：司機將不會回應',
     'control.demoNoResponseOff': '演示：模擬司機未回應',
+    'control.demoSimulateLanded': '演示：航班已降落',
+    'control.demoSimulateDiverted': '演示：航班改降',
     'control.notificationLog': '通知紀錄（{n}）',
     'control.statusTimeline': '訂單狀態稽核時間軸（{n}）',
     'control.tripSheet': '行程單',
@@ -1509,6 +1651,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     'driver.enterPickupPin': '請向乘客詢問 4 位數上車 PIN 碼',
     'driver.pinIncorrect': 'PIN 碼錯誤，請與乘客確認後再試一次',
     'driver.reportNoShow': '回報乘客未出現',
+    'driver.waitingSince': '已等候 {min} 分鐘',
+    'driver.agreeToWait': '電話同意繼續等候（將收取現金等候費）',
+    'driver.waitingFeeAgreed': '已同意繼續等候——上車時將收取現金等候費',
+    'driver.waitingForfeitWarning': '已超過 {min} 分鐘仍未同意等候——此訂單可能被視為放棄，且不予退款',
+    'driver.simulateLatePassengerDemo': '演示：快進超過 15 分鐘寬限期',
     'driver.tripCompleted': 'Trip Completed! 行程已完成！',
     'driver.rateCustomer': '為此乘客評分',
     'driver.uploadTollEvidence': '上傳過路費／停車費收據',
@@ -1648,6 +1795,14 @@ export const translations: Record<Lang, Record<string, string>> = {
     'trips.supportSubjectDefault': '關於訂單 {orderNo} 的問題',
     'trips.ticketCreated': '客服案件已建立',
     'trips.save': '儲存',
+
+    // ---- 司機資訊揭露時間／車輛更換／等候費（萬馬接送）----
+    'trips.driverRevealed': '司機聯絡資訊已顯示於下方',
+    'trips.driverNotRevealedYet': '司機資訊將於行程前公布',
+    'trips.revealNowDemo': '演示：立即公布',
+    'trips.vehicleSubstituted': '您的車輛已更換為同等級的替代車輛',
+    'trips.waitingFeeCharged': '晚到等候費（等候 {min} 分鐘）',
+    'trips.simulateFlightLandedDemo': '演示：快進航班至已降落',
     'trips.notePlaceholder': '例如：航班延誤20分鐘，於3號登機門會合…',
     'trips.pin': '上車PIN碼：{pin}',
 
@@ -1679,6 +1834,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'customer.home.quickAirportPickup': '機場接送',
     'customer.home.quickAirportDropoff': '機場送機',
     'customer.home.quickTourCharter': '包車旅遊',
+    'customer.home.quickHourlyCharter': '計時包車',
     'customer.home.activeTripTitle': '您的行程正在進行中',
     'customer.home.activeTripWaiting': '正在為您尋找司機',
     'customer.home.activeTripCta': '追蹤行程',
@@ -1748,6 +1904,35 @@ export const translations: Record<Lang, Record<string, string>> = {
     'account.requestDataDownload': '申請下載我的個人資料',
     'account.requestDeleteAccount': '申請刪除帳戶',
     'account.requested': '已申請',
+
+    // ---- 輕量化模擬帳戶登入（機場快綫會員登入 + 萬馬接送 LINE 快速登入）----
+    'account.signInTitle': '登入以加快結帳速度',
+    'account.loginWithLine': '使用 LINE 繼續',
+    'account.loginWithEmail': '使用 Email 繼續',
+    'account.emailPlaceholder': 'you@example.com',
+    'account.passwordPlaceholder': '密碼',
+    'account.loginOrRegister': '登入／註冊',
+    'account.forgotPasswordDemo': '忘記密碼？（模擬功能，實際不會發送任何郵件）',
+    'account.loggedInAs': '已以 {name} 身分登入',
+
+    // ---- 訂單查詢（機場快綫的訂單查詢功能）----
+    'account.orderLookupTitle': '訂單查詢',
+    'account.orderLookupPlaceholder': '請輸入訂單編號，例如 FP-1024',
+    'account.orderLookupSubmit': '查詢',
+    'account.orderLookupNotFound': '找不到該訂單編號。',
+    'account.orderLookupView': '查看此行程 →',
+
+    // ---- 乘客須知與公司簡介 ----
+    'account.passengerGuidelines': '乘客須知',
+    'account.guideline1': '請於預約時間準時抵達上車地點——司機將免費等候一段有限的寬限時間。',
+    'account.guideline2': '支援中途停靠站，但每個停靠點請盡量控制在約 5 分鐘內。',
+    'account.guideline3': '高速公路服務區的洗手間停靠沒有問題；但不包含購物或用餐停靠。',
+    'account.guideline4': '機場接送的準備時間是根據航班「實際」降落時間計算，而非表定時間。',
+    'account.guideline5': '現金付款方式將於下車或抵達時直接與司機結清。',
+    'account.companyInfo': '公司資訊',
+    'account.companyDesc': '走瘋派車在台灣營運一支合法登記、投保乘客險的車隊，專營機場接送與私人包車服務。',
+    'account.companyRegNo': '統一編號 00000000（示範用佔位資料）',
+    'account.companyContact': '24 小時客服專線：+886 2 0000-0000 · support@zhaofeng.demo',
 
     // ---- Booking history / profile ----
     'history.myBookings': '我的訂單',
@@ -1863,6 +2048,12 @@ export const translations: Record<Lang, Record<string, string>> = {
     'notif.refundProcessed.message': '訂單 {orderNo}：退款已核准並發放給客戶。',
     'notif.refundRejected.title': '退款已拒絕',
     'notif.refundRejected.message': '訂單 {orderNo}：此退款申請已被拒絕。',
+    'notif.lastMinuteAutoCancelled.title': '臨時預約已自動取消',
+    'notif.lastMinuteAutoCancelled.message': '訂單 {orderNo}：盡力配對的臨時預約已免費自動取消——落地後等候期限內未配對到司機。',
+    'notif.flightDivertedCancelled.title': '航班改降 — 已自動取消',
+    'notif.flightDivertedCancelled.message': '訂單 {orderNo}：航班 {flightNumber} 已改降至其他機場，系統已自動取消並全額退款。',
+    'notif.flightMajorDelayCancelled.title': '航班嚴重延誤 — 已自動取消',
+    'notif.flightMajorDelayCancelled.message': '訂單 {orderNo}：航班 {flightNumber} 與預訂時間相差超過 2 小時，系統已自動取消並全額退款。',
 
     'no.channels': '尚無回應',
 
