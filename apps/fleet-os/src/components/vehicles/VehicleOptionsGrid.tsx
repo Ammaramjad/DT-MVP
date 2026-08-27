@@ -46,6 +46,11 @@ export function useVehicleOptions(params: {
   scheduledTimeIso: string
   waitingMinutes?: number
   couponCode?: string | null
+  /** Hourly Charter (計時包車) mode — see `lib/serviceRules.ts`. When set,
+   * every category's fare reflects the hourly-rate billing model instead of
+   * the usual distance/time model. */
+  charterHours?: number | null
+  mountainRoute?: boolean
 }): VehicleOption[] {
   const zoneConditions = useFleetStore((s) => s.zoneConditions)
   const pricingRules = useFleetStore((s) => s.pricingRules)
@@ -94,6 +99,8 @@ export function useVehicleOptions(params: {
         demand,
         rules: pricingRules,
         couponCode: params.couponCode ?? null,
+        charterHours: params.charterHours ?? null,
+        mountainRoute: params.mountainRoute ?? false,
       })
 
       // Simulated pickup ETA: fewer available vehicles in-zone => longer wait,
@@ -156,6 +163,8 @@ export function useVehicleOptions(params: {
     params.scheduledTimeIso,
     params.waitingMinutes,
     params.couponCode,
+    params.charterHours,
+    params.mountainRoute,
     zoneConditions,
     pricingRules,
     vehicles,

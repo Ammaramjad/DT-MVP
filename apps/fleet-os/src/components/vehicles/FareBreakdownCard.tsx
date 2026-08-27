@@ -34,9 +34,18 @@ export function FareBreakdownCard({ fareBreakdown, distanceKm, durationMin }: { 
   return (
     <div data-testid="fare-breakdown-card">
       <dl className="space-y-1 text-xs text-slate-600">
-        <Row label={t('booking.fareBase')} value={fb.baseFare} />
-        <Row label={t('booking.fareDistance', { km: distanceKm.toFixed(1) })} value={fb.distanceCost} />
-        <Row label={t('booking.fareTime', { min: durationMin })} value={fb.timeCost} />
+        {fb.charterHours ? (
+          <>
+            <Row label={t('booking.fareBase')} value={fb.baseFare} />
+            <Row label={t('pricing.fareCharterHours', { hours: fb.charterHours })} value={fb.timeCost} />
+          </>
+        ) : (
+          <>
+            <Row label={t('booking.fareBase')} value={fb.baseFare} />
+            <Row label={t('booking.fareDistance', { km: distanceKm.toFixed(1) })} value={fb.distanceCost} />
+            <Row label={t('booking.fareTime', { min: durationMin })} value={fb.timeCost} />
+          </>
+        )}
         {fb.demandAdjustment > 0 && <Row label={t('pricing.fareDemand', { level: t(`pricing.demandLevel.${fb.demandLevel}`) })} value={fb.demandAdjustment} tone="amber" />}
         {fb.weatherAdjustment > 0 && <Row label={t('pricing.fareWeather', { condition: t(`pricing.weather.${fb.weatherCondition}`) })} value={fb.weatherAdjustment} tone="amber" />}
         {fb.nightSurcharge > 0 && <Row label={t('pricing.fareNight')} value={fb.nightSurcharge} tone="amber" />}
@@ -61,6 +70,13 @@ export function FareBreakdownCard({ fareBreakdown, distanceKm, durationMin }: { 
           <dd>{formatTWD(fb.total)}</dd>
         </div>
       </dl>
+
+      {fb.mountainSurcharge > 0 && (
+        <div className="mt-2 flex items-center justify-between rounded-xl bg-orange-50 p-2.5 text-[11px] text-orange-700 ring-1 ring-orange-100" data-testid="fare-mountain-surcharge">
+          <span>{t('pricing.fareMountainSurcharge')}</span>
+          <span className="font-semibold">{t('pricing.cashToDriver', { amount: formatTWD(fb.mountainSurcharge) })}</span>
+        </div>
+      )}
 
       {fb.explanationKey && (
         <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-[11px] text-amber-700 ring-1 ring-amber-100" data-testid="pricing-explanation">
