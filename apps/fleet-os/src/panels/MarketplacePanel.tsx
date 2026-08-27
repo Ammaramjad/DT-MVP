@@ -9,6 +9,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { formatTWD } from '../lib/format'
 import type { MarketplaceCategory, MarketplaceListing, MarketplaceSource, VehicleType } from '../types'
+import { DEFAULT_CATEGORY_FOR_TYPE } from '../data/vehicleCatalog'
 import { useLang } from '../i18n'
 
 const SOURCE_TONE: Record<MarketplaceSource, 'cyan' | 'red' | 'amber' | 'green' | 'purple'> = {
@@ -57,7 +58,7 @@ export default function MarketplacePanel() {
       state: {
         presetPickupId: listing.fromLocationId,
         presetDropoffId: listing.toLocationId,
-        presetVehicleType: listing.vehicleType,
+        presetVehicleCategory: DEFAULT_CATEGORY_FOR_TYPE[listing.vehicleType],
         presetChannel: listing.source === 'Direct' ? 'Website' : listing.source,
       },
     })

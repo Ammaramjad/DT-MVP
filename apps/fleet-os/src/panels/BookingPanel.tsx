@@ -22,13 +22,15 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useFleetStore, classifyOrderType } from '../store/useFleetStore'
 import { LOCATIONS, getLocation } from '../data/locations'
 import { lookupFlight, randomFlightNumber } from '../lib/flight'
-import { computeFareBreakdown, estimateDurationMin, findCoupon, QUOTATION_TTL_MS } from '../lib/pricing'
+import { estimateDurationMin, findCoupon, QUOTATION_TTL_MS } from '../lib/pricing'
 import { buildRoutePath } from '../lib/geo'
 import { getCachedRoute, resolveDynamicRoute } from '../lib/routing'
 import { formatCountdownClock, formatTWD, nowPlusMinutesISO } from '../lib/format'
-import type { BookingInput, Order, RoutePath, VehicleType } from '../types'
-import { VEHICLE_CATALOG, VEHICLE_TYPES } from '../data/vehicleCatalog'
-import { VehicleCard } from '../components/vehicles/VehicleCard'
+import type { BookingInput, Order, PassengerRequirements, RoutePath, VehicleCategory } from '../types'
+import { VEHICLE_CATEGORY_CATALOG } from '../data/vehicleCatalog'
+import { useVehicleOptions, VehicleOptionsGrid } from '../components/vehicles/VehicleOptionsGrid'
+import { VehicleCompareDrawer } from '../components/vehicles/VehicleCompareDrawer'
+import { FareBreakdownCard } from '../components/vehicles/FareBreakdownCard'
 import { PanelHeader } from '../components/layout/PanelHeader'
 import { OrderTypeBadge, FlightBadge } from '../components/ui/OrderBadges'
 import { Stepper } from '../components/ui/Stepper'
@@ -42,21 +44,14 @@ const PAYMENT_METHODS: { key: string; labelKey: string }[] = [
   { key: 'linepay', labelKey: 'checkout.paymentLinePay' },
   { key: 'applepay', labelKey: 'checkout.paymentApplePay' },
 ]
-const VEHICLE_COLOR: Record<VehicleType, string> = {
-  SEDAN: '#22d3ee',
-  SUV: '#a855f7',
-  VAN: '#fbbf24',
-  LUXURY: '#f472b6',
-  MINIBUS: '#a3e635',
-}
 
 // Route-state presets handed off from the Customer App's Home-tab quick-action
 // shortcuts (see components/customer/HomeScreen.tsx) — lets tapping "Airport
 // Pickup" etc. genuinely pre-fill the trip type instead of opening a blank form.
-const PRESETS: Record<string, { pickupId: string; dropoffId: string; vehicleType?: VehicleType }> = {
+const PRESETS: Record<string, { pickupId: string; dropoffId: string; vehicleCategory?: VehicleCategory }> = {
   AIRPORT_PICKUP: { pickupId: 'tpe-airport', dropoffId: 'taipei-101' },
   AIRPORT_DROPOFF: { pickupId: 'taipei-101', dropoffId: 'tpe-airport' },
-  TOUR_CHARTER: { pickupId: 'taipei-101', dropoffId: 'beitou', vehicleType: 'VAN' },
+  TOUR_CHARTER: { pickupId: 'taipei-101', dropoffId: 'beitou', vehicleCategory: 'VAN_6' },
 }
 
 export default function BookingPanel() {
@@ -68,7 +63,7 @@ export default function BookingPanel() {
   const { t, lang } = useLang()
 
   const routerState = location.state as
-    | { presetType?: string; presetPickupId?: string; presetDropoffId?: string; presetVehicleType?: VehicleType; presetChannel?: BookingInput['channel'] }
+    | { presetType?: string; presetPickupId?: string; presetDropoffId?: string; presetVehicleCategory?: VehicleCategory; presetChannel?: BookingInput['channel'] }
     | null
   const preset = routerState?.presetType
   const presetConfig = preset ? PRESETS[preset] : undefined
@@ -77,7 +72,9 @@ export default function BookingPanel() {
   const [pickupId, setPickupId] = useState(routerState?.presetPickupId ?? presetConfig?.pickupId ?? 'tpe-airport')
   const [dropoffId, setDropoffId] = useState(routerState?.presetDropoffId ?? presetConfig?.dropoffId ?? 'taipei-main-station')
   const [scheduledTime, setScheduledTime] = useState(() => nowPlusMinutesISO(90).slice(0, 16))
-  const [vehicleType, setVehicleType] = useState<VehicleType>(routerState?.presetVehicleType ?? presetConfig?.vehicleType ?? 'SEDAN')
+  const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>(routerState?.presetVehicleCategory ?? presetConfig?.vehicleCategory ?? 'ECONOMY_SEDAN')
+  const [compareList, setCompareList] = useState<VehicleCategory[]>([])
+  const [showCompare, setShowCompare] = useState(false)
   const [passengers, setPassengers] = useState(2)
   const [luggage, setLuggage] = useState(2)
   const [name, setName] = useState('')
@@ -102,6 +99,7 @@ export default function BookingPanel() {
   // demonstrated end-to-end without a real payment gateway.
   const [childSeat, setChildSeat] = useState(false)
   const [wheelchair, setWheelchair] = useState(false)
+  const [pet, setPet] = useState(false)
   const [specialAssistance, setSpecialAssistance] = useState('')
   const [consent, setConsent] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<string>('card')
@@ -122,7 +120,7 @@ export default function BookingPanel() {
     setQuotedAt(Date.now())
     setQuotationVersion((v) => v + 1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickupId, dropoffId, vehicleType])
+  }, [pickupId, dropoffId, vehicleCategory])
 
   const pickup = getLocation(pickupId)
   const dropoff = getLocation(dropoffId)
@@ -159,14 +157,41 @@ export default function BookingPanel() {
 
   const waitingMinutes = flightPreview?.status === 'DELAYED' && pickup.isAirport ? flightPreview.delayMinutes : 0
 
-  const fareBreakdown = useMemo(
-    () =>
-      computeFareBreakdown(routePreview.distanceKm, duration, vehicleType, isAirportTrip, {
-        waitingMinutes,
-        couponCode: appliedCoupon,
-      }),
-    [routePreview.distanceKm, duration, vehicleType, isAirportTrip, waitingMinutes, appliedCoupon],
+  const passengerRequirements: PassengerRequirements = useMemo(
+    () => ({ childSeat, wheelchair, pet, specialAssistance }),
+    [childSeat, wheelchair, pet, specialAssistance],
   )
+
+  // Full simulated Dynamic Pricing Service preview — every category's live
+  // fare (reflecting the current zone's weather/demand, availability, and
+  // this trip's route/time/requirements) so the multi-vehicle-card grid
+  // shows genuinely different, trustworthy prices rather than one fixed fare.
+  const vehicleOptions = useVehicleOptions({
+    passengers,
+    luggage,
+    requirements: passengerRequirements,
+    distanceKm: routePreview.distanceKm,
+    durationMin: duration,
+    isAirport: isAirportTrip,
+    pickupZone: pickup.region,
+    scheduledTimeIso: new Date(scheduledTime).toISOString(),
+    waitingMinutes,
+    couponCode: appliedCoupon,
+  })
+  const selectedOption = vehicleOptions.find((o) => o.category === vehicleCategory) ?? vehicleOptions[0]
+  const fareBreakdown = selectedOption.fareBreakdown
+  const vehicleType = VEHICLE_CATEGORY_CATALOG[vehicleCategory].underlyingType
+
+  // If the currently-selected category becomes ineligible (e.g. the
+  // passenger count grows past its capacity), automatically hop to the
+  // brief's "recommended option" instead of silently booking a car that
+  // can't carry the party.
+  useEffect(() => {
+    if (selectedOption.eligible) return
+    const recommended = vehicleOptions.find((o) => o.badges.includes('RECOMMENDED')) ?? vehicleOptions.find((o) => o.eligible)
+    if (recommended) setVehicleCategory(recommended.category)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOption.eligible])
 
   const quoteExpiresAt = quotedAt + QUOTATION_TTL_MS
   const quoteRemainingMs = quoteExpiresAt - now
@@ -207,6 +232,8 @@ export default function BookingPanel() {
       pickup,
       dropoff,
       vehicleType,
+      vehicleCategory,
+      passengerRequirements,
       passengers,
       luggage,
       notes,
@@ -259,6 +286,8 @@ export default function BookingPanel() {
       pickup,
       dropoff,
       vehicleType,
+      vehicleCategory,
+      passengerRequirements,
       passengers,
       luggage,
       notes,
@@ -272,7 +301,7 @@ export default function BookingPanel() {
     ],
   )
 
-  const canSubmit = name.trim().length > 1 && phone.trim().length > 3 && pickupId !== dropoffId && !quoteExpired && consent
+  const canSubmit = name.trim().length > 1 && phone.trim().length > 3 && pickupId !== dropoffId && !quoteExpired && consent && selectedOption.eligible
 
   const liveCreatedOrder = createdOrder ? liveOrders.find((o) => o.id === createdOrder.id) ?? createdOrder : null
 
@@ -291,6 +320,7 @@ export default function BookingPanel() {
     const tags = [
       childSeat ? t('checkout.tagChildSeat') : null,
       wheelchair ? t('checkout.tagWheelchair') : null,
+      pet ? t('checkout.tagPet') : null,
       specialAssistance.trim() ? `${t('checkout.tagAssistance')}: ${specialAssistance.trim()}` : null,
     ].filter(Boolean)
     const combinedNotes = [notes, ...tags].filter(Boolean).join(' · ')
@@ -301,6 +331,7 @@ export default function BookingPanel() {
       dropoffId,
       scheduledTime: new Date(scheduledTime).toISOString(),
       vehicleType,
+      vehicleCategory,
       passengers,
       luggage,
       customer: { name, phone, email },
@@ -308,8 +339,7 @@ export default function BookingPanel() {
       notes: combinedNotes,
       couponCode: appliedCoupon,
       quotationVersion,
-      childSeat,
-      wheelchair,
+      passengerRequirements,
       invoiceRequested: invoiceType === 'COMPANY',
       simulateFailure: simulateDecline,
     })
@@ -471,18 +501,58 @@ export default function BookingPanel() {
             )}
           </AnimatePresence>
 
-          <div className="mt-5">
-            <label className="mb-2 block text-xs font-medium text-slate-600">{t('booking.vehicleType')}</label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-              {VEHICLE_TYPES.map((type) => (
-                <VehicleCard key={type} type={type} selected={vehicleType === type} onClick={() => setVehicleType(type)} size="sm" light />
-              ))}
-            </div>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <Stepper label={t('booking.passengers')} value={passengers} min={1} max={20} onChange={setPassengers} light testId="booking-passengers-stepper" />
+            <Stepper label={t('booking.luggage')} value={luggage} min={0} max={20} onChange={setLuggage} light testId="booking-luggage-stepper" />
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <Stepper label={t('booking.passengers')} value={passengers} min={1} max={20} onChange={setPassengers} light />
-            <Stepper label={t('booking.luggage')} value={luggage} min={0} max={20} onChange={setLuggage} light />
+          {/* Special assistance — client brief: child seat, wheelchair, pet, special assistance */}
+          <div className="mt-4">
+            <label className="mb-2 block text-xs font-medium text-slate-600">{t('checkout.specialRequirements')}</label>
+            <div className="flex flex-wrap gap-3">
+              <label className="flex items-center gap-2 text-xs text-slate-600">
+                <input type="checkbox" checked={childSeat} onChange={(e) => setChildSeat(e.target.checked)} data-testid="checkout-child-seat" className="h-4 w-4 accent-blue-500" />
+                {t('checkout.childSeat')}
+              </label>
+              <label className="flex items-center gap-2 text-xs text-slate-600">
+                <input type="checkbox" checked={wheelchair} onChange={(e) => setWheelchair(e.target.checked)} data-testid="checkout-wheelchair" className="h-4 w-4 accent-blue-500" />
+                {t('checkout.wheelchair')}
+              </label>
+              <label className="flex items-center gap-2 text-xs text-slate-600">
+                <input type="checkbox" checked={pet} onChange={(e) => setPet(e.target.checked)} data-testid="checkout-pet" className="h-4 w-4 accent-blue-500" />
+                {t('checkout.pet')}
+              </label>
+            </div>
+            <input
+              value={specialAssistance}
+              onChange={(e) => setSpecialAssistance(e.target.value)}
+              placeholder={t('checkout.assistancePlaceholder')}
+              data-testid="checkout-assistance-input"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          {/* Client brief: multi-vehicle-category recommendation grid, not one
+              fixed vehicle — ineligible categories are visually disabled with
+              an explanation, and up to 3 can be added to a comparison drawer. */}
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <div className="mb-2 flex items-center justify-between">
+              <label className="block text-xs font-medium text-slate-600">{t('booking.vehicleCategory')}</label>
+              {compareList.length > 0 && (
+                <button type="button" onClick={() => setShowCompare(true)} data-testid="vehicle-compare-open" className="text-xs font-semibold text-blue-600 hover:underline">
+                  {t('vehicle.compareOpen', { n: compareList.length })}
+                </button>
+              )}
+            </div>
+            <VehicleOptionsGrid
+              options={vehicleOptions}
+              selectedCategory={vehicleCategory}
+              onSelect={setVehicleCategory}
+              compareList={compareList}
+              onToggleCompare={(cat) =>
+                setCompareList((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : prev.length >= 3 ? prev : [...prev, cat]))
+              }
+            />
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -558,28 +628,6 @@ export default function BookingPanel() {
             {couponError && <p className="mt-1.5 text-xs text-red-500">{t('booking.couponInvalid')}</p>}
           </div>
 
-          {/* Special assistance — client brief: child seat, wheelchair, special assistance */}
-          <div className="mt-5 border-t border-slate-100 pt-4">
-            <label className="mb-2 block text-xs font-medium text-slate-600">{t('checkout.specialRequirements')}</label>
-            <div className="flex flex-wrap gap-3">
-              <label className="flex items-center gap-2 text-xs text-slate-600">
-                <input type="checkbox" checked={childSeat} onChange={(e) => setChildSeat(e.target.checked)} data-testid="checkout-child-seat" className="h-4 w-4 accent-blue-500" />
-                {t('checkout.childSeat')}
-              </label>
-              <label className="flex items-center gap-2 text-xs text-slate-600">
-                <input type="checkbox" checked={wheelchair} onChange={(e) => setWheelchair(e.target.checked)} data-testid="checkout-wheelchair" className="h-4 w-4 accent-blue-500" />
-                {t('checkout.wheelchair')}
-              </label>
-            </div>
-            <input
-              value={specialAssistance}
-              onChange={(e) => setSpecialAssistance(e.target.value)}
-              placeholder={t('checkout.assistancePlaceholder')}
-              data-testid="checkout-assistance-input"
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-
           {/* Payment method + invoice selection */}
           <div className="mt-4">
             <label className="mb-2 block text-xs font-medium text-slate-600">{t('checkout.paymentMethod')}</label>
@@ -651,17 +699,17 @@ export default function BookingPanel() {
 
         <div className="flex flex-col gap-4">
           <div className="relative h-44 w-full overflow-hidden rounded-2xl bg-slate-900 shadow-xl" data-testid="vehicle-preview-panel">
-            {/* Soft radial glow in the selected vehicle's brand color, behind its actual catalog photo — this
-                replaces the old generic static 3D placeholder and updates live with `vehicleType`. */}
+            {/* Soft radial glow in the selected category's brand color, behind its actual catalog photo — this
+                replaces the old generic static 3D placeholder and updates live with `vehicleCategory`. */}
             <div
               className="absolute inset-0 transition-colors duration-500"
               style={{
-                background: `radial-gradient(circle at 50% 45%, ${VEHICLE_COLOR[vehicleType]}55, transparent 70%)`,
+                background: `radial-gradient(circle at 50% 45%, ${VEHICLE_CATEGORY_CATALOG[vehicleCategory].colorHex}55, transparent 70%)`,
               }}
             />
             <AnimatePresence mode="wait">
               <motion.div
-                key={vehicleType}
+                key={vehicleCategory}
                 initial={{ opacity: 0, scale: 0.92, y: 8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.92, y: -8 }}
@@ -669,8 +717,8 @@ export default function BookingPanel() {
                 className="relative flex h-full w-full items-center justify-center p-4"
               >
                 <img
-                  src={VEHICLE_CATALOG[vehicleType].photo}
-                  alt={`${VEHICLE_CATALOG[vehicleType].brand} ${VEHICLE_CATALOG[vehicleType].model}`}
+                  src={VEHICLE_CATEGORY_CATALOG[vehicleCategory].photo}
+                  alt={`${VEHICLE_CATEGORY_CATALOG[vehicleCategory].brand} ${VEHICLE_CATEGORY_CATALOG[vehicleCategory].model}`}
                   data-testid="vehicle-preview-photo"
                   className="max-h-full max-w-full object-contain drop-shadow-[0_18px_28px_rgba(0,0,0,0.55)]"
                 />
@@ -678,10 +726,10 @@ export default function BookingPanel() {
             </AnimatePresence>
             <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
               <span className="rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
-                {VEHICLE_CATALOG[vehicleType].brand} {VEHICLE_CATALOG[vehicleType].model}
+                {VEHICLE_CATEGORY_CATALOG[vehicleCategory].brand} {VEHICLE_CATEGORY_CATALOG[vehicleCategory].model}
               </span>
               <span className="rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-medium text-white/80 backdrop-blur-sm">
-                {t(`vehicle.type.${vehicleType}`)}
+                {t(`vehicle.category.${vehicleCategory}`)}
               </span>
             </div>
           </div>
@@ -708,46 +756,7 @@ export default function BookingPanel() {
 
             <div className="mt-4 border-t border-slate-100 pt-3">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t('booking.fareBreakdown')}</p>
-              <dl className="space-y-1 text-xs text-slate-600">
-                <div className="flex justify-between">
-                  <dt>{t('booking.fareBase')}</dt>
-                  <dd>{formatTWD(fareBreakdown.baseFare)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>{t('booking.fareDistance', { km: routePreview.distanceKm.toFixed(1) })}</dt>
-                  <dd>{formatTWD(fareBreakdown.distanceCost)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>{t('booking.fareTime', { min: duration })}</dt>
-                  <dd>{formatTWD(fareBreakdown.timeCost)}</dd>
-                </div>
-                {fareBreakdown.airportSurcharge > 0 && (
-                  <div className="flex justify-between">
-                    <dt>{t('booking.fareAirport')}</dt>
-                    <dd>{formatTWD(fareBreakdown.airportSurcharge)}</dd>
-                  </div>
-                )}
-                {fareBreakdown.waitingFee > 0 && (
-                  <div className="flex justify-between text-amber-600">
-                    <dt>{t('booking.fareWaiting')}</dt>
-                    <dd>{formatTWD(fareBreakdown.waitingFee)}</dd>
-                  </div>
-                )}
-                <div className="flex justify-between border-t border-slate-100 pt-1 font-medium text-slate-700">
-                  <dt>{t('booking.fareSubtotal')}</dt>
-                  <dd>{formatTWD(fareBreakdown.subtotal)}</dd>
-                </div>
-                {fareBreakdown.discount > 0 && (
-                  <div className="flex justify-between text-emerald-600">
-                    <dt>{t('booking.fareDiscount', { code: fareBreakdown.couponCode ?? '' })}</dt>
-                    <dd>-{formatTWD(fareBreakdown.discount)}</dd>
-                  </div>
-                )}
-                <div className="flex justify-between border-t border-slate-200 pt-1.5 text-sm font-bold text-slate-900">
-                  <dt>{t('booking.fareTotal')}</dt>
-                  <dd>{formatTWD(fareBreakdown.total)}</dd>
-                </div>
-              </dl>
+              <FareBreakdownCard fareBreakdown={fareBreakdown} distanceKm={routePreview.distanceKm} durationMin={duration} />
             </div>
 
             <div className={`mt-3 rounded-lg p-2.5 text-center text-xs font-medium ${quoteExpired ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-500'}`}>
@@ -769,6 +778,19 @@ export default function BookingPanel() {
           </div>
         </div>
       </div>
+
+      {showCompare && compareList.length > 0 && (
+        <VehicleCompareDrawer
+          options={vehicleOptions}
+          categories={compareList}
+          onRemove={(cat) => setCompareList((prev) => prev.filter((c) => c !== cat))}
+          onClose={() => setShowCompare(false)}
+          onSelect={(cat) => {
+            setVehicleCategory(cat)
+            setShowCompare(false)
+          }}
+        />
+      )}
 
       <AnimatePresence>
         {liveCreatedOrder && (
@@ -893,6 +915,7 @@ export default function BookingPanel() {
                         setCouponInput('')
                         setChildSeat(false)
                         setWheelchair(false)
+                        setPet(false)
                         setSpecialAssistance('')
                         setConsent(false)
                         setSimulateDecline(false)
