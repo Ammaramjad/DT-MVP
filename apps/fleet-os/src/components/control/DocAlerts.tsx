@@ -1,7 +1,7 @@
 import { AlertTriangle, ShieldAlert } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { documentAlerts } from '../../lib/selectors'
-import { formatDateTime } from '../../lib/format'
+import { formatExpiryDate } from '../../lib/format'
 import { useLang } from '../../i18n'
 
 export function DocAlerts() {
@@ -32,7 +32,7 @@ export function DocAlerts() {
               {a.driverName} · {t(a.docTypeKey)}
             </p>
             <p className="text-slate-500">
-              {a.status === 'EXPIRED' ? t('control.docExpiredOn') : t('control.docExpires')} {formatDateTime(a.expiresAt, lang)} · {t('control.docOcrFlagged')}
+              {a.status === 'EXPIRED' ? t('control.docExpiredOn') : t('control.docExpires')} {formatExpiryDate(a.expiresAt, lang)} · {t('control.docOcrFlagged')}
             </p>
           </div>
         </div>

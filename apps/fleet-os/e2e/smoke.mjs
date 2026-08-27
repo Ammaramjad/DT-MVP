@@ -23,6 +23,8 @@ const routes = [
   '/fleet-os/admin',
   '/driver',
   '/customer',
+  // Unknown route: must land on the 404 panel, not a blank screen.
+  '/this-route-does-not-exist',
 ]
 
 const browser = await chromium.launch()
@@ -40,6 +42,11 @@ for (const route of routes) {
   await page.waitForTimeout(2500)
   await page.screenshot({ path: `/tmp/smoke${route.replace(/\//g, '_') || '_home'}.png`, fullPage: false })
   console.log(`Visited ${route}, errors so far: ${errors.length}`)
+}
+
+await page.goto(`${BASE}/this-route-does-not-exist`, { waitUntil: 'networkidle' })
+if ((await page.locator('[data-testid="not-found-panel"]').count()) === 0) {
+  errors.push('[assert] unknown route did not render the 404 panel')
 }
 
 console.log('--- ERRORS ---')

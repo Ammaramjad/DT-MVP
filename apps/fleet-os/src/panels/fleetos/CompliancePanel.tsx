@@ -5,7 +5,7 @@ import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { StatCard } from '../../components/ui/StatCard'
 import { Badge } from '../../components/ui/Badge'
 import { documentAlerts } from '../../lib/selectors'
-import { formatDateTime } from '../../lib/format'
+import { formatExpiryDate } from '../../lib/format'
 import type { DocumentKind } from '../../types'
 import { useLang } from '../../i18n'
 
@@ -64,7 +64,7 @@ export default function CompliancePanel() {
                           </Badge>
                           {doc.ocrStatus === 'FLAGGED' && !done && <Badge tone="purple">{t('fleetos.compliance.ocrFlag')}</Badge>}
                         </div>
-                        <span className="text-[10px] text-slate-500">{formatDateTime(doc.expiresAt, lang)}</span>
+                        <span className="text-[10px] text-slate-500">{formatExpiryDate(doc.expiresAt, lang)}</span>
                         {(doc.status !== 'VALID' || doc.ocrStatus === 'FLAGGED') && !done && (
                           <button
                             onClick={() => markReuploaded(d.id, k)}

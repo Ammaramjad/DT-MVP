@@ -71,11 +71,13 @@ const BASE_DRIVERS: Omit<
   },
 ]
 
+// Taiwan fleet — every name is traditional Chinese (no simplified forms) and the
+// romanization matches the characters, since these render side by side in the UI.
 const EXTRA_NAMES: [string, string][] = [
   ['Yu-Ting Kuo', '\u90ed\u96e8\u5ef7'], ['Kai-Wen Hsu', '\u8a31\u51f1\u6587'], ['Pei-Ru Lai', '\u8cf4\u4f69\u5982'], ['Zhi-Qiang Peng', '\u5f6d\u667a\u5f37'],
-  ['Hui-Ling Cai', '\u8521\u60e0\u73b2'], ['Jun-Jie Xie', '\u8b1d\u5049\u6770'], ['Shu-Wen Yang', '\u6768\u6dd1\u6587'], ['Bo-Han Liu', '\u5289\u535a\u542b'],
-  ['Yi-Chun Ho', '\u4f55\u4f9d\u6625'], ['Zong-Han Su', '\u82cf\u5b97\u6f22'], ['Meng-Yao Fang', '\u65b9\u5b5f\u745e'], ['Jia-Le Zhu', '\u6731\u5609\u6a02'],
-  ['Xin-Yi Lu', '\u9b6f\u5fc3\u601d'], ['Guan-Yu Deng', '\u9127\u5b98\u5b87'], ['Rui-En Tang', '\u6c64\u745e\u6069'], ['Wan-Ru Fan', '\u6f58\u5a49\u5982'],
+  ['Hui-Ling Cai', '\u8521\u60e0\u73b2'], ['Jun-Jie Xie', '\u8b1d\u4fca\u5091'], ['Shu-Wen Yang', '\u694a\u6dd1\u6587'], ['Bo-Han Liu', '\u5289\u535a\u542b'],
+  ['Yi-Chun Ho', '\u4f55\u4f9d\u6625'], ['Zong-Han Su', '\u8607\u5b97\u6f22'], ['Meng-Yao Fang', '\u65b9\u5b5f\u7464'], ['Jia-Le Zhu', '\u6731\u5609\u6a02'],
+  ['Xin-Yi Lu', '\u9b6f\u5fc3\u6021'], ['Guan-Yu Deng', '\u9127\u5b98\u5b87'], ['Rui-En Tang', '\u6e6f\u745e\u6069'], ['Wan-Ru Pan', '\u6f58\u5a49\u5982'],
   ['Cheng-Yu Ma', '\u99ac\u627f\u5b87'],
 ]
 const EXTRA_EMOJI = ['\ud83e\uddd1\ud83c\udffb\u200d\u2708\ufe0f', '\ud83d\udc69\ud83c\udffb\u200d\u2708\ufe0f', '\ud83e\uddd1\ud83c\udffd\u200d\u2708\ufe0f', '\ud83d\udc68\ud83c\udffb\u200d\u2708\ufe0f']
@@ -113,11 +115,14 @@ function buildDriverStats(driverId: string, completedTrips: number): DriverStats
   const declinedAllTime = Math.round(totalAllTime * declineRate)
   const missedAllTime = Math.round(totalAllTime * missRate)
   const acceptedAllTime = Math.max(0, totalAllTime - declinedAllTime - missedAllTime)
-  const totalToday = 1 + (seed % 5)
-  const totalWeek = totalToday + 6 + (seed % 12)
+  // Today's totals are built up from the parts (rather than split out of a
+  // pre-picked total) so a driver always has at least one accepted job today —
+  // otherwise the Driver App can show "0 accepted today" next to a live trip.
   const declinedToday = seed % 3 === 0 ? 1 : 0
   const missedToday = seed % 5 === 0 ? 1 : 0
-  const acceptedToday = Math.max(0, totalToday - declinedToday - missedToday)
+  const acceptedToday = 1 + (seed % 4)
+  const totalToday = acceptedToday + declinedToday + missedToday
+  const totalWeek = totalToday + 6 + (seed % 12)
 
   return { totalAllTime, totalToday, totalWeek, acceptedToday, declinedToday, missedToday, acceptedAllTime, declinedAllTime, missedAllTime }
 }
