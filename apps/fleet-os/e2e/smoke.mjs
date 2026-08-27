@@ -33,7 +33,13 @@ const routes = [
 ]
 
 const browser = await chromium.launch()
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+await context.addInitScript(() => {
+  try {
+    localStorage.setItem('fleet_preview_auth_token', 'test_e2e_token_' + Date.now())
+  } catch {}
+})
+const page = await context.newPage()
 
 const errors = []
 page.on('console', (msg) => {

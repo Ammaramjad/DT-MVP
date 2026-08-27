@@ -4,6 +4,8 @@ import { useRealRouteHydration } from './hooks/useRealRouteHydration'
 import { NotificationToaster } from './components/ui/NotificationToaster'
 import { DemoModeSwitcher } from './components/layout/DemoModeSwitcher'
 import { LanguageProvider } from './i18n'
+import { GatekeeperProvider, useGatekeeper } from './lib/gatekeeper'
+import { ClientGatekeeper } from './components/security/ClientGatekeeper'
 import LandingPanel from './panels/LandingPanel'
 import BookingPanel from './panels/BookingPanel'
 import ControlCenterPanel from './panels/ControlCenterPanel'
@@ -28,47 +30,60 @@ import FlightBoardPanel from './panels/fleetos/FlightBoardPanel'
 import AccountsPanel from './panels/fleetos/AccountsPanel'
 import OperatingParametersPanel from './panels/fleetos/OperatingParametersPanel'
 
+function AppContent() {
+  const { isLocked } = useGatekeeper()
+
+  return (
+    <>
+      {isLocked && <ClientGatekeeper />}
+      <NotificationToaster />
+      <Routes>
+        <Route path="/" element={<LandingPanel />} />
+        <Route path="/booking" element={<BookingPanel />} />
+        <Route path="/marketplace" element={<MarketplacePanel />} />
+        <Route path="/driver" element={<DriverPanel />} />
+        <Route path="/customer" element={<CustomerAppPanel />} />
+
+        {/* Fleet OS — canonical desktop command-center routes per the client
+            brief. /control is kept as a working alias (redirect) so the
+            existing PR history / any bookmarked links keep resolving. */}
+        <Route path="/control" element={<Navigate to="/fleet-os" replace />} />
+        <Route path="/fleet-os" element={<ControlCenterPanel />} />
+        <Route path="/fleet-os/orders" element={<ControlCenterPanel />} />
+        <Route path="/fleet-os/suppliers" element={<SuppliersPanel />} />
+        <Route path="/fleet-os/catalog" element={<CatalogPanel />} />
+        <Route path="/fleet-os/pricing/dynamic" element={<PricingDynamicPanel />} />
+        <Route path="/fleet-os/vehicles" element={<VehicleInventoryPanel />} />
+        <Route path="/fleet-os/campaigns" element={<CampaignsPanel />} />
+        <Route path="/fleet-os/support" element={<SupportPanel />} />
+        <Route path="/fleet-os/refunds" element={<RefundsPanel />} />
+        <Route path="/fleet-os/roster" element={<RosterPanel />} />
+        <Route path="/fleet-os/compliance" element={<CompliancePanel />} />
+        <Route path="/fleet-os/finance" element={<FinancePanel />} />
+        <Route path="/fleet-os/reports" element={<ReportsPanel />} />
+        <Route path="/fleet-os/admin" element={<AdminPanel />} />
+        <Route path="/fleet-os/manual-order" element={<ManualOrderPanel />} />
+        <Route path="/fleet-os/translation-qa" element={<TranslationQaPanel />} />
+        <Route path="/fleet-os/flights" element={<FlightBoardPanel />} />
+        <Route path="/fleet-os/accounts" element={<AccountsPanel />} />
+        <Route path="/fleet-os/params" element={<OperatingParametersPanel />} />
+      </Routes>
+      <DemoModeSwitcher />
+    </>
+  )
+}
+
 export default function App() {
   useSimulationTicker()
   useRealRouteHydration()
 
   return (
     <LanguageProvider>
-      <BrowserRouter>
-        <NotificationToaster />
-        <Routes>
-          <Route path="/" element={<LandingPanel />} />
-          <Route path="/booking" element={<BookingPanel />} />
-          <Route path="/marketplace" element={<MarketplacePanel />} />
-          <Route path="/driver" element={<DriverPanel />} />
-          <Route path="/customer" element={<CustomerAppPanel />} />
-
-          {/* Fleet OS — canonical desktop command-center routes per the client
-              brief. /control is kept as a working alias (redirect) so the
-              existing PR history / any bookmarked links keep resolving. */}
-          <Route path="/control" element={<Navigate to="/fleet-os" replace />} />
-          <Route path="/fleet-os" element={<ControlCenterPanel />} />
-          <Route path="/fleet-os/orders" element={<ControlCenterPanel />} />
-          <Route path="/fleet-os/suppliers" element={<SuppliersPanel />} />
-          <Route path="/fleet-os/catalog" element={<CatalogPanel />} />
-          <Route path="/fleet-os/pricing/dynamic" element={<PricingDynamicPanel />} />
-          <Route path="/fleet-os/vehicles" element={<VehicleInventoryPanel />} />
-          <Route path="/fleet-os/campaigns" element={<CampaignsPanel />} />
-          <Route path="/fleet-os/support" element={<SupportPanel />} />
-          <Route path="/fleet-os/refunds" element={<RefundsPanel />} />
-          <Route path="/fleet-os/roster" element={<RosterPanel />} />
-          <Route path="/fleet-os/compliance" element={<CompliancePanel />} />
-          <Route path="/fleet-os/finance" element={<FinancePanel />} />
-          <Route path="/fleet-os/reports" element={<ReportsPanel />} />
-          <Route path="/fleet-os/admin" element={<AdminPanel />} />
-          <Route path="/fleet-os/manual-order" element={<ManualOrderPanel />} />
-          <Route path="/fleet-os/translation-qa" element={<TranslationQaPanel />} />
-          <Route path="/fleet-os/flights" element={<FlightBoardPanel />} />
-          <Route path="/fleet-os/accounts" element={<AccountsPanel />} />
-          <Route path="/fleet-os/params" element={<OperatingParametersPanel />} />
-        </Routes>
-        <DemoModeSwitcher />
-      </BrowserRouter>
+      <GatekeeperProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </GatekeeperProvider>
     </LanguageProvider>
   )
 }

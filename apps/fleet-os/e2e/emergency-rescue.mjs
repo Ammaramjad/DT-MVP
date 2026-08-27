@@ -16,6 +16,11 @@ const BASE = `http://localhost:${PORT}`
 
 const browser = await chromium.launch()
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+await context.addInitScript(() => {
+  try {
+    localStorage.setItem('fleet_preview_auth_token', 'test_e2e_token_' + Date.now())
+  } catch {}
+})
 const page = await context.newPage()
 
 const consoleErrors = []
