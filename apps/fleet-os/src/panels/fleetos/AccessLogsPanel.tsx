@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Shield,
   ShieldCheck,
@@ -21,6 +21,12 @@ import {
   MapPin,
   Clock,
   Sparkles,
+  Radio,
+  Eye,
+  EyeOff,
+  Activity,
+  Compass,
+  Wifi,
 } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
@@ -28,6 +34,7 @@ import { StatCard } from '../../components/ui/StatCard'
 import { Badge } from '../../components/ui/Badge'
 import { formatDateTime, formatRelative } from '../../lib/format'
 import { useLang } from '../../i18n'
+import { useLivePresence, maskIp, formatActiveDuration, formatLastPing } from '../../lib/livePresence'
 import type { AccessAttemptStatus, AccessAuthMethod } from '../../types'
 
 export default function AccessLogsPanel() {
@@ -38,6 +45,17 @@ export default function AccessLogsPanel() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'SUCCESS' | 'FAILED'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [unmaskedIps, setUnmaskedIps] = useState<Record<string, boolean>>({})
+
+  // Real-time live presence tracking
+  const { onlineCount, activeSessions, currentSessionId } = useLivePresence()
+
+  const toggleIpMask = (sessionId: string) => {
+    setUnmaskedIps((prev) => ({
+      ...prev,
+      [sessionId]: !prev[sessionId],
+    }))
+  }
 
   // KPI Calculations
   const totalAttempts = accessLogs.length
@@ -222,12 +240,195 @@ export default function AccessLogsPanel() {
       icon={<Shield className="h-5 w-5 text-cyan-400" />}
       right={
         <div className="flex items-center gap-2">
+          <div
+            data-testid="live-presence-header-pill"
+            className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-3 py-1 shadow-[0_0_15px_rgba(16,185,129,0.15)] backdrop-blur-md"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="text-xs font-semibold text-emerald-300">
+              {t('fleetos.accessLogs.livePresence.onlineCount', { count: onlineCount })}
+            </span>
+          </div>
+
           <Badge tone="cyan" pulse>
             <ShieldCheck className="h-3 w-3 mr-0.5" /> {t('fleetos.accessLogs.securityBadge')}
           </Badge>
         </div>
       }
     >
+      {/* ------------------------------------------------------------------ */}
+      {/* 1. Prominent Live Active Sessions Monitor Section                 */}
+      {/* ------------------------------------------------------------------ */}
+      <motion.div
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-2 overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-slate-950/90 via-slate-900/80 to-emerald-950/20 p-5 shadow-[0_4px_30px_rgba(16,185,129,0.08)] backdrop-blur-xl"
+        data-testid="live-presence-monitor"
+      >
+        {/* Header bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-white/10">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-400">
+              <Radio className="h-5 w-5 animate-pulse" />
+              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+              </span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+                  {t('fleetos.accessLogs.livePresence.title')}
+                </h2>
+                <span
+                  data-testid="live-sessions-counter-badge"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300 ring-1 ring-emerald-400/40"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {t('fleetos.accessLogs.livePresence.activeSessions', { count: onlineCount })}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-slate-400">
+                {t('fleetos.accessLogs.livePresence.subtitle')}
+              </p>
+            </div>
+          </div>
+
+          {/* Sync indicator */}
+          <div className="flex items-center gap-2 text-[11px] text-slate-400 self-start sm:self-auto">
+            <Wifi className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="hidden md:inline text-slate-400">
+              {t('fleetos.accessLogs.livePresence.syncChannel')}
+            </span>
+          </div>
+        </div>
+
+        {/* Active Session Cards Grid */}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5" data-testid="live-sessions-cards-grid">
+          <AnimatePresence mode="popLayout">
+            {activeSessions.map((session) => {
+              const isCurrent = session.sessionId === currentSessionId || session.isCurrentSession
+              const isUnmasked = !!unmaskedIps[session.sessionId]
+              const displayIp = isUnmasked ? session.ip : maskIp(session.ip)
+              const activeDuration = formatActiveDuration(Date.now() - session.firstSeen, lang)
+              const pingRelative = formatLastPing(Date.now() - session.lastPing, lang)
+
+              const surfaceDisplayName = session.surfaceKey
+                ? t(`fleetos.accessLogs.livePresence.surface.${session.surfaceKey}` as any) || session.surface
+                : session.surface
+
+              return (
+                <motion.div
+                  key={session.sessionId}
+                  layout
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  data-testid={`live-session-card-${session.sessionId}`}
+                  className={`relative flex flex-col justify-between overflow-hidden rounded-xl border p-4 transition-all ${
+                    isCurrent
+                      ? 'border-cyan-400/50 bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-slate-950/80 shadow-[0_0_20px_rgba(6,182,212,0.15)] ring-1 ring-cyan-400/30'
+                      : 'border-white/10 bg-slate-900/50 hover:border-emerald-500/40 hover:bg-slate-900/80'
+                  }`}
+                >
+                  {/* Top Status & IP Row */}
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {/* Live Green Pulsing Indicator */}
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                        </span>
+                        <span className="font-mono text-xs font-bold text-white tracking-wide" data-testid="live-session-ip">
+                          {displayIp}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => toggleIpMask(session.sessionId)}
+                          title={isUnmasked ? t('fleetos.accessLogs.livePresence.maskIp') : t('fleetos.accessLogs.livePresence.unmaskIp')}
+                          data-testid={`live-session-toggle-mask-${session.sessionId}`}
+                          className="rounded p-0.5 text-slate-400 hover:text-white transition"
+                        >
+                          {isUnmasked ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyIp(session.sessionId, session.ip)}
+                          title={t('fleetos.accessLogs.copyIp')}
+                          data-testid={`live-session-copy-ip-${session.sessionId}`}
+                          className="rounded p-0.5 text-slate-400 hover:text-white transition"
+                        >
+                          {copiedId === session.sessionId ? (
+                            <Check className="h-3 w-3 text-emerald-400" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Session Tag */}
+                      {isCurrent ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-cyan-400/20 px-2 py-0.5 text-[10px] font-bold text-cyan-300 ring-1 ring-cyan-400/40">
+                          <Sparkles className="h-2.5 w-2.5" />
+                          {t('fleetos.accessLogs.livePresence.currentYou')}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-400 border border-white/5">
+                          {t('fleetos.accessLogs.livePresence.demoPeer')}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Geolocation Row */}
+                    <div className="mt-2.5 flex items-center gap-1.5 text-xs text-slate-300" data-testid="live-session-geo">
+                      <span className="text-base leading-none" role="img" aria-label={session.country}>
+                        {session.flagEmoji || '🌐'}
+                      </span>
+                      <span className="font-medium text-white">{session.city}</span>
+                      <span className="text-slate-400">·</span>
+                      <span className="text-slate-400">{session.country}</span>
+                    </div>
+
+                    {/* Current Surface Badge */}
+                    <div className="mt-3">
+                      <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
+                        {t('fleetos.accessLogs.livePresence.currentViewing')}
+                      </div>
+                      <div
+                        data-testid="live-session-surface"
+                        className="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-cyan-500/20 bg-cyan-950/30 px-2.5 py-1 text-xs font-semibold text-cyan-300 truncate"
+                      >
+                        <Compass className="h-3 w-3 text-cyan-400 shrink-0" />
+                        <span className="truncate">{surfaceDisplayName}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Duration & Device Row */}
+                  <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
+                    <div className="flex items-center gap-1" data-testid="live-session-duration">
+                      <Activity className="h-3 w-3 text-emerald-400" />
+                      <span>{t('fleetos.accessLogs.livePresence.activeFor', { duration: activeDuration })}</span>
+                      <span>·</span>
+                      <span className="text-slate-400">{t('fleetos.accessLogs.livePresence.lastPing', { time: pingRelative })}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-slate-400" data-testid="live-session-device">
+                      {session.device === 'Mobile' ? <Smartphone className="h-3 w-3" /> : <Laptop className="h-3 w-3" />}
+                      <span className="truncate max-w-[90px]">{session.browser}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+
       {/* KPI Cards */}
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" data-testid="access-kpi-summary">
         <StatCard

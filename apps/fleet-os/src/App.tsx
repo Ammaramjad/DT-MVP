@@ -1,6 +1,7 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useSimulationTicker } from './hooks/useSimulationTicker'
 import { useRealRouteHydration } from './hooks/useRealRouteHydration'
+import { useLivePresenceTracker } from './lib/livePresence'
 import { NotificationToaster } from './components/ui/NotificationToaster'
 import { DemoModeSwitcher } from './components/layout/DemoModeSwitcher'
 import { LanguageProvider } from './i18n'
@@ -33,6 +34,10 @@ import AccessLogsPanel from './panels/fleetos/AccessLogsPanel'
 
 function AppContent() {
   const { isLocked } = useGatekeeper()
+  const location = useLocation()
+
+  // Track real-time live presence and current viewing surface
+  useLivePresenceTracker(location.pathname)
 
   if (isLocked) {
     return <ClientGatekeeper />

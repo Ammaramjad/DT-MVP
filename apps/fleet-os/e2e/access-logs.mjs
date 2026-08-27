@@ -75,10 +75,11 @@ try {
 
   log('3. Navigate to /fleet-os/access-logs and verify dashboard UI')
   await page.goto(BASE + '/fleet-os/access-logs', { waitUntil: 'networkidle' })
+  await page.waitForSelector('[data-testid="live-presence-monitor"]', { timeout: 6000 })
   await page.waitForSelector('[data-testid="access-kpi-summary"]', { timeout: 6000 })
   await page.waitForSelector('[data-testid="access-region-breakdown"]', { timeout: 6000 })
   await page.waitForSelector('[data-testid="access-logs-table"]', { timeout: 6000 })
-  console.log('✓ Access Logs dashboard loaded with KPI summary, regional breakdown, and audit table')
+  console.log('✓ Access Logs dashboard loaded with Live Presence Monitor, KPI summary, regional breakdown, and audit table')
 
   log('4. Verify NavLink exists and active in FleetOsNav')
   const accessNav = page.locator('[data-testid="fleetos-nav-access-logs"]')
