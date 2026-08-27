@@ -26,11 +26,20 @@ function locById(id: string) {
   return LOCATIONS.find((l) => l.id === id)!
 }
 
-export function FleetMapFallback({ height = '100%' }: { height?: string | number }) {
+export function FleetMapFallback({
+  height = '100%',
+  visibleDriverIds = null,
+  onDriverClick,
+}: {
+  height?: string | number
+  visibleDriverIds?: Set<string> | null
+  onDriverClick?: (driverId: string) => void
+}) {
   const { lang } = useLang()
-  const drivers = useFleetStore((s) => s.drivers)
+  const allDrivers = useFleetStore((s) => s.drivers)
   const orders = useFleetStore((s) => s.orders)
   const activeOrders = orders.filter((o) => !['COMPLETED', 'CANCELLED', 'CONFIRMED'].includes(o.status))
+  const drivers = visibleDriverIds ? allDrivers.filter((d) => visibleDriverIds.has(d.id)) : allDrivers
 
   return (
     <div style={{ height }} className="relative overflow-hidden rounded-2xl bg-[#070b18]">
@@ -96,13 +105,21 @@ export function FleetMapFallback({ height = '100%' }: { height?: string | number
           const isFlagged = !!driver.unresponsiveFlagUntil && driver.unresponsiveFlagUntil > Date.now()
           const color = isFlagged ? '#ef4444' : TIER_COLOR[driver.tier]
           return (
-            <g key={driver.id} style={{ transition: 'transform 1.3s linear' }} transform={`translate(${driver.svgX}, ${driver.svgY})`}>
+            <g
+              key={driver.id}
+              data-testid="fleetmap-driver-marker"
+              data-driver-id={driver.id}
+              style={{ transition: 'transform 1.3s linear', cursor: onDriverClick ? 'pointer' : undefined }}
+              transform={`translate(${driver.svgX}, ${driver.svgY})`}
+              onClick={() => onDriverClick?.(driver.id)}
+            >
               {(isMoving || isFlagged) && (
                 <circle r={14} fill="none" stroke={color} strokeWidth={2}>
                   <animate attributeName="r" values="6;16;6" dur={isFlagged ? '1s' : '1.8s'} repeatCount="indefinite" />
                   <animate attributeName="opacity" values="0.8;0;0.8" dur={isFlagged ? '1s' : '1.8s'} repeatCount="indefinite" />
                 </circle>
               )}
+              <circle r={10} fill="transparent" />
               <circle r={7} fill={color} stroke="white" strokeWidth={1.5} />
             </g>
           )

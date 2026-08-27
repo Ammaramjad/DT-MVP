@@ -5,6 +5,7 @@ import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { StatCard } from '../../components/ui/StatCard'
 import { FleetRosterBreakdown } from '../../components/control/FleetRosterBreakdown'
 import { DriverScheduleMatrix } from '../../components/control/DriverScheduleMatrix'
+import { TodayRosterBoard } from '../../components/control/TodayRosterBoard'
 import { Badge } from '../../components/ui/Badge'
 import type { DriverWorkingMode } from '../../types'
 import { useLang } from '../../i18n'
@@ -16,7 +17,7 @@ export default function RosterPanel() {
   const drivers = useFleetStore((s) => s.drivers)
   const setDriverWorkingMode = useFleetStore((s) => s.setDriverWorkingMode)
   const setDriverAutoAccept = useFleetStore((s) => s.setDriverAutoAccept)
-  const [tab, setTab] = useState<'ROSTER' | 'SCHEDULE'>('ROSTER')
+  const [tab, setTab] = useState<'ROSTER' | 'SCHEDULE' | 'TODAY'>('ROSTER')
 
   const available = drivers.filter((d) => d.status === 'AVAILABLE').length
   const busy = drivers.filter((d) => d.status === 'BUSY').length
@@ -32,7 +33,7 @@ export default function RosterPanel() {
       </div>
 
       <div className="mt-4 flex gap-1.5">
-        {(['ROSTER', 'SCHEDULE'] as const).map((k) => (
+        {(['ROSTER', 'SCHEDULE', 'TODAY'] as const).map((k) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -82,9 +83,13 @@ export default function RosterPanel() {
             </div>
           </div>
         </div>
-      ) : (
+      ) : tab === 'SCHEDULE' ? (
         <div className="mt-3 glass-panel rounded-2xl p-3">
           <DriverScheduleMatrix />
+        </div>
+      ) : (
+        <div className="mt-3">
+          <TodayRosterBoard />
         </div>
       )}
     </FleetOsPage>

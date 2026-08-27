@@ -12,11 +12,22 @@ const TIER_COLOR: Record<string, string> = {
   OUTSIDE_CONTRACTOR: '#fbbf24',
 }
 
-export function FleetMap({ height = '100%' }: { height?: string | number }) {
+export function FleetMap({
+  height = '100%',
+  visibleDriverIds = null,
+  onDriverClick,
+}: {
+  height?: string | number
+  /** When set, only these driver ids render as markers — drives the legend
+   * tier/anomaly filters in `FleetMapView`. `null` shows every driver. */
+  visibleDriverIds?: Set<string> | null
+  onDriverClick?: (driverId: string) => void
+}) {
   const { t, lang } = useLang()
-  const drivers = useFleetStore((s) => s.drivers)
+  const allDrivers = useFleetStore((s) => s.drivers)
   const orders = useFleetStore((s) => s.orders)
   const activeOrders = orders.filter((o) => !['COMPLETED', 'CANCELLED', 'CONFIRMED'].includes(o.status))
+  const drivers = visibleDriverIds ? allDrivers.filter((d) => visibleDriverIds.has(d.id)) : allDrivers
 
   return (
     <div style={{ height }} className="overflow-hidden rounded-2xl">
@@ -60,6 +71,7 @@ export function FleetMap({ height = '100%' }: { height?: string | number }) {
               key={driver.id}
               position={[driver.lat, driver.lng]}
               icon={vehicleDivIcon(isFlagged ? '#ef4444' : TIER_COLOR[driver.tier], { pulse: isMoving || isFlagged })}
+              eventHandlers={onDriverClick ? { click: () => onDriverClick(driver.id) } : undefined}
             >
               <Popup>
                 <div className="min-w-[180px] text-xs">
