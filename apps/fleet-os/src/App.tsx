@@ -22,6 +22,11 @@ import ReportsPanel from './panels/fleetos/ReportsPanel'
 import AdminPanel from './panels/fleetos/AdminPanel'
 import PricingDynamicPanel from './panels/fleetos/PricingDynamicPanel'
 import VehicleInventoryPanel from './panels/fleetos/VehicleInventoryPanel'
+import ManualOrderPanel from './panels/fleetos/ManualOrderPanel'
+import TranslationQaPanel from './panels/fleetos/TranslationQaPanel'
+import FlightBoardPanel from './panels/fleetos/FlightBoardPanel'
+import AccountsPanel from './panels/fleetos/AccountsPanel'
+import OperatingParametersPanel from './panels/fleetos/OperatingParametersPanel'
 
 export default function App() {
   useSimulationTicker()
@@ -56,6 +61,11 @@ export default function App() {
           <Route path="/fleet-os/finance" element={<FinancePanel />} />
           <Route path="/fleet-os/reports" element={<ReportsPanel />} />
           <Route path="/fleet-os/admin" element={<AdminPanel />} />
+          <Route path="/fleet-os/manual-order" element={<ManualOrderPanel />} />
+          <Route path="/fleet-os/translation-qa" element={<TranslationQaPanel />} />
+          <Route path="/fleet-os/flights" element={<FlightBoardPanel />} />
+          <Route path="/fleet-os/accounts" element={<AccountsPanel />} />
+          <Route path="/fleet-os/params" element={<OperatingParametersPanel />} />
         </Routes>
         <DemoModeSwitcher />
       </BrowserRouter>

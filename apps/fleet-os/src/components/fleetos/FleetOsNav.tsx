@@ -2,11 +2,15 @@ import { NavLink } from 'react-router-dom'
 import {
   BadgeDollarSign,
   Car,
+  ClipboardEdit,
   Gauge,
   Headset,
   LayoutGrid,
+  Languages,
   Package,
+  Plane,
   ReceiptText,
+  Settings2,
   ShieldCheck,
   Sparkles,
   Truck,
@@ -34,6 +38,11 @@ const MODULES = [
   { to: '/fleet-os/compliance', labelKey: 'fleetos.nav.compliance', icon: ShieldCheck },
   { to: '/fleet-os/finance', labelKey: 'fleetos.nav.finance', icon: BadgeDollarSign },
   { to: '/fleet-os/reports', labelKey: 'fleetos.nav.reports', icon: LayoutGrid },
+  { to: '/fleet-os/manual-order', labelKey: 'fleetos.nav.manualOrder', icon: ClipboardEdit },
+  { to: '/fleet-os/translation-qa', labelKey: 'fleetos.nav.translationQa', icon: Languages },
+  { to: '/fleet-os/flights', labelKey: 'fleetos.nav.flights', icon: Plane },
+  { to: '/fleet-os/accounts', labelKey: 'fleetos.nav.accounts', icon: Headset },
+  { to: '/fleet-os/params', labelKey: 'fleetos.nav.params', icon: Settings2 },
   { to: '/fleet-os/admin', labelKey: 'fleetos.nav.admin', icon: ShieldCheck },
 ]
 

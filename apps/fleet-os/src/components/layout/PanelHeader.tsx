@@ -18,7 +18,11 @@ export function PanelHeader({
 }) {
   const { t } = useLang()
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-5 sm:px-6">
+    // Right padding reserves room so header-right buttons never sit under the
+    // fixed DemoModeSwitcher pill (top-right, ~90-110px footprint) — without
+    // this, a clickable header action (e.g. a "Save" button) can end up
+    // completely un-clickable behind the switcher's hit area.
+    <div className="flex flex-wrap items-center justify-between gap-3 pt-5 pl-4 pr-24 sm:pl-6 sm:pr-28">
       <div className="flex items-center gap-3">
         {icon && (
           <div
