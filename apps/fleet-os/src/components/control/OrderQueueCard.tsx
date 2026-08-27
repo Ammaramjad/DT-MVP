@@ -1,21 +1,24 @@
 import { motion } from 'framer-motion'
-import { Accessibility, AlertOctagon, Baby, Dog, FlaskConical, Luggage, Plane, User, Users, Wand2, X, Zap } from 'lucide-react'
+import { Accessibility, AlertOctagon, Baby, Car, Clock3, Dog, FlaskConical, Luggage, Plane, PlaneLanding, User, Users, Wand2, X, Zap } from 'lucide-react'
 import type { Order } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
-import { OrderTypeBadge, StatusBadge, FlightBadge, TierBadge, ChannelBadge } from '../ui/OrderBadges'
+import { OrderTypeBadge, StatusBadge, FlightBadge, TierBadge, ChannelBadge, UrgencyBadge } from '../ui/OrderBadges'
 import { Button } from '../ui/Button'
 import { CountdownRing } from '../ui/CountdownRing'
 import { DispatchLog } from './DispatchLog'
 import { StatusHistoryTimeline } from './StatusHistoryTimeline'
 import { formatTWD, formatClock } from '../../lib/format'
+import { isVehicleSubstituted } from '../../lib/selectors'
 import { useLang } from '../../i18n'
 
 export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focused: boolean; onFocus: () => void }) {
   const { t, lang } = useLang()
   const drivers = useFleetStore((s) => s.drivers)
+  const vehicles = useFleetStore((s) => s.vehicles)
   const assignOrder = useFleetStore((s) => s.assignOrder)
   const cancelOrder = useFleetStore((s) => s.cancelOrder)
   const toggleDemoNoResponse = useFleetStore((s) => s.toggleDemoNoResponse)
+  const simulateFlightEvent = useFleetStore((s) => s.simulateFlightEvent)
 
   const assignedDriver = drivers.find((d) => d.id === order.driverId)
   const suggestedDriver = drivers.find((d) => d.id === order.suggestedDriverId)
@@ -24,6 +27,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
   const lastUnresponsiveId = order.unresponsiveDriverIds[order.unresponsiveDriverIds.length - 1]
   const lastUnresponsiveDriver = drivers.find((d) => d.id === lastUnresponsiveId)
   const isFreshArrival = order.status === 'CONFIRMED' && Date.now() - order.createdAt < 3200
+  const substituted = isVehicleSubstituted(order, vehicles)
 
   const pickupName = lang === 'zh' ? order.pickup.nameZh : order.pickup.name
   const dropoffName = lang === 'zh' ? order.dropoff.nameZh : order.dropoff.name
@@ -65,6 +69,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <OrderTypeBadge type={order.type} />
+        <UrgencyBadge urgency={order.bookingUrgency} />
         <span className="rounded-full bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-300" data-testid="order-card-vehicle-category">
           {t(`vehicle.category.${order.vehicleCategory}`)}
         </span>
@@ -111,6 +116,19 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
           <Plane className="h-3 w-3 text-cyan-300" />
           {order.flightInfo.flightNumber} · {t('booking.gate', { gate: order.flightInfo.gate })}
           {order.flightInfo.delayMinutes > 0 && <span className="text-amber-300">+{order.flightInfo.delayMinutes}m</span>}
+        </div>
+      )}
+
+      {substituted && (
+        <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-amber-400/[0.08] px-2 py-1.5 text-[11px] text-amber-300" data-testid="order-card-vehicle-substituted">
+          <Car className="h-3 w-3" /> {t('trips.vehicleSubstituted')}
+        </div>
+      )}
+
+      {order.lateFeeAmount != null && order.lateFeeAmount > 0 && (
+        <div className="mt-2 flex items-center justify-between gap-1.5 rounded-lg bg-amber-400/[0.08] px-2 py-1.5 text-[11px] text-amber-300" data-testid="order-card-waiting-fee">
+          <span className="flex items-center gap-1.5"><Clock3 className="h-3 w-3" /> {t('trips.waitingFeeCharged', { min: order.lateFeeWaitMinutes ?? 0 })}</span>
+          <span className="font-semibold">{formatTWD(order.lateFeeAmount)}</span>
         </div>
       )}
 
@@ -207,6 +225,39 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
           <FlaskConical className="h-3 w-3" />
           {order.demoForceNoResponse ? t('control.demoNoResponseOn') : t('control.demoNoResponseOff')}
         </button>
+      )}
+
+      {/* Demo triggers for the flight-aware auto-cancel/refund simulation
+          (機場快綫's post-landing auto-cancel, 萬馬接送's diversion/major-delay
+          full refund) — see `tick()` and `simulateFlightEvent` in
+          store/useFleetStore.ts. */}
+      {order.flightInfo && ['CONFIRMED', 'DRIVER_MATCHING', 'ASSIGNED', 'DRIVER_EN_ROUTE'].includes(order.status) && order.flightInfo.status !== 'LANDED' && (
+        <div className="mt-2 flex gap-1.5">
+          {order.bookingUrgency === 'LAST_MINUTE' && order.type === 'AIRPORT_PICKUP' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                simulateFlightEvent(order.id, 'LANDED')
+              }}
+              data-testid="demo-simulate-flight-landed"
+              className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-white/5 bg-white/[0.02] px-2 py-1.5 text-[10px] font-medium text-slate-500 hover:text-slate-300"
+              title="Demo: fast-forward this flight to LANDED to exercise the post-landing auto-cancel window"
+            >
+              <PlaneLanding className="h-3 w-3" /> {t('control.demoSimulateLanded')}
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              simulateFlightEvent(order.id, 'DIVERTED')
+            }}
+            data-testid="demo-simulate-flight-diverted"
+            className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-white/5 bg-white/[0.02] px-2 py-1.5 text-[10px] font-medium text-slate-500 hover:text-slate-300"
+            title="Demo: divert this flight to exercise the full-refund-on-major-change simulation"
+          >
+            <FlaskConical className="h-3 w-3" /> {t('control.demoSimulateDiverted')}
+          </button>
+        </div>
       )}
     </motion.div>
   )
