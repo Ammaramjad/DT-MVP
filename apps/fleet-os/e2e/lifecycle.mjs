@@ -49,7 +49,7 @@ try {
   log('2. Fill booking form (Songshan Airport -> Grand Hyatt, SUV)')
   await page.selectOption('select >> nth=1', 'tsa-airport') // pickup
   await page.selectOption('select >> nth=2', 'grand-hyatt') // dropoff
-  await page.click('button:has-text("SUV")')
+  await page.click('[data-testid="vehicle-option-SUV"]')
   await page.click('button:has-text("Random")')
   await page.click('button:has-text("Look up")')
   await page.waitForTimeout(1200)

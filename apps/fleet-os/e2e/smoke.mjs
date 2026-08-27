@@ -19,6 +19,8 @@ const routes = [
   '/fleet-os/roster',
   '/fleet-os/compliance',
   '/fleet-os/finance',
+  '/fleet-os/pricing/dynamic',
+  '/fleet-os/vehicles',
   '/fleet-os/reports',
   '/fleet-os/admin',
   '/driver',
