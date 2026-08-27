@@ -7,6 +7,7 @@ import { useFleetStore } from '../../store/useFleetStore'
 import { OrderTypeBadge } from '../ui/OrderBadges'
 import { StatusBadge } from '../ui/OrderBadges'
 import { ActivityScreen } from './ActivityScreen'
+import { FareBreakdownCard } from '../vehicles/FareBreakdownCard'
 import { formatClock, formatDateTime, formatTWD, orderStatusLabel } from '../../lib/format'
 import { useLang } from '../../i18n'
 
@@ -137,6 +138,9 @@ function TripCard({ order, lang, t }: { order: Order; lang: 'en' | 'zh'; t: (key
       </div>
       <div className="mt-2 flex items-center gap-1.5">
         <OrderTypeBadge type={order.type} />
+        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10.5px] font-semibold text-blue-600" data-testid="trip-vehicle-category">
+          {t(`vehicle.category.${order.vehicleCategory}`)}
+        </span>
         <span className="text-[11px] text-slate-400">{order.channel}</span>
       </div>
       <p className="mt-2 truncate text-sm text-slate-700">
@@ -283,6 +287,13 @@ function TripCard({ order, lang, t }: { order: Order; lang: 'en' | 'zh'; t: (key
           </motion.div>
         )}
       </AnimatePresence>
+
+      <details className="mt-3 rounded-xl bg-slate-50 p-3 text-[11px]" data-testid="trip-fare-breakdown">
+        <summary className="cursor-pointer font-medium text-slate-500">{t('booking.fareBreakdown')}</summary>
+        <div className="mt-2">
+          <FareBreakdownCard fareBreakdown={order.fareBreakdown} distanceKm={order.distanceKm} durationMin={order.durationMin} />
+        </div>
+      </details>
 
       {order.statusHistory.length > 0 && (
         <details className="mt-3 text-[11px]">

@@ -10,6 +10,7 @@ import { CountdownRing } from '../ui/CountdownRing'
 import { RouteMapView } from '../map/RouteMapView'
 import { BookingHistoryCard } from './BookingHistoryCard'
 import { VehicleCard } from '../vehicles/VehicleCard'
+import { FareBreakdownCard } from '../vehicles/FareBreakdownCard'
 import { formatClock, formatRelative, formatTWD, orderStatusLabel, ticksToMinutesLabel } from '../../lib/format'
 import { remainingDistanceKm } from '../../lib/geo'
 import { useLang } from '../../i18n'
@@ -215,6 +216,11 @@ export function ActivityScreen({
 
         {vehicle && (
           <div className="mt-3">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10.5px] font-semibold text-blue-600" data-testid="customer-trip-vehicle-category">
+                {t(`vehicle.category.${order.vehicleCategory}`)}
+              </span>
+            </div>
             <VehicleCard type={vehicle.type} plate={vehicle.plate} size="sm" light />
           </div>
         )}
@@ -278,6 +284,13 @@ export function ActivityScreen({
           </span>
           <span className="font-semibold text-slate-600">{formatTWD(order.priceEstimate)}</span>
         </div>
+
+        <details className="mt-3 rounded-xl bg-slate-50 p-3.5 text-xs" data-testid="customer-trip-fare-breakdown">
+          <summary className="cursor-pointer font-medium text-slate-500">{t('booking.fareBreakdown')}</summary>
+          <div className="mt-2">
+            <FareBreakdownCard fareBreakdown={order.fareBreakdown} distanceKm={order.distanceKm} durationMin={order.durationMin} />
+          </div>
+        </details>
 
         {order.statusHistory.length > 0 && (
           <div className="mt-4 rounded-xl bg-slate-50 p-3.5">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, Luggage, MapPin, MessageSquareText, Star, Users, X, Zap } from 'lucide-react'
+import { Accessibility, Baby, CheckCircle2, Dog, Luggage, MapPin, MessageSquareText, Star, Users, X, Zap } from 'lucide-react'
 import type { DeclineReason, Order } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
 import { CountdownRing } from '../ui/CountdownRing'
@@ -81,8 +81,10 @@ export function IncomingRequestModal({ order }: { order: Order }) {
           </div>
 
           <div className="mt-3 flex items-baseline justify-between rounded-xl bg-white/5 p-3.5">
-            <span className="text-xs text-slate-400">{t('driver.estimatedFareLabel')}</span>
-            <span className="text-2xl font-black text-emerald-300">{formatTWD(order.priceEstimate)}</span>
+            <span className="text-xs text-slate-400">{t('driver.expectedEarnings')}</span>
+            <span className="text-2xl font-black text-emerald-300" data-testid="incoming-request-expected-earnings">
+              {formatTWD(order.fareBreakdown.supplierPrice)}
+            </span>
           </div>
 
           <div className="mt-3 space-y-2 rounded-xl bg-white/5 p-3.5 text-sm">
@@ -102,10 +104,36 @@ export function IncomingRequestModal({ order }: { order: Order }) {
               <span>{formatClock(order.scheduledTime, lang)}</span>
               <span className="ml-auto font-medium text-slate-300">{order.distanceKm.toFixed(1)} km</span>
             </div>
-            <div className="flex items-center gap-1.5 border-t border-white/10 pt-2 text-xs text-slate-400">
-              <span className="rounded-md bg-white/5 px-2 py-1 font-medium text-slate-300">{t(`vehicle.type.${order.vehicleType}`)}</span>
+            <div className="flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2 text-xs text-slate-400">
+              <span className="rounded-md bg-cyan-400/10 px-2 py-1 font-medium text-cyan-300" data-testid="incoming-request-service-class">
+                {t(`vehicle.category.${order.vehicleCategory}`)}
+              </span>
               {order.flightNumber && <span className="rounded-md bg-white/5 px-2 py-1 font-medium text-slate-300">{order.flightNumber}</span>}
             </div>
+            {(order.passengerRequirements.childSeat || order.passengerRequirements.wheelchair || order.passengerRequirements.pet || order.passengerRequirements.specialAssistance) && (
+              <div className="flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2" data-testid="incoming-request-special-requirements">
+                {order.passengerRequirements.childSeat && (
+                  <span className="flex items-center gap-1 rounded-md bg-amber-400/10 px-2 py-1 text-[11px] font-medium text-amber-300">
+                    <Baby className="h-3 w-3" /> {t('driver.requirement.childSeat')}
+                  </span>
+                )}
+                {order.passengerRequirements.wheelchair && (
+                  <span className="flex items-center gap-1 rounded-md bg-amber-400/10 px-2 py-1 text-[11px] font-medium text-amber-300">
+                    <Accessibility className="h-3 w-3" /> {t('driver.requirement.wheelchair')}
+                  </span>
+                )}
+                {order.passengerRequirements.pet && (
+                  <span className="flex items-center gap-1 rounded-md bg-amber-400/10 px-2 py-1 text-[11px] font-medium text-amber-300">
+                    <Dog className="h-3 w-3" /> {t('driver.requirement.pet')}
+                  </span>
+                )}
+                {order.passengerRequirements.specialAssistance && (
+                  <span className="flex items-center gap-1 rounded-md bg-amber-400/10 px-2 py-1 text-[11px] font-medium text-amber-300">
+                    {order.passengerRequirements.specialAssistance}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {order.notes && (

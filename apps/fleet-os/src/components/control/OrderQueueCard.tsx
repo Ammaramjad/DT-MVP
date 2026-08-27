@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { AlertOctagon, FlaskConical, Luggage, Plane, User, Users, Wand2, X, Zap } from 'lucide-react'
+import { Accessibility, AlertOctagon, Baby, Dog, FlaskConical, Luggage, Plane, User, Users, Wand2, X, Zap } from 'lucide-react'
 import type { Order } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
 import { OrderTypeBadge, StatusBadge, FlightBadge, TierBadge, ChannelBadge } from '../ui/OrderBadges'
@@ -65,7 +65,25 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <OrderTypeBadge type={order.type} />
+        <span className="rounded-full bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-300" data-testid="order-card-vehicle-category">
+          {t(`vehicle.category.${order.vehicleCategory}`)}
+        </span>
         {order.flightInfo && <FlightBadge status={order.flightInfo.status} />}
+        {order.passengerRequirements.childSeat && (
+          <span className="flex items-center gap-0.5 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300" title={t('driver.requirement.childSeat')}>
+            <Baby className="h-2.5 w-2.5" />
+          </span>
+        )}
+        {order.passengerRequirements.wheelchair && (
+          <span className="flex items-center gap-0.5 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300" title={t('driver.requirement.wheelchair')}>
+            <Accessibility className="h-2.5 w-2.5" />
+          </span>
+        )}
+        {order.passengerRequirements.pet && (
+          <span className="flex items-center gap-0.5 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300" title={t('driver.requirement.pet')}>
+            <Dog className="h-2.5 w-2.5" />
+          </span>
+        )}
       </div>
 
       <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-300">
