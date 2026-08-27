@@ -20,6 +20,8 @@ import CompliancePanel from './panels/fleetos/CompliancePanel'
 import FinancePanel from './panels/fleetos/FinancePanel'
 import ReportsPanel from './panels/fleetos/ReportsPanel'
 import AdminPanel from './panels/fleetos/AdminPanel'
+import PricingDynamicPanel from './panels/fleetos/PricingDynamicPanel'
+import VehicleInventoryPanel from './panels/fleetos/VehicleInventoryPanel'
 
 export default function App() {
   useSimulationTicker()
@@ -44,6 +46,8 @@ export default function App() {
           <Route path="/fleet-os/orders" element={<ControlCenterPanel />} />
           <Route path="/fleet-os/suppliers" element={<SuppliersPanel />} />
           <Route path="/fleet-os/catalog" element={<CatalogPanel />} />
+          <Route path="/fleet-os/pricing/dynamic" element={<PricingDynamicPanel />} />
+          <Route path="/fleet-os/vehicles" element={<VehicleInventoryPanel />} />
           <Route path="/fleet-os/campaigns" element={<CampaignsPanel />} />
           <Route path="/fleet-os/support" element={<SupportPanel />} />
           <Route path="/fleet-os/refunds" element={<RefundsPanel />} />

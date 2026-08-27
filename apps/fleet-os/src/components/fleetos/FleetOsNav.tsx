@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   BadgeDollarSign,
+  Car,
   Gauge,
   Headset,
   LayoutGrid,
@@ -24,6 +25,8 @@ const MODULES = [
   { to: '/fleet-os', end: true, labelKey: 'fleetos.nav.dashboard', icon: Gauge },
   { to: '/fleet-os/suppliers', labelKey: 'fleetos.nav.suppliers', icon: Truck },
   { to: '/fleet-os/catalog', labelKey: 'fleetos.nav.catalog', icon: Package },
+  { to: '/fleet-os/pricing/dynamic', labelKey: 'fleetos.nav.pricingDynamic', icon: Gauge },
+  { to: '/fleet-os/vehicles', labelKey: 'fleetos.nav.vehicles', icon: Car },
   { to: '/fleet-os/campaigns', labelKey: 'fleetos.nav.campaigns', icon: Sparkles },
   { to: '/fleet-os/support', labelKey: 'fleetos.nav.support', icon: Headset },
   { to: '/fleet-os/refunds', labelKey: 'fleetos.nav.refunds', icon: ReceiptText },
