@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Car } from 'lucide-react'
+import { Car, Sparkles } from 'lucide-react'
 import { useFleetStore } from '../store/useFleetStore'
 import { CustomerTabBar, type CustomerTab } from '../components/customer/CustomerTabBar'
 import { HomeScreen } from '../components/customer/HomeScreen'
@@ -11,15 +11,6 @@ import { useLang } from '../i18n'
 
 const ACTIVE_STATUSES = ['CONFIRMED', 'DRIVER_MATCHING', 'ASSIGNED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'PASSENGER_ONBOARD']
 
-/**
- * The standalone Customer App shell — bright, friendly, consumer-grade, and
- * deliberately distinct from the Admin Console's dark mission-control theme
- * and the Driver App's cyan/amber palette. IA (Home / Activity / Account tab
- * bar) follows the pattern used by real Taiwan ride-hailing apps such as
- * 55688 Taiwan Taxi and Uber Taiwan: a map/search-led home screen, a
- * dedicated trip/activity feed for live tracking + history, and a simple
- * account area — rather than reading as a view inside the ops backend.
- */
 export default function CustomerAppPanel() {
   const { t } = useLang()
   const orders = useFleetStore((s) => s.orders)
@@ -36,7 +27,7 @@ export default function CustomerAppPanel() {
 
   if (!order) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-50 via-white to-white text-slate-500">
+      <div className="flex min-h-screen items-center justify-center bg-[#030712] text-slate-400">
         {t('customer.noOrders')}
       </div>
     )
@@ -59,30 +50,34 @@ export default function CustomerAppPanel() {
   const activeOrder = ACTIVE_STATUSES.includes(order.status) ? order : null
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-white pb-24 text-slate-900" data-testid="customer-app-shell">
-      <div className="sticky top-0 z-[700] border-b border-slate-100 bg-white/90 px-4 py-3 backdrop-blur-xl" data-testid="customer-app-header">
+    <div className="min-h-screen bg-[#030712] bg-noise pb-28 text-white" data-testid="customer-app-shell">
+      {/* Sleek Obsidian Glass Customer App Header */}
+      <div className="sticky top-0 z-[700] border-b border-white/10 bg-slate-950/80 px-4 py-3.5 backdrop-blur-2xl shadow-xl" data-testid="customer-app-header">
         <div className="mx-auto flex max-w-md items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-400 text-white">
-              <Car className="h-4 w-4" />
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/25">
+              <Car className="h-4.5 w-4.5" />
             </div>
             <div>
-              <p className="text-sm font-bold leading-tight text-slate-900">{t('common.brand')}</p>
-              <p className="text-[10px] text-slate-400">{t('nav.customer')}</p>
+              <p className="text-sm font-black leading-tight text-white tracking-wide">{t('common.brand')}</p>
+              <p className="text-[10px] font-semibold text-cyan-300">{t('nav.customer')} · VIP Portal</p>
             </div>
           </div>
+          <span className="flex items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-950/40 px-2.5 py-0.5 text-[10.5px] font-bold text-cyan-300">
+            <Sparkles className="h-3 w-3" /> Live
+          </span>
         </div>
       </div>
 
       <AnimatePresence mode="wait">
         {tab === 'HOME' && (
-          <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
+          <motion.div key="home" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="mt-5">
             <HomeScreen customerName={order.customer.name.split(' ')[0]} activeOrder={activeOrder} onViewActive={() => setTab('TRIPS')} />
           </motion.div>
         )}
 
         {tab === 'TRIPS' && (
-          <motion.div key="trips" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
+          <motion.div key="trips" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="mt-5">
             <TripsScreen
               order={order}
               orders={sortedOrders}
@@ -98,13 +93,13 @@ export default function CustomerAppPanel() {
         )}
 
         {tab === 'SAFETY' && (
-          <motion.div key="safety" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
+          <motion.div key="safety" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="mt-5">
             <SafetyScreen order={activeOrder ?? order} />
           </motion.div>
         )}
 
         {tab === 'ACCOUNT' && (
-          <motion.div key="account" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
+          <motion.div key="account" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="mt-5">
             <AccountScreen
               profile={customerProfile}
               fallbackOrder={order}

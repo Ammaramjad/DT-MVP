@@ -50,7 +50,7 @@ const MODULES = [
 export function FleetOsNav() {
   const { t } = useLang()
   return (
-    <div className="sticky top-[64px] z-[600] -mx-4 mb-3 overflow-x-auto border-b border-white/5 bg-mission-950/95 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6" data-testid="fleetos-nav">
+    <div className="sticky top-[64px] z-[600] -mx-4 mb-4 overflow-x-auto border-b border-white/10 bg-slate-950/85 px-4 py-2.5 backdrop-blur-2xl shadow-xl sm:-mx-6 sm:px-6" data-testid="fleetos-nav">
       <div className="flex items-center gap-1.5">
         {MODULES.map((m) => (
           <NavLink
@@ -60,8 +60,10 @@ export function FleetOsNav() {
             data-testid={`fleetos-nav-${m.to.split('/').pop()}`}
             className={({ isActive }) =>
               clsx(
-                'flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11.5px] font-medium transition',
-                isActive ? 'bg-cyan-400/15 text-cyan-300' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200',
+                'flex shrink-0 items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold transition',
+                isActive
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-[0_0_12px_rgba(34,211,238,0.25)]'
+                  : 'text-slate-400 border border-transparent hover:bg-white/5 hover:text-slate-200',
               )
             }
           >

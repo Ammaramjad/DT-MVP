@@ -6,17 +6,10 @@ import { StatusBadge } from '../ui/OrderBadges'
 import { ticksToMinutesLabel } from '../../lib/format'
 import { useLang } from '../../i18n'
 
-/** Booking shortcuts hand a preset order-type + pickup/dropoff pair to the
- * booking flow via router state — BookingPanel reads `presetType` on mount
- * (see panels/BookingPanel.tsx) so tapping a shortcut here genuinely
- * pre-fills the trip rather than just linking to a blank form. */
 const QUICK_ACTIONS: { key: string; icon: typeof PlaneLanding; labelKey: string; presetType: string }[] = [
   { key: 'pickup', icon: PlaneLanding, labelKey: 'customer.home.quickAirportPickup', presetType: 'AIRPORT_PICKUP' },
   { key: 'dropoff', icon: PlaneTakeoff, labelKey: 'customer.home.quickAirportDropoff', presetType: 'AIRPORT_DROPOFF' },
   { key: 'tour', icon: Users2, labelKey: 'customer.home.quickTourCharter', presetType: 'TOUR_CHARTER' },
-  // Hourly Charter (計時包車, Wanma Transfer) — billed by reserved hours, not
-  // distance; see `lib/serviceRules.ts` for its rules and `PRESETS.HOURLY_CHARTER`
-  // in panels/BookingPanel.tsx for how this preset pre-enables charter mode.
   { key: 'charter', icon: Timer, labelKey: 'customer.home.quickHourlyCharter', presetType: 'HOURLY_CHARTER' },
 ]
 
@@ -41,21 +34,21 @@ export function HomeScreen({
   return (
     <div className="mx-auto max-w-md space-y-5 px-4 pb-6" data-testid="customer-home-screen">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-1">
-        <h1 className="text-2xl font-bold text-slate-900">{t('customer.home.greeting', { name: customerName })}</h1>
-        <p className="mt-0.5 text-sm text-slate-500">{t('customer.home.subGreeting')}</p>
+        <h1 className="text-2xl font-black text-white tracking-tight">{t('customer.home.greeting', { name: customerName })}</h1>
+        <p className="mt-1 text-xs text-slate-400">{t('customer.home.subGreeting')}</p>
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
         <Link
           to="/booking"
           data-testid="customer-home-book-cta"
-          className="group flex items-center gap-3 rounded-2xl bg-white p-4 shadow-xl shadow-slate-200/70 ring-1 ring-slate-100 transition hover:ring-blue-200"
+          className="glass-panel-glow group flex items-center gap-3.5 rounded-2xl p-4 transition hover:border-cyan-400/40"
         >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-400/30">
             <Search className="h-5 w-5" />
           </span>
-          <span className="flex-1 text-sm font-medium text-slate-400">{t('customer.home.searchPlaceholder')}</span>
-          <span className="flex items-center gap-1 rounded-full bg-blue-500 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-blue-500/25 transition group-hover:bg-blue-600">
+          <span className="flex-1 text-xs font-semibold text-slate-300">{t('customer.home.searchPlaceholder')}</span>
+          <span className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-cyan-500/25 transition group-hover:scale-105">
             {t('customer.home.bookCta')} <ArrowRight className="h-3.5 w-3.5" />
           </span>
         </Link>
@@ -68,12 +61,12 @@ export function HomeScreen({
             type="button"
             onClick={() => navigate('/booking', { state: { presetType: action.presetType } })}
             data-testid={`customer-quick-${action.key}`}
-            className="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-2.5 text-center shadow-md shadow-slate-200/50 ring-1 ring-slate-100 transition hover:ring-blue-200 hover:shadow-lg"
+            className="glass-panel flex flex-col items-center gap-2 rounded-2xl p-3 text-center transition hover:border-cyan-400/40 hover:bg-white/[0.08]"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
-              <action.icon className="h-4.5 w-4.5" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-300">
+              <action.icon className="h-5 w-5" />
             </span>
-            <span className="text-[10px] font-semibold leading-tight text-slate-600">{t(action.labelKey)}</span>
+            <span className="text-[10px] font-bold leading-tight text-slate-200">{t(action.labelKey)}</span>
           </button>
         ))}
       </motion.div>
@@ -86,24 +79,24 @@ export function HomeScreen({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           data-testid="customer-home-active-trip"
-          className="flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 p-4 text-left text-white shadow-xl shadow-blue-500/25"
+          className="flex w-full items-center gap-3.5 rounded-2xl border border-cyan-400/30 bg-gradient-to-r from-cyan-950/80 via-slate-900/90 to-blue-950/80 p-4 text-left text-white shadow-2xl backdrop-blur-xl transition hover:border-cyan-400/60"
         >
-          <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
-            <span className="absolute inset-0 animate-ping rounded-xl bg-white/20" />
-            <PlaneLanding className="relative h-5 w-5" />
+          <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-400/40">
+            <span className="absolute inset-0 animate-ping rounded-xl bg-cyan-400/20" />
+            <PlaneLanding className="relative h-6 w-6" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-2 text-sm font-bold">
+            <span className="flex items-center gap-2 text-sm font-bold text-white">
               {activeOrder.status === 'DRIVER_MATCHING' || activeOrder.status === 'CONFIRMED'
                 ? t('customer.home.activeTripWaiting')
                 : t('customer.home.activeTripTitle')}
             </span>
-            <span className="mt-0.5 flex items-center gap-1.5 text-xs text-white/80">
+            <span className="mt-1 flex items-center gap-2 text-xs text-slate-300">
               <StatusBadge status={activeOrder.status} />
-              {activeLeg && <span>· {ticksToMinutesLabel(remainingTicks, lang)}</span>}
+              {activeLeg && <span className="font-mono text-cyan-300">· ETA {ticksToMinutesLabel(remainingTicks, lang)}</span>}
             </span>
           </span>
-          <span className="flex items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold">
+          <span className="flex items-center gap-1 rounded-xl bg-cyan-500/20 border border-cyan-400/30 px-3 py-1.5 text-xs font-bold text-cyan-300">
             {t('customer.home.activeTripCta')} <ArrowRight className="h-3.5 w-3.5" />
           </span>
         </motion.button>
@@ -113,15 +106,15 @@ export function HomeScreen({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 p-4 text-white shadow-lg shadow-amber-400/25"
+        className="glass-panel flex items-center gap-3.5 rounded-2xl p-4 border border-amber-400/20 bg-gradient-to-r from-amber-950/30 to-slate-900"
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300 ring-1 ring-amber-400/30">
           <Tag className="h-5 w-5" />
         </span>
-        <span>
-          <span className="block text-sm font-bold">{t('customer.home.promoTitle')}</span>
-          <span className="block text-xs text-white/85">{t('customer.home.promoDesc')}</span>
-        </span>
+        <div>
+          <span className="block text-sm font-bold text-amber-200">{t('customer.home.promoTitle')}</span>
+          <span className="block text-xs text-slate-300 mt-0.5">{t('customer.home.promoDesc')}</span>
+        </div>
       </motion.div>
     </div>
   )

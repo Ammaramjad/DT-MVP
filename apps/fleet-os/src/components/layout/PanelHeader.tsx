@@ -18,25 +18,23 @@ export function PanelHeader({
 }) {
   const { t } = useLang()
   return (
-    // Right padding reserves room so header-right buttons never sit under the
-    // fixed DemoModeSwitcher pill (top-right, ~90-110px footprint) — without
-    // this, a clickable header action (e.g. a "Save" button) can end up
-    // completely un-clickable behind the switcher's hit area.
-    <div className="flex flex-wrap items-center justify-between gap-3 pt-5 pl-4 pr-24 sm:pl-6 sm:pr-28">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 pt-6 pl-4 pr-24 sm:pl-6 sm:pr-28">
+      <div className="flex items-center gap-3.5">
         {icon && (
           <div
             className={clsx(
-              'flex h-10 w-10 items-center justify-center rounded-xl',
-              light ? 'bg-gradient-to-br from-blue-500 to-indigo-500 text-white' : 'glass-panel text-cyan-300',
+              'flex h-11 w-11 items-center justify-center rounded-2xl shadow-xl transition',
+              light
+                ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-blue-500/20'
+                : 'glass-panel-glow border border-cyan-400/30 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.25)]',
             )}
           >
             {icon}
           </div>
         )}
         <div>
-          <h1 className={clsx('text-lg font-bold sm:text-xl', light ? 'text-slate-900' : 'text-white')}>{title}</h1>
-          {subtitle && <p className={clsx('text-xs sm:text-sm', light ? 'text-slate-500' : 'text-slate-400')}>{subtitle}</p>}
+          <h1 className={clsx('text-xl font-black tracking-tight sm:text-2xl', light ? 'text-slate-900' : 'text-white')}>{title}</h1>
+          {subtitle && <p className={clsx('text-xs sm:text-sm mt-0.5', light ? 'text-slate-500' : 'text-slate-400')}>{subtitle}</p>}
         </div>
       </div>
       <div className="flex items-center gap-3">
@@ -44,13 +42,13 @@ export function PanelHeader({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className={clsx(
-            'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1',
-            light ? 'bg-emerald-50 text-emerald-600 ring-emerald-200' : 'bg-emerald-400/10 text-emerald-300 ring-emerald-400/30',
+            'flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold ring-1 shadow-sm',
+            light ? 'bg-emerald-50 text-emerald-600 ring-emerald-200' : 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]',
           )}
         >
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-current" />
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-current" />
           </span>
           {t('common.liveSynced')}
         </motion.div>
