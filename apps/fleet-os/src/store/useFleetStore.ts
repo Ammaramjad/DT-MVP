@@ -19,7 +19,9 @@ import type {
   NotificationPreference,
   Order,
   OrderStatus,
+  PassengerRequirements,
   PaymentToken,
+  PricingRules,
   RefundRequest,
   RefundRequestStatus,
   Role,
@@ -30,7 +32,11 @@ import type {
   SupportTicketStatus,
   SystemHealthMetric,
   StatusActor,
+  TaiwanRegion,
   Vehicle,
+  VehicleCategory,
+  VehicleFeature,
+  ZoneCondition,
 } from '../types'
 import { createSeedState, SEED_VEHICLES } from '../data/seed'
 import { buildFleetOsSeed } from '../data/fleetOsSeed'
@@ -38,9 +44,13 @@ import { AIRPORTS, getLocation, NON_AIRPORTS } from '../data/locations'
 import { buildRoutePath, evaluateRoute } from '../lib/geo'
 import { getCachedRoute, resolveDynamicRoute } from '../lib/routing'
 import { driftFlightStatus, lookupFlight, randomFlightNumber } from '../lib/flight'
-import { computeFareBreakdown, ensureOrderNoAbove, estimateDurationMin, genId, nextOrderNo } from '../lib/pricing'
+import { ensureOrderNoAbove, estimateDurationMin, findCoupon, genId, nextOrderNo } from '../lib/pricing'
+import { buildInitialZoneConditions, computeDynamicFareBreakdown, countAvailableVehicles, DEFAULT_PRICING_RULES, driftZoneConditions } from '../lib/dynamicPricing'
+import { DEFAULT_CATEGORY_FOR_TYPE, VEHICLE_CATEGORY_CATALOG } from '../data/vehicleCatalog'
 import { suggestDriver } from '../lib/dispatch'
 import { buildCapacityForecast } from '../lib/capacity'
+
+const NO_PASSENGER_REQUIREMENTS: PassengerRequirements = { childSeat: false, wheelchair: false, pet: false, specialAssistance: '' }
 
 const MAX_NOTIFICATIONS = 60
 const AMBIENT_ORDER_CHANCE = 0.05
@@ -80,6 +90,11 @@ interface FleetState {
   catalogProducts: CatalogProduct[]
   payouts: ReturnType<typeof buildFleetOsSeed>['payouts']
   globalAuditLog: AuditLogEntry[]
+
+  /** Simulated Dynamic Pricing Service state — see `lib/dynamicPricing.ts`. */
+  zoneConditions: ZoneCondition[]
+  pricingRules: PricingRules
+  categoryPriceOverrides: Partial<Record<VehicleCategory, { baseFare: number; perKmRate: number; perMinRate: number }>>
 
   createOrder: (input: BookingInput & { simulateFailure?: boolean }) => Order
   retryPayment: (orderId: string) => void
@@ -127,6 +142,17 @@ interface FleetState {
   acknowledgeHealthAlert: (id: string) => void
   setCatalogProductStatus: (id: string, status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED') => void
   markPayoutPaid: (id: string) => void
+
+  // ---- Dynamic Pricing Service (/fleet-os/pricing/dynamic) ----
+  updatePricingRules: (patch: Partial<PricingRules>, actor?: string) => void
+  setZoneCondition: (region: TaiwanRegion, patch: Partial<Pick<ZoneCondition, 'weather' | 'demand'>>, actor?: string) => void
+  setCategoryPriceOverride: (category: VehicleCategory, patch: { baseFare: number; perKmRate: number; perMinRate: number }, actor?: string) => void
+
+  // ---- Fleet & Vehicle Inventory backend (/fleet-os/vehicles) ----
+  setVehicleMaintenance: (vehicleId: string, hours: number | null, reason: string, actor?: string) => void
+  setVehicleServiceZone: (vehicleId: string, zone: TaiwanRegion, actor?: string) => void
+  setVehicleCategory: (vehicleId: string, category: VehicleCategory, actor?: string) => void
+  toggleVehicleFeature: (vehicleId: string, feature: VehicleFeature, actor?: string) => void
 
   addSavedPassenger: (customerId: string, passenger: Omit<SavedPassenger, 'id'>) => void
   removeSavedPassenger: (customerId: string, passengerId: string) => void
@@ -222,7 +248,23 @@ function randomPin(): string {
   return String(Math.floor(1000 + Math.random() * 9000))
 }
 
-function buildOrderFromInput(input: BookingInput): Order {
+/** Resolves a booking's full `PassengerRequirements`, preferring the
+ * structured field and falling back to the two deprecated top-level
+ * booleans for any older call site that hasn't migrated yet. */
+function resolvePassengerRequirements(input: BookingInput): PassengerRequirements {
+  if (input.passengerRequirements) return input.passengerRequirements
+  return { ...NO_PASSENGER_REQUIREMENTS, childSeat: input.childSeat ?? false, wheelchair: input.wheelchair ?? false }
+}
+
+/** Builds a live order from a customer booking, running the full Dynamic
+ * Pricing Service (`lib/dynamicPricing.ts`) against the *current* simulated
+ * zone weather/demand + fleet availability — this is what makes a real
+ * booking's fare (as opposed to seed/ambient orders, which use neutral
+ * conditions) actually reflect the client brief's dynamic-pricing factors. */
+function buildOrderFromInput(
+  input: BookingInput,
+  context: { zoneConditions: ZoneCondition[]; pricingRules: PricingRules; vehicles: Vehicle[]; drivers: Driver[]; categoryPriceOverrides: FleetState['categoryPriceOverrides'] },
+): Order {
   const pickup = getLocation(input.pickupId)
   const dropoff = getLocation(input.dropoffId)
   const type = classifyOrderType(input.pickupId, input.dropoffId)
@@ -232,7 +274,40 @@ function buildOrderFromInput(input: BookingInput): Order {
   const isAirport = pickup.isAirport || dropoff.isAirport
   const waitingMinutes = flightInfo?.status === 'DELAYED' && pickup.isAirport ? flightInfo.delayMinutes : 0
   const durationMin = estimateDurationMin(routeToDropoff.distanceKm)
-  const fareBreakdown = computeFareBreakdown(routeToDropoff.distanceKm, durationMin, input.vehicleType, isAirport, { waitingMinutes, couponCode: input.couponCode })
+
+  const vehicleCategory = input.vehicleCategory ?? DEFAULT_CATEGORY_FOR_TYPE[input.vehicleType]
+  const passengerRequirements = resolvePassengerRequirements(input)
+  const catalogEntry = VEHICLE_CATEGORY_CATALOG[vehicleCategory]
+  const override = context.categoryPriceOverrides[vehicleCategory]
+  const pricedCategory = override ? { ...catalogEntry, ...override } : catalogEntry
+  const pickupZone = pickup.region
+  const zoneCondition = pickupZone ? context.zoneConditions.find((z) => z.region === pickupZone) : undefined
+  const availableVehiclesInZone = pickupZone
+    ? countAvailableVehicles(context.vehicles, context.drivers, pickupZone, vehicleCategory, catalogEntry.underlyingType)
+    : 999
+
+  const fareBreakdown = computeDynamicFareBreakdown({
+    category: pricedCategory,
+    distanceKm: routeToDropoff.distanceKm,
+    durationMin,
+    isAirport,
+    pickupZone,
+    scheduledTimeIso: new Date(input.scheduledTime).toISOString(),
+    waitingMinutes,
+    availableVehiclesInZone,
+    weather: zoneCondition?.weather ?? 'CLEAR',
+    demand: zoneCondition?.demand ?? 'NORMAL',
+    rules: context.pricingRules,
+    couponCode: input.couponCode ?? null,
+  })
+  // Coupon discount math stays in `lib/pricing.ts`'s legacy percent/fixed
+  // shape (rather than duplicating it inside the pure pricing engine) so the
+  // Marketplace/Customer App coupon UX behaves identically to before.
+  const couponDef = findCoupon(input.couponCode)
+  const discount = couponDef ? (couponDef.kind === 'PERCENT' ? Math.round(fareBreakdown.subtotal * (couponDef.value / 100)) : Math.min(fareBreakdown.subtotal, couponDef.value)) : 0
+  const roundTo = Math.max(1, context.pricingRules.roundingIncrement)
+  const total = Math.max(0, Math.round((fareBreakdown.subtotal - discount) / roundTo) * roundTo)
+  const finalFareBreakdown = { ...fareBreakdown, discount, couponCode: couponDef ? couponDef.code : null, total }
 
   const now = Date.now()
   const isDirectChannel = input.channel === 'Website' || input.channel === 'Phone / Agent' || input.channel === 'LINE@'
@@ -249,6 +324,8 @@ function buildOrderFromInput(input: BookingInput): Order {
     pickup,
     dropoff,
     vehicleType: input.vehicleType,
+    vehicleCategory,
+    passengerRequirements,
     passengers: input.passengers,
     luggage: input.luggage,
     notes: input.notes,
@@ -257,8 +334,8 @@ function buildOrderFromInput(input: BookingInput): Order {
     driverId: null,
     vehicleId: null,
     suggestedDriverId: null,
-    priceEstimate: fareBreakdown.total,
-    fareBreakdown,
+    priceEstimate: finalFareBreakdown.total,
+    fareBreakdown: finalFareBreakdown,
     distanceKm: routeToDropoff.distanceKm,
     durationMin,
     routeToPickup: null,
@@ -343,12 +420,15 @@ function randomAmbientInput(): BookingInput {
   const scheduled = new Date(Date.now() + (30 + Math.random() * 150) * 60_000)
   const name = names[Math.floor(Math.random() * names.length)]
 
+  const vehicleType = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)]
+
   return {
     channel: channels[Math.floor(Math.random() * channels.length)],
     pickupId,
     dropoffId,
     scheduledTime: scheduled.toISOString(),
-    vehicleType: vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)],
+    vehicleType,
+    vehicleCategory: DEFAULT_CATEGORY_FOR_TYPE[vehicleType],
     passengers: 1 + Math.floor(Math.random() * 5),
     luggage: Math.floor(Math.random() * 4),
     customer: { name, phone: '+1 555-0100', email: `${name.split(' ')[0].toLowerCase()}@example.com` },
@@ -357,8 +437,8 @@ function randomAmbientInput(): BookingInput {
   }
 }
 
-function buildAmbientOrder(): Order {
-  const order = buildOrderFromInput(randomAmbientInput())
+function buildAmbientOrder(context: { zoneConditions: ZoneCondition[]; pricingRules: PricingRules; vehicles: Vehicle[]; drivers: Driver[]; categoryPriceOverrides: FleetState['categoryPriceOverrides'] }): Order {
+  const order = buildOrderFromInput(randomAmbientInput(), context)
   return fastForwardToConfirmed(order)
 }
 
@@ -397,8 +477,13 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   payouts: fleetOsSeed.payouts,
   globalAuditLog: fleetOsSeed.globalAuditLog,
 
+  zoneConditions: buildInitialZoneConditions(),
+  pricingRules: DEFAULT_PRICING_RULES,
+  categoryPriceOverrides: {},
+
   createOrder: (input) => {
-    let order = buildOrderFromInput(input)
+    const ctx = get()
+    let order = buildOrderFromInput(input, { zoneConditions: ctx.zoneConditions, pricingRules: ctx.pricingRules, vehicles: ctx.vehicles, drivers: ctx.drivers, categoryPriceOverrides: ctx.categoryPriceOverrides })
 
     if (input.simulateFailure) {
       order = { ...order, status: 'FAILED', paymentStatus: 'FAILED' }
@@ -754,9 +839,15 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     // stays stable while the live demo queue still feels alive.
     const liveDemoActiveCount = s.orders.filter((o) => !o.id.startsWith('ord-bulk-') && ACTIVE_STATUS_SET.has(o.status)).length
 
+    // Simulated Dynamic Pricing Service "live feed" — occasionally nudges one
+    // zone's weather/demand by a step so `/fleet-os/pricing/dynamic` and the
+    // Customer App's fare breakdown both feel like they're backed by a real
+    // (if simulated) API rather than a frozen snapshot.
+    const zoneConditions = driftZoneConditions(s.zoneConditions)
+
     let orders = s.orders
     if (s.ambientOrdersEnabled && liveDemoActiveCount < MAX_ACTIVE_AMBIENT_ORDERS && Math.random() < AMBIENT_ORDER_CHANCE) {
-      const withSuggestion = buildAmbientOrder()
+      const withSuggestion = buildAmbientOrder({ zoneConditions, pricingRules: s.pricingRules, vehicles: s.vehicles, drivers: s.drivers, categoryPriceOverrides: s.categoryPriceOverrides })
       const suggested = { ...withSuggestion, suggestedDriverId: suggestDriver(withSuggestion, s.drivers, s.vehicles) }
       orders = [suggested, ...orders]
       notifications = pushNotification(notifications, 'INFO', 'notif.orderReceived.title', 'notif.orderReceived.message', { orderNo: suggested.orderNo, channel: suggested.channel, pickup: suggested.pickup.name, dropoff: suggested.dropoff.name }, suggested.id)
@@ -865,7 +956,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       return order
     })
 
-    set({ orders, drivers, notifications, tickCount: s.tickCount + 1 })
+    set({ orders, drivers, notifications, zoneConditions, tickCount: s.tickCount + 1 })
   },
 
   setSupplierStatus: (id, status) =>
@@ -935,6 +1026,59 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     set((s) => ({
       payouts: s.payouts.map((p) => (p.id === id ? { ...p, status: 'PAID' } : p)),
       globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'finance', 'Marked payout as paid', 'Payout', id),
+    })),
+
+  // ---- Dynamic Pricing Service (/fleet-os/pricing/dynamic) — every rule
+  // edit is written to the same global audit log used across Fleet OS, per
+  // the client brief's "approval and audit log for every rule change." ----
+  updatePricingRules: (patch, actor = 'fleet.manager') =>
+    set((s) => {
+      const changedKeys = Object.keys(patch)
+      return {
+        pricingRules: { ...s.pricingRules, ...patch },
+        globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Updated pricing rule(s): ${changedKeys.join(', ')}`, 'PricingRules', changedKeys.join(',') || 'rules'),
+      }
+    }),
+
+  setZoneCondition: (region, patch, actor = 'fleet.manager') =>
+    set((s) => ({
+      zoneConditions: s.zoneConditions.map((z) => (z.region === region ? { ...z, ...patch, updatedAt: Date.now() } : z)),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Overrode simulated conditions for ${region} (${Object.entries(patch).map(([k, v]) => `${k}=${v}`).join(', ')})`, 'ZoneCondition', region),
+    })),
+
+  setCategoryPriceOverride: (category, patch, actor = 'fleet.manager') =>
+    set((s) => ({
+      categoryPriceOverrides: { ...s.categoryPriceOverrides, [category]: patch },
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Updated ${category} pricing: base ${patch.baseFare} / km ${patch.perKmRate} / min ${patch.perMinRate}`, 'VehicleCategory', category),
+    })),
+
+  // ---- Fleet & Vehicle Inventory backend (/fleet-os/vehicles) ----
+  setVehicleMaintenance: (vehicleId, hours, reason, actor = 'fleet.manager') =>
+    set((s) => ({
+      vehicles: s.vehicles.map((v) => (v.id === vehicleId ? { ...v, maintenanceUntil: hours === null ? null : Date.now() + hours * 3_600_000, maintenanceReason: hours === null ? null : reason } : v)),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog, actor, hours === null ? 'Cleared maintenance block' : `Blocked vehicle for maintenance (${hours}h): ${reason}`, 'Vehicle', vehicleId,
+      ),
+    })),
+
+  setVehicleServiceZone: (vehicleId, zone, actor = 'fleet.manager') =>
+    set((s) => ({
+      vehicles: s.vehicles.map((v) => (v.id === vehicleId ? { ...v, serviceZone: zone } : v)),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Reassigned service zone to ${zone}`, 'Vehicle', vehicleId),
+    })),
+
+  setVehicleCategory: (vehicleId, category, actor = 'fleet.manager') =>
+    set((s) => ({
+      vehicles: s.vehicles.map((v) => (v.id === vehicleId ? { ...v, category, luggageCapacity: VEHICLE_CATEGORY_CATALOG[category].maxLuggage } : v)),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Recategorized vehicle as ${category}`, 'Vehicle', vehicleId),
+    })),
+
+  toggleVehicleFeature: (vehicleId, feature, actor = 'fleet.manager') =>
+    set((s) => ({
+      vehicles: s.vehicles.map((v) =>
+        v.id === vehicleId ? { ...v, features: v.features.includes(feature) ? v.features.filter((f) => f !== feature) : [...v.features, feature] } : v,
+      ),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Toggled feature ${feature}`, 'Vehicle', vehicleId),
     })),
 
   addSavedPassenger: (customerId, passenger) =>
