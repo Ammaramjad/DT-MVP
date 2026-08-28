@@ -58,8 +58,8 @@ const MODULES = [
 export function FleetOsNav() {
   const { t } = useLang()
   return (
-    <div className="sticky top-[64px] z-[600] -mx-4 mb-4 overflow-x-auto border-b border-white/10 bg-slate-950/85 px-4 py-2.5 backdrop-blur-2xl shadow-xl sm:-mx-6 sm:px-6" data-testid="fleetos-nav">
-      <div className="flex items-center gap-1.5">
+    <div className="sticky top-[64px] z-[600] mb-4 overflow-x-auto rounded-2xl border border-white/10 bg-slate-950/85 p-2 backdrop-blur-2xl shadow-xl scrollbar-none" data-testid="fleetos-nav">
+      <div className="flex items-center gap-1.5 min-w-max">
         {MODULES.map((m) => (
           <NavLink
             key={m.to}

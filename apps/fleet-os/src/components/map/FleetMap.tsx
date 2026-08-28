@@ -34,8 +34,8 @@ export function FleetMap({
       <MapContainer center={MAP_CENTER} zoom={11} className="h-full w-full" zoomControl={false} attributionControl={false}>
         <TileLayer
           className="map-tiles-dark"
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          subdomains={['a', 'b', 'c', 'd']}
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          subdomains={['a', 'b', 'c']}
         />
 
         {LOCATIONS.map((loc) => (

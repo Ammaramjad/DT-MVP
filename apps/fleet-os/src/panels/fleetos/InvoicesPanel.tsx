@@ -11,8 +11,7 @@ import {
   ShieldCheck,
   Eye,
 } from 'lucide-react'
-import { PanelHeader } from '../../components/layout/PanelHeader'
-import { FleetOsNav } from '../../components/fleetos/FleetOsNav'
+import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { formatTWD } from '../../lib/format'
@@ -100,16 +99,12 @@ export default function InvoicesPanel() {
   const totalTax = filteredInvoices.reduce((sum, i) => (i.status === 'VOIDED' ? sum : sum + i.taxAmount), 0)
 
   return (
-    <div className="min-h-screen bg-[#030712] bg-noise pb-32 text-white" data-testid="invoices-panel">
-      <PanelHeader
-        title={t('fleetos.invoices.title')}
-        subtitle={t('fleetos.invoices.subtitle')}
-        icon={<FileText className="h-5 w-5" />}
-      />
-
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <FleetOsNav />
-
+    <FleetOsPage
+      title={t('fleetos.invoices.title')}
+      subtitle={t('fleetos.invoices.subtitle')}
+      icon={<FileText className="h-5 w-5" />}
+    >
+      <div className="pb-8" data-testid="invoices-panel">
         {/* Action Alert Banner */}
         <AnimatePresence>
           {actionAlert && (
@@ -366,6 +361,6 @@ export default function InvoicesPanel() {
       {selectedInvoice && (
         <TaiwanInvoiceModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
       )}
-    </div>
+    </FleetOsPage>
   )
 }

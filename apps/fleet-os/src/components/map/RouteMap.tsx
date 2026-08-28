@@ -31,8 +31,8 @@ export function RouteMap({ order, height = '100%' }: { order: Order; height?: st
       <MapContainer center={points[0] ?? [25.06, 121.46]} zoom={12} className="h-full w-full" zoomControl={false} attributionControl={false}>
         <TileLayer
           className="map-tiles-dark"
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          subdomains={['a', 'b', 'c', 'd']}
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          subdomains={['a', 'b', 'c']}
         />
         {points.length > 1 && <FitToRoute points={points} />}
         {points.length > 1 && (

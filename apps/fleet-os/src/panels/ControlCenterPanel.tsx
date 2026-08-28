@@ -96,7 +96,7 @@ export default function ControlCenterPanel() {
         <ToggleChip label={t('control.liveOrders')} active={ambientOrdersEnabled} onClick={() => setAmbientOrders(!ambientOrdersEnabled)} icon={<Radar className="h-3 w-3" />} />
       </div>
 
-      <div className="mt-3 px-4 sm:px-6">
+      <div className="px-4 pt-3 sm:px-6">
         <FleetOsNav />
       </div>
 

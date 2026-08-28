@@ -9,8 +9,7 @@ import {
   Briefcase,
   FileSpreadsheet,
 } from 'lucide-react'
-import { PanelHeader } from '../../components/layout/PanelHeader'
-import { FleetOsNav } from '../../components/fleetos/FleetOsNav'
+import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { formatTWD } from '../../lib/format'
@@ -119,16 +118,12 @@ export default function CorporatePanel() {
   const totalRidesMonth = accounts.reduce((sum, a) => sum + a.activeRidesThisMonth, 0)
 
   return (
-    <div className="min-h-screen bg-[#030712] bg-noise pb-32 text-white" data-testid="corporate-panel">
-      <PanelHeader
-        title={t('fleetos.corporate.title')}
-        subtitle={t('fleetos.corporate.subtitle')}
-        icon={<Building2 className="h-5 w-5" />}
-      />
-
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <FleetOsNav />
-
+    <FleetOsPage
+      title={t('fleetos.corporate.title')}
+      subtitle={t('fleetos.corporate.subtitle')}
+      icon={<Building2 className="h-5 w-5" />}
+    >
+      <div className="pb-8" data-testid="corporate-panel">
         {/* Action Alert Banner */}
         <AnimatePresence>
           {actionAlert && (
@@ -550,6 +545,6 @@ export default function CorporatePanel() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </FleetOsPage>
   )
 }

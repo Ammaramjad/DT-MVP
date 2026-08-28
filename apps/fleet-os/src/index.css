@@ -189,7 +189,8 @@ body {
 }
 
 .map-tiles-dark {
-  filter: brightness(0.72) invert(1) contrast(1.12) hue-rotate(185deg) saturate(0.35);
+  /* High quality cyber-dark map styling applied on free OpenStreetMap tiles */
+  filter: invert(100%) hue-rotate(180deg) brightness(90%) contrast(90%);
 }
 
 .leaflet-popup-content-wrapper {

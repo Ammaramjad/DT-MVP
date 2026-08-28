@@ -21,7 +21,7 @@ export function FleetOsPage({
   return (
     <div className="min-h-screen bg-mission-950 bg-noise pb-28 text-white">
       <PanelHeader title={title} subtitle={subtitle} icon={icon} right={right} />
-      <div className="px-4 sm:px-6">
+      <div className="px-4 pt-3 sm:px-6">
         <FleetOsNav />
       </div>
       <div className="px-4 sm:px-6">{children}</div>

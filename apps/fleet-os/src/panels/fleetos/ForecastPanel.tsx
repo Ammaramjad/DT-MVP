@@ -13,8 +13,7 @@ import {
   Sun,
   CloudLightning,
 } from 'lucide-react'
-import { PanelHeader } from '../../components/layout/PanelHeader'
-import { FleetOsNav } from '../../components/fleetos/FleetOsNav'
+import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import {
@@ -48,16 +47,12 @@ export default function ForecastPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-[#030712] bg-noise pb-32 text-white" data-testid="forecast-panel">
-      <PanelHeader
-        title={t('fleetos.forecast.title')}
-        subtitle={t('fleetos.forecast.subtitle')}
-        icon={<TrendingUp className="h-5 w-5" />}
-      />
-
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <FleetOsNav />
-
+    <FleetOsPage
+      title={t('fleetos.forecast.title')}
+      subtitle={t('fleetos.forecast.subtitle')}
+      icon={<TrendingUp className="h-5 w-5" />}
+    >
+      <div className="pb-8" data-testid="forecast-panel">
         {/* Global Broadcast Success Alert Toast */}
         <AnimatePresence>
           {broadcastSuccess && (
@@ -446,6 +441,6 @@ export default function ForecastPanel() {
           </div>
         </div>
       </div>
-    </div>
+    </FleetOsPage>
   )
 }

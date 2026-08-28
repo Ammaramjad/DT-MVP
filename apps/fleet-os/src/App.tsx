@@ -36,6 +36,11 @@ import ForecastPanel from './panels/fleetos/ForecastPanel'
 import InvoicesPanel from './panels/fleetos/InvoicesPanel'
 import CorporatePanel from './panels/fleetos/CorporatePanel'
 import MultiScreenPanel from './panels/fleetos/MultiScreenPanel'
+import ScreenMapWall from './panels/screens/ScreenMapWall'
+import ScreenOrdersWall from './panels/screens/ScreenOrdersWall'
+import ScreenDriversWall from './panels/screens/ScreenDriversWall'
+import ScreenNotificationsWall from './panels/screens/ScreenNotificationsWall'
+import ScreenFlightsWall from './panels/screens/ScreenFlightsWall'
 
 function AppContent() {
   const { isLocked } = useGatekeeper()
@@ -65,6 +70,12 @@ function AppContent() {
         <Route path="/fleet-os" element={<ControlCenterPanel />} />
         <Route path="/fleet-os/orders" element={<ControlCenterPanel />} />
         <Route path="/fleet-os/multiscreen" element={<MultiScreenPanel />} />
+        {/* Dedicated Standalone Physical Multi-Monitor Operations Wall Screens */}
+        <Route path="/fleet-os/screens/map" element={<ScreenMapWall />} />
+        <Route path="/fleet-os/screens/orders" element={<ScreenOrdersWall />} />
+        <Route path="/fleet-os/screens/drivers" element={<ScreenDriversWall />} />
+        <Route path="/fleet-os/screens/notifications" element={<ScreenNotificationsWall />} />
+        <Route path="/fleet-os/screens/flights" element={<ScreenFlightsWall />} />
         <Route path="/fleet-os/suppliers" element={<SuppliersPanel />} />
         <Route path="/fleet-os/catalog" element={<CatalogPanel />} />
         <Route path="/fleet-os/pricing/dynamic" element={<PricingDynamicPanel />} />
