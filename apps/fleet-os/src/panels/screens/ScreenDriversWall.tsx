@@ -1,12 +1,17 @@
 import { useEffect, useState, useMemo } from 'react'
 import {
+  Clock,
   Gauge,
   Maximize2,
   Minimize2,
   Search,
+  Zap,
 } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { Badge } from '../../components/ui/Badge'
+import { ManualAssignmentModal } from '../../components/fleetos/ManualAssignmentModal'
+import { DriverShiftModal } from '../../components/fleetos/DriverShiftModal'
+import type { Driver } from '../../types'
 import { useLang } from '../../i18n'
 import { multiScreenBus } from '../../lib/multiScreenSync'
 import clsx from 'clsx'
@@ -20,6 +25,8 @@ export default function ScreenDriversWall() {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'BUSY' | 'BREAK' | 'FATIGUE'>('ALL')
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [assigningDriver, setAssigningDriver] = useState<Driver | null>(null)
+  const [editingShiftDriver, setEditingShiftDriver] = useState<Driver | null>(null)
 
   const vehicleByDriverId = useMemo(() => {
     const map = new Map<string, (typeof vehicles)[0]>()
@@ -232,13 +239,32 @@ export default function ScreenDriversWall() {
 
                 <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-400">
                   <span>完趟數: {driver.completedTrips}</span>
-                  <span className="font-mono text-emerald-400">NT${(driver.walletBalance || 0).toLocaleString()}</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setEditingShiftDriver(driver)}
+                      className="flex items-center gap-0.5 rounded bg-cyan-500/10 border border-cyan-400/30 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300 hover:bg-cyan-500/20"
+                    >
+                      <Clock className="h-2.5 w-2.5" />
+                      <span>{driver.workingHours ? `${driver.workingHours.shiftStart}-${driver.workingHours.shiftEnd}` : '排班'}</span>
+                    </button>
+                    <button
+                      onClick={() => setAssigningDriver(driver)}
+                      data-testid={`drivers-wall-assign-${driver.id}`}
+                      className="flex items-center gap-0.5 rounded bg-purple-500/15 border border-purple-400/30 px-2 py-0.5 text-[10px] font-bold text-purple-300 hover:bg-purple-500/25"
+                    >
+                      <Zap className="h-2.5 w-2.5" />
+                      <span>派單</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )
           })}
         </div>
       </main>
+
+      <ManualAssignmentModal driver={assigningDriver} isOpen={!!assigningDriver} onClose={() => setAssigningDriver(null)} />
+      <DriverShiftModal driver={editingShiftDriver} isOpen={!!editingShiftDriver} onClose={() => setEditingShiftDriver(null)} />
     </div>
   )
 }

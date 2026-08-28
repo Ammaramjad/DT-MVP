@@ -1,12 +1,13 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Accessibility, AlertOctagon, Baby, Car, Clock3, Dog, FlaskConical, Luggage, Plane, PlaneLanding, User, Users, Wand2, X, Zap } from 'lucide-react'
 import type { Order } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
 import { OrderTypeBadge, StatusBadge, FlightBadge, TierBadge, ChannelBadge, UrgencyBadge } from '../ui/OrderBadges'
-import { Button } from '../ui/Button'
 import { CountdownRing } from '../ui/CountdownRing'
 import { DispatchLog } from './DispatchLog'
 import { StatusHistoryTimeline } from './StatusHistoryTimeline'
+import { ManualAssignmentModal } from '../fleetos/ManualAssignmentModal'
 import { formatTWD, formatClock } from '../../lib/format'
 import { isVehicleSubstituted } from '../../lib/selectors'
 import { useLang } from '../../i18n'
@@ -15,10 +16,10 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
   const { t, lang } = useLang()
   const drivers = useFleetStore((s) => s.drivers)
   const vehicles = useFleetStore((s) => s.vehicles)
-  const assignOrder = useFleetStore((s) => s.assignOrder)
   const cancelOrder = useFleetStore((s) => s.cancelOrder)
   const toggleDemoNoResponse = useFleetStore((s) => s.toggleDemoNoResponse)
   const simulateFlightEvent = useFleetStore((s) => s.simulateFlightEvent)
+  const [showAssignModal, setShowAssignModal] = useState(false)
 
   const assignedDriver = drivers.find((d) => d.id === order.driverId)
   const suggestedDriver = drivers.find((d) => d.id === order.suggestedDriverId)
@@ -170,30 +171,49 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
       <StatusHistoryTimeline history={order.statusHistory} />
 
       <div className="mt-2.5 flex items-center justify-between border-t border-white/5 pt-2.5">
-        {order.status === 'CONFIRMED' && suggestedDriver ? (
+        {order.status === 'CONFIRMED' || order.status === 'DRIVER_MATCHING' ? (
           <div className="flex w-full items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-              <Wand2 className="h-3 w-3 text-purple-300" />
-              {t('control.suggested')} <span className="font-medium text-slate-200">{suggestedDriver.name}</span>
-              <TierBadge tier={suggestedDriver.tier} />
+              {suggestedDriver ? (
+                <>
+                  <Wand2 className="h-3 w-3 text-purple-300" />
+                  {t('control.suggested')} <span className="font-medium text-slate-200">{suggestedDriver.name}</span>
+                  <TierBadge tier={suggestedDriver.tier} />
+                </>
+              ) : (
+                <span className="text-slate-500">{t('control.noAvailableDriver')}</span>
+              )}
             </div>
-            <Button
-              size="sm"
-              data-testid="assign-button"
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowAssignModal(true)
+                }}
+                data-testid="open-assign-modal-btn"
+                className="flex items-center gap-1 rounded-lg border border-cyan-400/40 bg-cyan-500/15 px-2.5 py-1 text-xs font-bold text-cyan-300 hover:bg-cyan-500/25 shadow-sm transition"
+              >
+                <Zap className="h-3 w-3" />
+                <span>{lang === 'zh' ? '智慧手動指派' : 'Assign Driver'}</span>
+              </button>
+            </div>
+          </div>
+        ) : assignedDriver ? (
+          <div className="flex w-full items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+              {t('control.driverLabel')} <span className="font-medium text-slate-200">{assignedDriver.name}</span>
+              <TierBadge tier={assignedDriver.tier} />
+            </div>
+            <button
               onClick={(e) => {
                 e.stopPropagation()
-                assignOrder(order.id)
+                setShowAssignModal(true)
               }}
+              data-testid="reassign-modal-btn"
+              className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[10.5px] font-medium text-slate-300 hover:bg-white/10"
             >
-              <Zap className="h-3 w-3" /> {lastUnresponsiveDriver ? t('control.reassign') : t('control.assign')}
-            </Button>
-          </div>
-        ) : order.status === 'CONFIRMED' ? (
-          <span className="text-[11px] text-red-400">{t('control.noAvailableDriver')}</span>
-        ) : assignedDriver ? (
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-            {t('control.driverLabel')} <span className="font-medium text-slate-200">{assignedDriver.name}</span>
-            <TierBadge tier={assignedDriver.tier} />
+              {lang === 'zh' ? '更換司機' : 'Reassign'}
+            </button>
           </div>
         ) : (
           <span className="text-[11px] text-slate-500">—</span>
@@ -212,6 +232,12 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
           </button>
         )}
       </div>
+
+      <ManualAssignmentModal
+        order={order}
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+      />
 
       {(order.status === 'CONFIRMED' || order.status === 'DRIVER_MATCHING') && (
         <button

@@ -667,6 +667,17 @@ export function createSeedState(): {
     const isBusy = i === 0 || i === 2 || i === 3
     const isOffline = i > 300 && i % 4 === 0
 
+    // Assign realistic driver shifts: Morning, Day, Night, Custom
+    const shiftType = i % 4 === 0 ? 'MORNING' : i % 4 === 1 ? 'DAY' : i % 4 === 2 ? 'NIGHT' : 'CUSTOM'
+    const shiftTiming =
+      shiftType === 'MORNING'
+        ? { shiftStart: '06:00', shiftEnd: '14:00', breakStart: '10:00', breakEnd: '10:30' }
+        : shiftType === 'DAY'
+        ? { shiftStart: '09:00', shiftEnd: '18:00', breakStart: '12:30', breakEnd: '13:30' }
+        : shiftType === 'NIGHT'
+        ? { shiftStart: '18:00', shiftEnd: '03:00', breakStart: '22:00', breakEnd: '22:30' }
+        : { shiftStart: '07:00', shiftEnd: '17:00', breakStart: '12:00', breakEnd: '13:00' }
+
     return {
       ...d,
       status: isBusy ? 'BUSY' : isOffline ? 'OFFLINE' : 'AVAILABLE',
@@ -677,6 +688,13 @@ export function createSeedState(): {
       vehicleId: vehicle.id,
       stats: buildDriverStats(d.id, d.completedTrips),
       shiftSchedule: buildShiftSchedule(d.id),
+      workingHours: {
+        shiftType,
+        ...shiftTiming,
+        activeDays: [1, 2, 3, 4, 5, 6],
+        onShift: !isOffline,
+        customLabel: shiftType === 'CUSTOM' ? '彈性日班 07:00-17:00' : undefined,
+      },
       unresponsiveFlagUntil: null,
       unresponsiveOrderNo: null,
       workingMode: (['AIRPORT_PRIORITY', 'CITY_PRIORITY', 'ANY'] as const)[i % 3],

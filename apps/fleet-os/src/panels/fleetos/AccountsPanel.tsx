@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Car, Headset, Search, ShieldCheck, UserPlus, Users2 } from 'lucide-react'
+import { Car, Clock, Headset, Search, ShieldCheck, UserPlus, Users2 } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { StatCard } from '../../components/ui/StatCard'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
-import type { StaffRole } from '../../types'
+import { DriverShiftModal } from '../../components/fleetos/DriverShiftModal'
+import type { Driver, StaffRole } from '../../types'
 import { useLang } from '../../i18n'
 
 type Tab = 'STAFF' | 'DRIVERS'
@@ -29,6 +30,7 @@ export default function AccountsPanel() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<StaffRole>('SUPPORT')
+  const [editingShiftDriver, setEditingShiftDriver] = useState<Driver | null>(null)
 
   const activeStaff = staffAccounts.filter((a) => a.status === 'ACTIVE').length
   const loginEnabledDrivers = drivers.filter((d) => d.loginEnabled).length
@@ -163,6 +165,7 @@ export default function AccountsPanel() {
                   <th className="px-3 py-2.5">{t('fleetos.accounts.colName')}</th>
                   <th className="px-3 py-2.5">{t('fleetos.accounts.colPhone')}</th>
                   <th className="px-3 py-2.5">{t('fleetos.accounts.colTier')}</th>
+                  <th className="px-3 py-2.5">{lang === 'zh' ? '班表時段' : 'Shift Hours'}</th>
                   <th className="px-3 py-2.5">{t('fleetos.accounts.colLoginStatus')}</th>
                   <th className="px-3 py-2.5" />
                 </tr>
@@ -178,9 +181,29 @@ export default function AccountsPanel() {
                       <Badge tone={d.tier === 'OWNED_FLEET' ? 'cyan' : d.tier === 'PAID_MEMBER' ? 'purple' : 'amber'}>{t(`tier.${d.tier}`)}</Badge>
                     </td>
                     <td className="px-3 py-2.5">
+                      {d.workingHours ? (
+                        <button
+                          onClick={() => setEditingShiftDriver(d)}
+                          data-testid="accounts-edit-shift-btn"
+                          className="flex items-center gap-1 text-[11px] font-mono text-cyan-300 hover:text-cyan-200 hover:underline"
+                        >
+                          <Clock className="h-3 w-3" />
+                          {d.workingHours.shiftStart} - {d.workingHours.shiftEnd}
+                        </button>
+                      ) : (
+                        <span className="text-slate-500">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
                       <Badge tone={d.loginEnabled ? 'green' : 'slate'}>{d.loginEnabled ? t('fleetos.accounts.enable') : t('fleetos.accounts.disable')}</Badge>
                     </td>
-                    <td className="px-3 py-2.5 text-right">
+                    <td className="px-3 py-2.5 text-right flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => setEditingShiftDriver(d)}
+                        className="rounded-lg bg-cyan-500/10 border border-cyan-400/30 px-2 py-1 text-[10.5px] font-semibold text-cyan-300 hover:bg-cyan-500/20"
+                      >
+                        {lang === 'zh' ? '設定排班' : 'Edit Shift'}
+                      </button>
                       <button
                         onClick={() => setDriverLoginEnabled(d.id, !d.loginEnabled)}
                         data-testid="accounts-driver-toggle-login"
@@ -193,7 +216,7 @@ export default function AccountsPanel() {
                 ))}
                 {filteredDrivers.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-8 text-center text-slate-500">
+                    <td colSpan={6} className="px-3 py-8 text-center text-slate-500">
                       {t('fleetos.accounts.noDriversFound')}
                     </td>
                   </tr>
@@ -203,6 +226,7 @@ export default function AccountsPanel() {
           </div>
         </div>
       )}
+      <DriverShiftModal driver={editingShiftDriver} isOpen={!!editingShiftDriver} onClose={() => setEditingShiftDriver(null)} />
     </FleetOsPage>
   )
 }

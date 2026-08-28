@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Radio, UserPlus, Users2 } from 'lucide-react'
+import { Clock, Radio, UserPlus, Users2, Zap } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { StatCard } from '../../components/ui/StatCard'
@@ -8,7 +8,9 @@ import { DriverScheduleMatrix } from '../../components/control/DriverScheduleMat
 import { TodayRosterBoard } from '../../components/control/TodayRosterBoard'
 import { Badge } from '../../components/ui/Badge'
 import { AddDriverModal } from '../../components/fleetos/AddDriverModal'
-import type { DriverWorkingMode } from '../../types'
+import { DriverShiftModal } from '../../components/fleetos/DriverShiftModal'
+import { ManualAssignmentModal } from '../../components/fleetos/ManualAssignmentModal'
+import type { Driver, DriverWorkingMode } from '../../types'
 import { useLang } from '../../i18n'
 
 const MODES: DriverWorkingMode[] = ['AIRPORT_PRIORITY', 'CITY_PRIORITY', 'ANY']
@@ -21,6 +23,8 @@ export default function RosterPanel() {
   const [tab, setTab] = useState<'ROSTER' | 'SCHEDULE' | 'TODAY'>('ROSTER')
   const [query, setQuery] = useState('')
   const [showAddDriver, setShowAddDriver] = useState(false)
+  const [editingShiftDriver, setEditingShiftDriver] = useState<Driver | null>(null)
+  const [assigningDriver, setAssigningDriver] = useState<Driver | null>(null)
 
   const available = drivers.filter((d) => d.status === 'AVAILABLE').length
   const busy = drivers.filter((d) => d.status === 'BUSY').length
@@ -49,6 +53,8 @@ export default function RosterPanel() {
       }
     >
       <AddDriverModal isOpen={showAddDriver} onClose={() => setShowAddDriver(false)} />
+      <DriverShiftModal driver={editingShiftDriver} isOpen={!!editingShiftDriver} onClose={() => setEditingShiftDriver(null)} />
+      <ManualAssignmentModal driver={assigningDriver} isOpen={!!assigningDriver} onClose={() => setAssigningDriver(null)} />
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard icon={<Users2 className="h-4 w-4" />} label={t('fleetos.roster.totalDrivers')} value={drivers.length} tone="cyan" />
         <StatCard icon={<Radio className="h-4 w-4" />} label={t('fleetos.roster.available')} value={available} tone="lime" />
@@ -91,26 +97,52 @@ export default function RosterPanel() {
                     <span className="text-base">{d.avatarEmoji}</span>
                     <span className="truncate text-xs font-medium text-slate-200">{lang === 'zh' ? d.nameZh : d.name}</span>
                     <Badge tone={d.status === 'AVAILABLE' ? 'green' : d.status === 'BUSY' ? 'amber' : 'slate'}>{t(`driverStatus.${d.status}`)}</Badge>
+                    {d.workingHours && (
+                      <span className="hidden sm:inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-cyan-300 border border-slate-700">
+                        <Clock className="h-2.5 w-2.5" />
+                        {d.workingHours.shiftStart}-{d.workingHours.shiftEnd}
+                      </span>
+                    )}
                   </div>
-                  <select
-                    value={d.workingMode}
-                    onChange={(e) => setDriverWorkingMode(d.id, e.target.value as DriverWorkingMode)}
-                    data-testid="driver-working-mode-select"
-                    className="shrink-0 rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 text-[10.5px] text-slate-200 outline-none focus:border-cyan-400/40"
-                  >
-                    {MODES.map((m) => (
-                      <option key={m} value={m}>
-                        {t(`fleetos.roster.mode.${m}`)}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => setDriverAutoAccept(d.id, !d.autoAcceptEnabled)}
-                    data-testid="driver-auto-accept-toggle"
-                    className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold ${d.autoAcceptEnabled ? 'bg-cyan-400/15 text-cyan-300' : 'bg-white/5 text-slate-500'}`}
-                  >
-                    {t('fleetos.roster.autoAccept')}
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => setAssigningDriver(d)}
+                      data-testid="roster-assign-order-btn"
+                      className="flex items-center gap-1 rounded-lg border border-purple-400/30 bg-purple-500/15 px-2 py-1 text-[10.5px] font-semibold text-purple-300 hover:bg-purple-500/25 transition"
+                      title={lang === 'zh' ? '指派訂單給此司機' : 'Assign Order'}
+                    >
+                      <Zap className="h-3 w-3" />
+                      <span>{lang === 'zh' ? '派單' : 'Assign'}</span>
+                    </button>
+                    <button
+                      onClick={() => setEditingShiftDriver(d)}
+                      data-testid="edit-driver-shift-btn"
+                      className="flex items-center gap-1 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 text-[10.5px] font-semibold text-cyan-300 hover:bg-cyan-400/20 transition"
+                      title={lang === 'zh' ? '調整班表' : 'Edit Shift'}
+                    >
+                      <Clock className="h-3 w-3" />
+                      <span>{lang === 'zh' ? '排班' : 'Shift'}</span>
+                    </button>
+                    <select
+                      value={d.workingMode}
+                      onChange={(e) => setDriverWorkingMode(d.id, e.target.value as DriverWorkingMode)}
+                      data-testid="driver-working-mode-select"
+                      className="shrink-0 rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 text-[10.5px] text-slate-200 outline-none focus:border-cyan-400/40"
+                    >
+                      {MODES.map((m) => (
+                        <option key={m} value={m}>
+                          {t(`fleetos.roster.mode.${m}`)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => setDriverAutoAccept(d.id, !d.autoAcceptEnabled)}
+                      data-testid="driver-auto-accept-toggle"
+                      className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold ${d.autoAcceptEnabled ? 'bg-cyan-400/15 text-cyan-300' : 'bg-white/5 text-slate-500'}`}
+                    >
+                      {t('fleetos.roster.autoAccept')}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertTriangle,
+  ArrowRight,
   Camera,
   CheckCircle2,
   Clock3,
@@ -32,6 +33,8 @@ import { DriverTabBar, type DriverTab } from '../components/driver/DriverTabBar'
 import { EarningsScreen } from '../components/driver/EarningsScreen'
 import { ActivityScreen } from '../components/driver/ActivityScreen'
 import { AccountScreen } from '../components/driver/AccountScreen'
+import { TeamMessenger } from '../components/fleetos/TeamMessenger'
+import { OrderSwapModal } from '../components/driver/OrderSwapModal'
 import { VehicleCard } from '../components/vehicles/VehicleCard'
 import { EmergencyReportModal } from '../components/driver/EmergencyReportModal'
 import { TaiwanInvoiceModal } from '../components/invoices/TaiwanInvoiceModal'
@@ -65,6 +68,7 @@ export default function DriverPanel() {
   const [pinInput, setPinInput] = useState('')
   const [pinError, setPinError] = useState(false)
   const [showInspectionModal, setShowInspectionModal] = useState(false)
+  const [showSwapModal, setShowSwapModal] = useState(false)
 
   const activeDriverId = focusDriverId ?? drivers[0]?.id ?? null
   const driver = drivers.find((d) => d.id === activeDriverId) ?? drivers[0]
@@ -170,6 +174,7 @@ export default function DriverPanel() {
                     remainingTicks={remainingTicks}
                     onStart={() => startTrip(activeOrder.id)}
                     onOpenEmergency={() => setShowEmergencyModal(true)}
+                    onOpenSwap={() => setShowSwapModal(true)}
                     pinInput={pinInput}
                     onPinChange={setPinInput}
                     pinError={pinError}
@@ -238,6 +243,12 @@ export default function DriverPanel() {
           </motion.div>
         )}
 
+        {tab === 'MESSENGER' && (
+          <motion.div key="messenger" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="mx-auto mt-4 max-w-2xl px-3">
+            <TeamMessenger mode="EMBEDDED" currentDriverId={driver.id} />
+          </motion.div>
+        )}
+
         {tab === 'ACCOUNT' && (
           <motion.div key="account" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="mt-4">
             <AccountScreen driver={driver} drivers={drivers} vehicle={vehicle} onSwitchDriver={setFocusDriver} />
@@ -258,6 +269,16 @@ export default function DriverPanel() {
               reportDriverEmergency(activeOrder.id, data.incidentType, data)
               setShowEmergencyModal(false)
             }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showSwapModal && activeOrder && (
+          <OrderSwapModal
+            order={activeOrder}
+            driverId={driver.id}
+            isOpen={showSwapModal}
+            onClose={() => setShowSwapModal(false)}
           />
         )}
       </AnimatePresence>
@@ -364,6 +385,7 @@ function TripInProgress({
   remainingTicks,
   onStart,
   onOpenEmergency,
+  onOpenSwap,
   pinInput,
   onPinChange,
   pinError,
@@ -377,6 +399,7 @@ function TripInProgress({
   remainingTicks: number
   onStart: () => void
   onOpenEmergency: () => void
+  onOpenSwap?: () => void
   pinInput: string
   onPinChange: (v: string) => void
   pinError: boolean
@@ -479,15 +502,28 @@ function TripInProgress({
         )}
 
         {!isIncidentReported && (
-          <button
-            type="button"
-            onClick={onOpenEmergency}
-            data-testid="driver-report-emergency-btn"
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-500/40 bg-rose-500/15 py-3 text-xs font-bold text-rose-300 shadow-lg shadow-rose-950/50 transition hover:bg-rose-500/25 active:scale-[0.98]"
-          >
-            <ShieldAlert className="h-4 w-4 text-rose-400" />
-            {t('driver.emergency.reportSosBtn')}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onOpenEmergency}
+              data-testid="driver-report-emergency-btn"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-rose-500/40 bg-rose-500/15 py-2.5 text-xs font-bold text-rose-300 shadow-lg shadow-rose-950/50 transition hover:bg-rose-500/25 active:scale-[0.98]"
+            >
+              <ShieldAlert className="h-4 w-4 text-rose-400" />
+              {t('driver.emergency.reportSosBtn')}
+            </button>
+            {onOpenSwap && (
+              <button
+                type="button"
+                onClick={onOpenSwap}
+                data-testid="driver-request-swap-btn"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-purple-500/40 bg-purple-500/15 py-2.5 text-xs font-bold text-purple-300 shadow-lg shadow-purple-950/50 transition hover:bg-purple-500/25 active:scale-[0.98]"
+              >
+                <ArrowRight className="h-4 w-4 text-purple-400" />
+                <span>{lang === 'zh' ? '轉單交接 (Swap)' : 'Swap Trip'}</span>
+              </button>
+            )}
+          </div>
         )}
 
         {order.status === 'ARRIVED' && !isIncidentReported && (

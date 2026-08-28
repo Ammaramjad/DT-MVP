@@ -240,6 +240,52 @@ export interface LostItemReport {
   dispatcherNotes?: string
 }
 
+export type DriverWorkingShiftType = 'MORNING' | 'DAY' | 'NIGHT' | 'CUSTOM'
+
+export interface DriverWorkingHours {
+  shiftType: DriverWorkingShiftType
+  shiftStart: string // e.g. "06:00", "09:00", "18:00"
+  shiftEnd: string   // e.g. "14:00", "18:00", "03:00"
+  activeDays: number[] // 0 (Sun) - 6 (Sat)
+  breakStart?: string // e.g. "12:00"
+  breakEnd?: string   // e.g. "13:00"
+  onShift: boolean
+  customLabel?: string
+}
+
+export interface ChatMessage {
+  id: string
+  channelId: 'dispatch-ops' | 'urgent-help' | 'order-swaps' | string // e.g. "dm-drv-1-drv-2" or "dm-dispatcher-drv-1"
+  senderId: string // 'dispatcher' | driver.id
+  senderName: string
+  senderRole: 'DISPATCHER' | 'DRIVER'
+  avatarEmoji?: string
+  text: string
+  timestamp: number
+  swapRequestId?: string
+}
+
+export interface OrderSwapRequest {
+  id: string
+  orderId: string
+  orderNo: string
+  fromDriverId: string
+  fromDriverName: string
+  fromDriverAvatar?: string
+  toDriverId?: string | null
+  toDriverName?: string | null
+  reason: 'FATIGUE_SHIFT_END' | 'TRAFFIC_JAM_DELAY' | 'MECHANICAL_ISSUE' | 'PERSONAL_URGENT' | 'OTHER'
+  reasonCustom?: string
+  pickupName: string
+  dropoffName: string
+  scheduledTime: string
+  priceEstimate: number
+  vehicleCategory: VehicleCategory
+  status: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  createdAt: number
+  approvedAt?: number
+}
+
 export interface Driver {
   id: string
   name: string
@@ -259,6 +305,7 @@ export interface Driver {
   documents: Record<DocumentKind, DocumentRecord>
   stats: DriverStats
   shiftSchedule: ShiftDay[]
+  workingHours?: DriverWorkingHours
   unresponsiveFlagUntil: number | null
   unresponsiveOrderNo: string | null
   workingMode: DriverWorkingMode

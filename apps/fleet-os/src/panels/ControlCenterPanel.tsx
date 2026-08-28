@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, CalendarClock, Cpu, DollarSign, Gauge, Radar, ShieldAlert, Siren, UserX, Users2 } from 'lucide-react'
+import { AlertTriangle, CalendarClock, Cpu, DollarSign, Gauge, MessageSquare, Radar, ShieldAlert, Siren, UserX, Users2 } from 'lucide-react'
 import { useFleetStore } from '../store/useFleetStore'
 import { computeKpis } from '../lib/selectors'
 import { PanelHeader } from '../components/layout/PanelHeader'
@@ -16,6 +16,7 @@ import { FleetRosterBreakdown } from '../components/control/FleetRosterBreakdown
 import { AnalyticsDashboard } from '../components/control/AnalyticsDashboard'
 import { FleetOsNav } from '../components/fleetos/FleetOsNav'
 import { EmergencyRescueDrawer } from '../components/control/EmergencyRescueDrawer'
+import { TeamMessenger } from '../components/fleetos/TeamMessenger'
 import { useLang } from '../i18n'
 
 type FilterKey = 'ACTIVE' | 'NEW' | 'IN_PROGRESS' | 'COMPLETED' | 'ALL'
@@ -38,7 +39,7 @@ const CAPACITY_TABS: { key: CapacityTab; labelKey: string }[] = [
 ]
 
 export default function ControlCenterPanel() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const orders = useFleetStore((s) => s.orders)
   const drivers = useFleetStore((s) => s.drivers)
   const autoDispatchEnabled = useFleetStore((s) => s.autoDispatchEnabled)
@@ -51,6 +52,7 @@ export default function ControlCenterPanel() {
   const [filter, setFilter] = useState<FilterKey>('ACTIVE')
   const [capacityTab, setCapacityTab] = useState<CapacityTab>('ANALYTICS')
   const [emergencyDrawerOrderId, setEmergencyDrawerOrderId] = useState<string | null>(null)
+  const [showMessenger, setShowMessenger] = useState(false)
 
   const activeEmergencyOrders = useMemo(
     () => orders.filter((o) => o.incidentReportedAt && o.emergencyStatus !== 'RESOLVED' && !['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED'].includes(o.status)),
@@ -85,6 +87,18 @@ export default function ControlCenterPanel() {
         icon={<Radar className="h-5 w-5" />}
         right={
           <div className="hidden items-center gap-2 sm:flex">
+            <button
+              onClick={() => setShowMessenger(!showMessenger)}
+              data-testid="toggle-fleet-messenger-btn"
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold border transition ${
+                showMessenger
+                  ? 'border-purple-400 bg-purple-500/20 text-purple-200 shadow-md shadow-purple-500/20'
+                  : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+              }`}
+            >
+              <MessageSquare className="h-3.5 w-3.5 text-purple-400" />
+              <span>{lang === 'zh' ? '車隊通話對講' : 'Team Messenger'}</span>
+            </button>
             <ToggleChip label={t('control.autoDispatch')} active={autoDispatchEnabled} onClick={() => setAutoDispatch(!autoDispatchEnabled)} icon={<Cpu className="h-3 w-3" />} />
             <ToggleChip label={t('control.liveDemoOrders')} active={ambientOrdersEnabled} onClick={() => setAmbientOrders(!ambientOrdersEnabled)} icon={<Radar className="h-3 w-3" />} />
           </div>
@@ -269,6 +283,14 @@ export default function ControlCenterPanel() {
           />
         )}
       </AnimatePresence>
+
+      {/* Floating Team Messenger */}
+      {showMessenger && (
+        <TeamMessenger
+          mode="FLOATING"
+          onClose={() => setShowMessenger(false)}
+        />
+      )}
     </div>
   )
 }

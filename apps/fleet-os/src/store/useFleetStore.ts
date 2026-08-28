@@ -13,11 +13,13 @@ import type {
   Campaign,
   CampaignStatus,
   CatalogProduct,
+  ChatMessage,
   CustomerProfile,
   DeclineReason,
   DispatchAttempt,
   Driver,
   DriverStats,
+  DriverWorkingHours,
   DriverWorkingMode,
   EmergencyStatus,
   IncidentDetails,
@@ -32,6 +34,7 @@ import type {
   OperatingParams,
   Order,
   OrderStatus,
+  OrderSwapRequest,
   PassengerRequirements,
   PaymentToken,
   PricingRules,
@@ -245,6 +248,23 @@ interface FleetState {
   setNotificationPreference: (customerId: string, key: keyof NotificationPreference, v: boolean) => void
   requestPrivacyAction: (customerId: string, kind: 'DATA_DOWNLOAD' | 'DELETE_ACCOUNT') => void
   setConsentMarketing: (customerId: string, v: boolean) => void
+
+  // ---- Driver Shift & Working Hours Management ----
+  updateDriverShift: (driverId: string, hours: Partial<DriverWorkingHours>) => void
+
+  // ---- Real-time Team Messenger ----
+  chatMessages: ChatMessage[]
+  sendChatMessage: (input: { channelId: string; senderId: string; senderName: string; senderRole: 'DISPATCHER' | 'DRIVER'; text: string; avatarEmoji?: string; swapRequestId?: string }) => ChatMessage
+
+  // ---- Driver Order Handover & Swap Exchange ----
+  orderSwapRequests: OrderSwapRequest[]
+  createOrderSwapRequest: (input: { orderId: string; fromDriverId: string; reason: OrderSwapRequest['reason']; reasonCustom?: string }) => OrderSwapRequest
+  acceptOrderSwap: (swapRequestId: string, toDriverId: string) => boolean
+  approveOrderSwap: (swapRequestId: string) => boolean
+  cancelOrderSwap: (swapRequestId: string) => void
+
+  // ---- Force Override Manual Assignment ----
+  forceAssignOrder: (orderId: string, driverId: string) => void
 
   // ---- Visitor IP & Access Security Log Actions ----
   recordAccessAttempt: (authMethod: AccessAuthMethod, status: AccessAttemptStatus, inputIdentifier?: string) => Promise<AccessLogEntry>
@@ -624,6 +644,61 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   operatingParams: DEFAULT_OPERATING_PARAMS,
 
   accessLogs: loadStoredAccessLogs(),
+
+  chatMessages: [
+    {
+      id: 'msg-1',
+      channelId: 'dispatch-ops',
+      senderId: 'dispatcher',
+      senderName: 'Dispatch Central (調度台)',
+      senderRole: 'DISPATCHER',
+      avatarEmoji: '🎧',
+      text: '📢 今日桃園機場出境與入境高峰預估於 14:00 - 17:30，請各車隊司機留意班次調度與國道一號車況。',
+      timestamp: Date.now() - 35 * 60_000,
+    },
+    {
+      id: 'msg-2',
+      channelId: 'dispatch-ops',
+      senderId: 'drv-1',
+      senderName: 'Chih-Ming Chen (陳志明)',
+      senderRole: 'DRIVER',
+      avatarEmoji: '🧑🏻‍✈️',
+      text: '收到！已在桃機第二航廈巡迴待命，隨時可接單。',
+      timestamp: Date.now() - 25 * 60_000,
+    },
+    {
+      id: 'msg-3',
+      channelId: 'urgent-help',
+      senderId: 'drv-2',
+      senderName: 'Mei-Hui Lin (林美惠)',
+      senderRole: 'DRIVER',
+      avatarEmoji: '👩🏻‍✈️',
+      text: '⚠️ 國道一號南下 42K 有大雨積水與零星回堵，預估車程增加 15-20 分鐘，請行經此路段司機注意行車安全！',
+      timestamp: Date.now() - 15 * 60_000,
+    },
+    {
+      id: 'msg-4',
+      channelId: 'dm-dispatcher-drv-1',
+      senderId: 'dispatcher',
+      senderName: 'Dispatch Central (調度台)',
+      senderRole: 'DISPATCHER',
+      avatarEmoji: '🎧',
+      text: '志明，待會 16:30 有一筆商務 VIP 接機訂單，有預留給你喔。',
+      timestamp: Date.now() - 8 * 60_000,
+    },
+    {
+      id: 'msg-5',
+      channelId: 'dm-dispatcher-drv-1',
+      senderId: 'drv-1',
+      senderName: 'Chih-Ming Chen (陳志明)',
+      senderRole: 'DRIVER',
+      avatarEmoji: '🧑🏻‍✈️',
+      text: '了解，車輛已完成清潔消毒，待命接單。',
+      timestamp: Date.now() - 4 * 60_000,
+    },
+  ],
+
+  orderSwapRequests: [],
 
   zoneConditions: buildInitialZoneConditions(),
   pricingRules: DEFAULT_PRICING_RULES,
@@ -2166,6 +2241,265 @@ export const useFleetStore = create<FleetState>((set, get) => ({
           : o,
       ),
     }))
+  },
+
+  // ---- Driver Shift & Working Hours Management ----
+  updateDriverShift: (driverId, hours) => {
+    set((s) => {
+      const driver = s.drivers.find((d) => d.id === driverId)
+      if (!driver) return {}
+      const updatedHours: DriverWorkingHours = {
+        shiftType: hours.shiftType || driver.workingHours?.shiftType || 'DAY',
+        shiftStart: hours.shiftStart || driver.workingHours?.shiftStart || '09:00',
+        shiftEnd: hours.shiftEnd || driver.workingHours?.shiftEnd || '18:00',
+        activeDays: hours.activeDays || driver.workingHours?.activeDays || [1, 2, 3, 4, 5, 6],
+        breakStart: hours.breakStart !== undefined ? hours.breakStart : driver.workingHours?.breakStart,
+        breakEnd: hours.breakEnd !== undefined ? hours.breakEnd : driver.workingHours?.breakEnd,
+        onShift: hours.onShift !== undefined ? hours.onShift : driver.workingHours?.onShift ?? true,
+        customLabel: hours.customLabel !== undefined ? hours.customLabel : driver.workingHours?.customLabel,
+      }
+      return {
+        drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, workingHours: updatedHours } : d)),
+        globalAuditLog: pushGlobalAudit(
+          s.globalAuditLog,
+          'dispatcher',
+          `Updated driver shift schedule for ${driver.name} (${driver.nameZh}) to ${updatedHours.shiftStart}-${updatedHours.shiftEnd}`,
+          'Driver',
+          driverId,
+        ),
+      }
+    })
+  },
+
+  // ---- Real-time Team Messenger ----
+  sendChatMessage: (input) => {
+    const msg: ChatMessage = {
+      id: genId('chat'),
+      timestamp: Date.now(),
+      ...input,
+    }
+    set((s) => ({
+      chatMessages: [...s.chatMessages, msg],
+    }))
+    return msg
+  },
+
+  // ---- Driver Order Handover & Swap Exchange ----
+  createOrderSwapRequest: ({ orderId, fromDriverId, reason, reasonCustom }) => {
+    const state = get()
+    const order = state.orders.find((o) => o.id === orderId)
+    const fromDriver = state.drivers.find((d) => d.id === fromDriverId)
+    if (!order || !fromDriver) throw new Error('Order or driver not found')
+
+    const swap: OrderSwapRequest = {
+      id: genId('swap'),
+      orderId: order.id,
+      orderNo: order.orderNo,
+      fromDriverId: fromDriver.id,
+      fromDriverName: fromDriver.name,
+      fromDriverAvatar: fromDriver.avatarEmoji,
+      toDriverId: null,
+      toDriverName: null,
+      reason,
+      reasonCustom,
+      pickupName: order.pickup.name,
+      dropoffName: order.dropoff.name,
+      scheduledTime: order.scheduledTime,
+      priceEstimate: order.priceEstimate,
+      vehicleCategory: order.vehicleCategory,
+      status: 'PENDING',
+      createdAt: Date.now(),
+    }
+
+    const reasonLabelMap: Record<OrderSwapRequest['reason'], string> = {
+      FATIGUE_SHIFT_END: '工時結束 / 疲勞交接 (Fatigue / Shift ending)',
+      TRAFFIC_JAM_DELAY: '國道塞車延誤 (Traffic jam delay)',
+      MECHANICAL_ISSUE: '車輛突發狀況 (Mechanical issue)',
+      PERSONAL_URGENT: '個人緊急突發 (Personal urgent)',
+      OTHER: '其他原因 (Other)',
+    }
+    const reasonText = reasonCustom ? `${reasonLabelMap[reason]} - ${reasonCustom}` : reasonLabelMap[reason]
+
+    // Create interactive card in #order-swaps channel
+    const chatMsg: ChatMessage = {
+      id: genId('chat'),
+      channelId: 'order-swaps',
+      senderId: fromDriver.id,
+      senderName: `${fromDriver.name} (${fromDriver.nameZh})`,
+      senderRole: 'DRIVER',
+      avatarEmoji: fromDriver.avatarEmoji,
+      text: `🔄 訂單轉單/求援請求：【${order.orderNo}】${order.pickup.name} ➔ ${order.dropoff.name} (預約時間: ${new Date(order.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})，原因：${reasonText}。車資 NT$${order.priceEstimate.toLocaleString()}，請附近司機支援！`,
+      timestamp: Date.now(),
+      swapRequestId: swap.id,
+    }
+
+    set((s) => ({
+      orderSwapRequests: [swap, ...s.orderSwapRequests],
+      chatMessages: [...s.chatMessages, chatMsg],
+      notifications: pushNotification(
+        s.notifications,
+        'WARNING',
+        'notif.orderSwapRequested.title',
+        'notif.orderSwapRequested.message',
+        { orderNo: order.orderNo, driverName: fromDriver.name },
+        order.id,
+      ),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        fromDriver.name,
+        `Requested order swap for ${order.orderNo} due to ${reason}`,
+        'Order',
+        order.id,
+      ),
+    }))
+
+    return swap
+  },
+
+  acceptOrderSwap: (swapRequestId, toDriverId) => {
+    const state = get()
+    const swap = state.orderSwapRequests.find((s) => s.id === swapRequestId)
+    const toDriver = state.drivers.find((d) => d.id === toDriverId)
+    if (!swap || !toDriver || swap.status !== 'PENDING') return false
+
+    // Update swap request and auto-confirm/reassign order
+    const updatedSwap: OrderSwapRequest = {
+      ...swap,
+      toDriverId: toDriver.id,
+      toDriverName: toDriver.name,
+      status: 'ACCEPTED',
+      approvedAt: Date.now(),
+    }
+
+    const order = state.orders.find((o) => o.id === swap.orderId)
+    if (!order) return false
+
+    const vehicle = state.vehicles.find((v) => v.id === toDriver.vehicleId)
+    const driverLoc = driverAsLocation(toDriver)
+    const routeToPickup = getCachedRoute(driverLoc, order.pickup) ?? buildRoutePath(driverLoc, order.pickup, `${order.id}-leg1-${toDriver.id}`)
+
+    const nextOrder = appendAudit(
+      appendHistory(
+        {
+          ...order,
+          driverId: toDriver.id,
+          vehicleId: vehicle?.id ?? order.vehicleId,
+          routeToPickup,
+          legProgress: 0,
+        },
+        'DRIVER',
+      ),
+      'DISPATCHER',
+      `Order handover confirmed from ${swap.fromDriverName} to ${toDriver.name}`,
+    )
+
+    const chatMsg: ChatMessage = {
+      id: genId('chat'),
+      channelId: 'order-swaps',
+      senderId: toDriver.id,
+      senderName: `${toDriver.name} (${toDriver.nameZh})`,
+      senderRole: 'DRIVER',
+      avatarEmoji: toDriver.avatarEmoji,
+      text: `✅ 我已接下訂單【${swap.orderNo}】！感謝支援，立即前往載客。`,
+      timestamp: Date.now(),
+      swapRequestId: swap.id,
+    }
+
+    set((s) => ({
+      orderSwapRequests: s.orderSwapRequests.map((sw) => (sw.id === swapRequestId ? updatedSwap : sw)),
+      orders: s.orders.map((o) => (o.id === swap.orderId ? nextOrder : o)),
+      drivers: s.drivers.map((d) => {
+        if (d.id === swap.fromDriverId) return { ...d, status: 'AVAILABLE' as const }
+        if (d.id === toDriver.id) return { ...d, status: 'BUSY' as const }
+        return d
+      }),
+      chatMessages: [...s.chatMessages, chatMsg],
+      notifications: pushNotification(
+        s.notifications,
+        'SUCCESS',
+        'notif.orderSwapCompleted.title',
+        'notif.orderSwapCompleted.message',
+        { orderNo: swap.orderNo, fromDriver: swap.fromDriverName, toDriver: toDriver.name },
+        swap.orderId,
+      ),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        toDriver.name,
+        `Accepted and took over order swap for ${swap.orderNo}`,
+        'Order',
+        swap.orderId,
+      ),
+    }))
+
+    if (routeToPickup.source === 'SYNTHETIC') scheduleRouteHydration(order.id, 'routeToPickup', driverLoc, order.pickup)
+    return true
+  },
+
+  approveOrderSwap: (swapRequestId) => {
+    const state = get()
+    const swap = state.orderSwapRequests.find((s) => s.id === swapRequestId)
+    if (!swap || !swap.toDriverId) return false
+    return state.acceptOrderSwap(swapRequestId, swap.toDriverId)
+  },
+
+  cancelOrderSwap: (swapRequestId) => {
+    set((s) => ({
+      orderSwapRequests: s.orderSwapRequests.map((sw) =>
+        sw.id === swapRequestId ? { ...sw, status: 'CANCELLED' as const } : sw,
+      ),
+    }))
+  },
+
+  // ---- Force Override Manual Assignment ----
+  forceAssignOrder: (orderId, driverId) => {
+    const state = get()
+    const order = state.orders.find((o) => o.id === orderId)
+    const driver = state.drivers.find((d) => d.id === driverId)
+    if (!order || !driver) return
+
+    const vehicle = state.vehicles.find((v) => v.id === driver.vehicleId)
+    const driverLoc = driverAsLocation(driver)
+    const routeToPickup = getCachedRoute(driverLoc, order.pickup) ?? buildRoutePath(driverLoc, order.pickup, `${order.id}-leg1-${driver.id}`)
+
+    const nextOrder = appendAudit(
+      appendHistory(
+        {
+          ...order,
+          status: 'ASSIGNED',
+          driverId: driver.id,
+          vehicleId: vehicle?.id ?? null,
+          pendingDriverId: null,
+          suggestedDriverId: driver.id,
+          routeToPickup,
+          legProgress: 0,
+        },
+        'DISPATCHER',
+      ),
+      'DISPATCHER',
+      `Manual Force Assignment Override to ${driver.name} (${driver.id})`,
+    )
+
+    set((s) => ({
+      orders: s.orders.map((o) => (o.id === orderId ? nextOrder : o)),
+      drivers: s.drivers.map((d) => (d.id === driver.id ? { ...d, status: 'BUSY' as const } : d)),
+      notifications: pushNotification(
+        s.notifications,
+        'SUCCESS',
+        'notif.manualAssigned.title',
+        'notif.manualAssigned.message',
+        { driverName: driver.name, orderNo: order.orderNo },
+        order.id,
+      ),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        'dispatcher',
+        `Force manual assignment of order ${order.orderNo} to driver ${driver.name}`,
+        'Order',
+        order.id,
+      ),
+    }))
+
+    if (routeToPickup.source === 'SYNTHETIC') scheduleRouteHydration(order.id, 'routeToPickup', driverLoc, order.pickup)
   },
 }))
 
