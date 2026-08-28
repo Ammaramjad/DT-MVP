@@ -101,7 +101,8 @@ async function runTestWithServer() {
     await page.waitForTimeout(1000)
 
     // Open Team Messenger dock
-    await page.click('[data-testid="toggle-fleet-messenger-btn"]')
+    const messengerBtn = page.locator('[data-testid="header-messenger-toggle-btn"], [data-testid="toggle-fleet-messenger-btn"]')
+    await messengerBtn.click()
     await page.waitForSelector('[data-testid="team-messenger-dock"]', { state: 'visible' })
     console.log('✓ Team Messenger dock opened in Fleet OS')
 

@@ -70,7 +70,8 @@ async function captureArtifacts() {
 
     // 3. Artifact: Real-Time Team Messenger with Channels & Airport Presets
     console.log('Capturing team messenger floating dock...')
-    await page.click('[data-testid="toggle-fleet-messenger-btn"]')
+    const messengerBtn = page.locator('[data-testid="header-messenger-toggle-btn"], [data-testid="toggle-fleet-messenger-btn"]')
+    await messengerBtn.click()
     await page.waitForSelector('[data-testid="team-messenger-dock"]', { state: 'visible' })
     await page.click('[data-testid="toggle-quick-presets"]')
     await page.waitForTimeout(600)

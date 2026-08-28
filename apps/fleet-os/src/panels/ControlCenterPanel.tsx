@@ -38,7 +38,7 @@ const CAPACITY_TABS: { key: CapacityTab; labelKey: string }[] = [
 ]
 
 export default function ControlCenterPanel() {
-  const { t, lang } = useLang()
+  const { t } = useLang()
   const orders = useFleetStore((s) => s.orders)
   const drivers = useFleetStore((s) => s.drivers)
   const autoDispatchEnabled = useFleetStore((s) => s.autoDispatchEnabled)
