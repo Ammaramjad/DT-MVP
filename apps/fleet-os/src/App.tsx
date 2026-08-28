@@ -36,6 +36,8 @@ import ForecastPanel from './panels/fleetos/ForecastPanel'
 import InvoicesPanel from './panels/fleetos/InvoicesPanel'
 import CorporatePanel from './panels/fleetos/CorporatePanel'
 import MultiScreenPanel from './panels/fleetos/MultiScreenPanel'
+import MessengerPanel from './panels/fleetos/MessengerPanel'
+import DispatchBoardPanel from './panels/fleetos/DispatchBoardPanel'
 import ScreenMapWall from './panels/screens/ScreenMapWall'
 import ScreenOrdersWall from './panels/screens/ScreenOrdersWall'
 import ScreenDriversWall from './panels/screens/ScreenDriversWall'
@@ -68,6 +70,8 @@ function AppContent() {
             existing PR history / any bookmarked links keep resolving. */}
         <Route path="/control" element={<Navigate to="/fleet-os" replace />} />
         <Route path="/fleet-os" element={<ControlCenterPanel />} />
+        <Route path="/fleet-os/dispatch" element={<DispatchBoardPanel />} />
+        <Route path="/fleet-os/messenger" element={<MessengerPanel />} />
         <Route path="/fleet-os/orders" element={<ControlCenterPanel />} />
         <Route path="/fleet-os/multiscreen" element={<MultiScreenPanel />} />
         {/* Dedicated Standalone Physical Multi-Monitor Operations Wall Screens */}

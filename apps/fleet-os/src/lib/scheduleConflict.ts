@@ -54,7 +54,7 @@ export function evaluateDriverOrderConflict(
       result.isOutsideShift = true
       result.hasConflict = true
       result.recommended = false
-      result.outsideShiftMessage = `⚠️ Outside Shift Hours (Shift: ${shiftStart} - ${shiftEnd}, Order: ${orderTimeStr})`
+      result.outsideShiftMessage = `⚠️ Shift Conflict: Order time ${orderTimeStr} is outside driver's working shift (${shiftStart}-${shiftEnd})`
     }
   }
 
@@ -79,7 +79,7 @@ export function evaluateDriverOrderConflict(
       result.overlappingOrders.push(existing)
       const existingTime = new Date(existing.scheduledTime)
       const existingTimeStr = `${String(existingTime.getHours()).padStart(2, '0')}:${String(existingTime.getMinutes()).padStart(2, '0')}`
-      result.overlapMessage = `⚠️ Overlap Conflict: Already assigned to ${existing.orderNo} at ${existingTimeStr}`
+      result.overlapMessage = `⚠️ Double-Booking Conflict: Driver ${driver.nameZh || driver.name} already has order ${existing.orderNo} at ${existingTimeStr}`
     }
   }
 

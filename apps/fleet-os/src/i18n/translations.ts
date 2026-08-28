@@ -958,6 +958,8 @@ export const translations: Record<Lang, Record<string, string>> = {
 
     // ---- Fleet OS module nav ----
     'fleetos.nav.dashboard': 'Dashboard',
+    'fleetos.nav.dispatch': 'Drag & Drop Dispatch',
+    'fleetos.nav.messenger': 'Team Messenger',
     'fleetos.nav.suppliers': 'Suppliers',
     'fleetos.nav.catalog': 'Catalog',
     'fleetos.nav.campaigns': 'Campaigns',
@@ -2683,6 +2685,8 @@ export const translations: Record<Lang, Record<string, string>> = {
 
     // ---- Fleet OS module nav ----
     'fleetos.nav.dashboard': '儀表板',
+    'fleetos.nav.dispatch': '拖曳派車看板',
+    'fleetos.nav.messenger': '車隊通話對講',
     'fleetos.nav.suppliers': '供應商',
     'fleetos.nav.catalog': '商品目錄',
     'fleetos.nav.campaigns': '行銷活動',

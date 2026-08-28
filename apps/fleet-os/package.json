@@ -18,6 +18,7 @@
     "test:e2e:realism-features": "node e2e/realism-features.mjs",
     "test:e2e:emergency-rescue": "node e2e/emergency-rescue.mjs",
     "test:e2e:features": "node e2e/test-shifts-messenger-swap.mjs",
+    "test:e2e:dispatch-messenger": "node e2e/dispatch-messenger-suite.mjs",
     "test:e2e:advanced-features": "node e2e/advanced-features.mjs",
     "demo:escalation": "node e2e/demo-escalation.mjs",
     "demo:features": "node e2e/demo-features.mjs",

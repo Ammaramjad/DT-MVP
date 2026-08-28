@@ -11,6 +11,7 @@ import {
   HandCoins,
   Luggage,
   MapPin,
+  MessageSquare,
   Navigation,
   Phone,
   Plane,
@@ -156,6 +157,34 @@ export default function DriverPanel() {
         {tab === 'HOME' && (
           <motion.div key="home" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="mx-auto mt-4 max-w-md px-4 space-y-4">
             <DriverStatsHeader stats={driver.stats} />
+
+            {/* Prominent Quick-Access Messenger & Swaps Card on Home Tab */}
+            <div
+              onClick={() => setTab('MESSENGER')}
+              data-testid="driver-home-messenger-card"
+              className="group cursor-pointer rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-950/70 via-slate-900/90 to-indigo-950/70 p-3.5 shadow-xl transition hover:border-purple-400 hover:shadow-purple-500/20 active:scale-[0.99]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-300 border border-purple-400/30 shadow-[0_0_12px_rgba(168,85,247,0.3)] group-hover:scale-105 transition">
+                    <MessageSquare className="h-5 w-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                      <span>{lang === 'zh' ? '💬 車隊通訊與轉單大廳' : '💬 Fleet Messenger & Swaps'}</span>
+                      <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                    </h4>
+                    <p className="text-[10.5px] text-purple-200/80">
+                      {lang === 'zh' ? '即時調度廣播 · 路況求助 · 轉單接單' : 'Central broadcast · Traffic help · Order swaps'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 rounded-xl bg-purple-500/20 px-2.5 py-1 text-[11px] font-bold text-purple-200 border border-purple-400/30">
+                  <span>{lang === 'zh' ? '開啟' : 'Open'}</span>
+                  <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition" />
+                </div>
+              </div>
+            </div>
 
             {/* Fatigue & HoS Monitor */}
             <DriverFatigueWidget driver={driver} />

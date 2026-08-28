@@ -19,8 +19,8 @@ import { Button } from '../ui/Button'
 import type { ChatMessage, Driver } from '../../types'
 
 interface TeamMessengerProps {
-  /** Mode: floating dock in Fleet OS or embedded panel / tab inside Driver App */
-  mode?: 'FLOATING' | 'EMBEDDED'
+  /** Mode: floating dock in Fleet OS or embedded panel / tab inside Driver App or fullscreen Operations Communication Center */
+  mode?: 'FLOATING' | 'EMBEDDED' | 'FULLSCREEN'
   defaultChannel?: string
   currentDriverId?: string
   onClose?: () => void
@@ -60,35 +60,44 @@ export function TeamMessenger({
   const [showPresets, setShowPresets] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  const [dmSearchQuery, setDmSearchQuery] = useState('')
+
   const isDriverContext = !!currentDriverId
   const currentDriver = currentDriverId ? drivers.find((d: Driver) => d.id === currentDriverId) : null
 
   // DM channels list
   const dmChannels = useMemo(() => {
     if (isDriverContext && currentDriver) {
-      // Driver view: DM with dispatcher, and DMs with top other drivers
-      return [
-        { id: `dm-dispatcher-${currentDriver.id}`, name: '調度台 (Dispatch Central)', role: 'DISPATCHER', avatar: '🎧' },
+      // Driver view: DM with dispatcher, and DMs with other drivers
+      const baseDms = [
+        { id: `dm-dispatcher-${currentDriver.id}`, name: '調度台 (Dispatch Central)', role: 'DISPATCHER', avatar: '🎧', status: 'ONLINE' },
         ...drivers
           .filter((d: Driver) => d.id !== currentDriver.id)
-          .slice(0, 5)
           .map((d: Driver) => ({
             id: `dm-${[currentDriver.id, d.id].sort().join('-')}`,
             name: lang === 'zh' ? d.nameZh : d.name,
             role: 'DRIVER',
             avatar: d.avatarEmoji,
+            status: d.status,
           })),
       ]
+      if (!dmSearchQuery.trim()) return baseDms.slice(0, 8)
+      const q = dmSearchQuery.toLowerCase()
+      return baseDms.filter((d) => d.name.toLowerCase().includes(q))
     }
 
-    // Fleet OS view: DMs with active drivers
-    return drivers.slice(0, 8).map((d: Driver) => ({
+    // Fleet OS view: DMs with all active drivers
+    const allDms = drivers.map((d: Driver) => ({
       id: `dm-dispatcher-${d.id}`,
       name: `${lang === 'zh' ? d.nameZh : d.name} (${d.tier === 'OWNED_FLEET' ? '自營' : '隊員'})`,
       role: 'DRIVER',
       avatar: d.avatarEmoji,
+      status: d.status,
     }))
-  }, [isDriverContext, currentDriver, drivers, lang])
+    if (!dmSearchQuery.trim()) return allDms.slice(0, 15)
+    const q = dmSearchQuery.toLowerCase()
+    return allDms.filter((d) => d.name.toLowerCase().includes(q))
+  }, [isDriverContext, currentDriver, drivers, lang, dmSearchQuery])
 
   const channelMessages = useMemo(() => {
     return chatMessages.filter((m: ChatMessage) => m.channelId === activeChannel)
@@ -220,6 +229,8 @@ export function TeamMessenger({
   const containerClasses =
     mode === 'FLOATING'
       ? 'fixed bottom-4 right-4 z-[800] w-[460px] h-[600px] flex flex-col rounded-2xl border border-purple-500/30 bg-slate-950/95 backdrop-blur-2xl shadow-2xl shadow-purple-950/50 text-white overflow-hidden'
+      : mode === 'FULLSCREEN'
+      ? 'flex flex-col w-full h-[calc(100vh-170px)] rounded-2xl border border-purple-500/30 bg-slate-950/90 backdrop-blur-xl text-white overflow-hidden shadow-2xl'
       : 'flex flex-col w-full h-[620px] max-w-4xl mx-auto rounded-2xl border border-white/10 bg-slate-950/90 backdrop-blur-xl text-white overflow-hidden shadow-2xl'
 
   return (
@@ -294,25 +305,43 @@ export function TeamMessenger({
               </div>
 
               <div>
-                <p className="px-2 text-[9.5px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                  {lang === 'zh' ? '私訊 (Direct)' : 'Direct (1:1)'}
-                </p>
+                <div className="flex items-center justify-between px-2 mb-1">
+                  <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
+                    {lang === 'zh' ? '私訊 (Direct 1:1)' : 'Direct (1:1)'}
+                  </p>
+                  <span className="text-[9px] text-purple-300 font-mono">350+ DRIVERS</span>
+                </div>
+                <div className="px-1 mb-1.5">
+                  <input
+                    type="text"
+                    value={dmSearchQuery}
+                    onChange={(e) => setDmSearchQuery(e.target.value)}
+                    placeholder={lang === 'zh' ? '搜尋司機…' : 'Filter driver…'}
+                    data-testid="messenger-dm-search-input"
+                    className="w-full rounded bg-white/5 border border-white/10 px-2 py-0.5 text-[10.5px] text-white placeholder:text-slate-500 outline-none focus:border-purple-400/40"
+                  />
+                </div>
                 <div className="space-y-0.5 max-h-44 overflow-y-auto pr-1">
-                  {dmChannels.map((dm: { id: string; name: string; avatar: string }) => {
+                  {dmChannels.map((dm: { id: string; name: string; avatar: string; status?: string }) => {
                     const isSelected = activeChannel === dm.id
                     return (
                       <button
                         key={dm.id}
                         onClick={() => setActiveChannel(dm.id)}
                         data-testid={`messenger-dm-${dm.id}`}
-                        className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-[11px] font-medium transition ${
+                        className={`flex w-full items-center justify-between gap-1.5 rounded-lg px-2 py-1.5 text-left text-[11px] font-medium transition ${
                           isSelected
                             ? 'bg-purple-500/20 text-purple-300 font-bold border border-purple-400/30'
                             : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
                         }`}
                       >
-                        <span>{dm.avatar}</span>
-                        <span className="truncate">{dm.name}</span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span>{dm.avatar}</span>
+                          <span className="truncate">{dm.name}</span>
+                        </div>
+                        {dm.status === 'AVAILABLE' && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        )}
                       </button>
                     )
                   })}

@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import {
+  ArrowLeftRight,
   BadgeDollarSign,
   Building2,
   Car,
@@ -9,6 +10,7 @@ import {
   Headset,
   LayoutGrid,
   Languages,
+  MessageSquare,
   Package,
   Plane,
   ReceiptText,
@@ -22,6 +24,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useLang } from '../../i18n'
+import { useFleetStore } from '../../store/useFleetStore'
 
 /**
  * Module switcher for the Fleet OS "advanced desktop command center" — a
@@ -31,6 +34,8 @@ import { useLang } from '../../i18n'
  */
 const MODULES = [
   { to: '/fleet-os', end: true, labelKey: 'fleetos.nav.dashboard', icon: Gauge },
+  { to: '/fleet-os/dispatch', labelKey: 'fleetos.nav.dispatch', icon: ArrowLeftRight, badgeKey: 'unassigned' },
+  { to: '/fleet-os/messenger', labelKey: 'fleetos.nav.messenger', icon: MessageSquare, badgeKey: 'messenger' },
   { to: '/fleet-os/multiscreen', labelKey: 'fleetos.nav.multiscreen', icon: Tv2 },
   { to: '/fleet-os/forecast', labelKey: 'fleetos.nav.forecast', icon: TrendingUp },
   { to: '/fleet-os/invoices', labelKey: 'fleetos.nav.invoices', icon: FileText },
@@ -57,6 +62,12 @@ const MODULES = [
 
 export function FleetOsNav() {
   const { t } = useLang()
+  const orders = useFleetStore((s) => s.orders)
+  const chatMessages = useFleetStore((s) => s.chatMessages)
+  
+  const unassignedCount = orders.filter((o) => ['CONFIRMED', 'DRIVER_MATCHING'].includes(o.status)).length
+  const unreadMsgCount = chatMessages.length > 0 ? Math.min(chatMessages.length, 5) : 0
+
   return (
     <div className="sticky top-[64px] z-[600] mb-4 overflow-x-auto rounded-2xl border border-white/10 bg-slate-950/85 p-2 backdrop-blur-2xl shadow-xl scrollbar-none" data-testid="fleetos-nav">
       <div className="flex items-center gap-1.5 min-w-max">
@@ -68,14 +79,25 @@ export function FleetOsNav() {
             data-testid={`fleetos-nav-${m.to.split('/').pop()}`}
             className={({ isActive }) =>
               clsx(
-                'flex shrink-0 items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold transition',
+                'relative flex shrink-0 items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold transition',
                 isActive
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-[0_0_12px_rgba(34,211,238,0.25)]'
                   : 'text-slate-400 border border-transparent hover:bg-white/5 hover:text-slate-200',
               )
             }
           >
-            <m.icon className="h-3.5 w-3.5" /> {t(m.labelKey)}
+            <m.icon className="h-3.5 w-3.5" />
+            <span>{t(m.labelKey)}</span>
+            {m.badgeKey === 'unassigned' && unassignedCount > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/30 px-1 text-[10px] font-bold text-amber-300 border border-amber-400/40 animate-pulse">
+                {unassignedCount}
+              </span>
+            )}
+            {m.badgeKey === 'messenger' && unreadMsgCount > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-purple-500/40 px-1 text-[10px] font-bold text-purple-200 border border-purple-400/50 shadow-[0_0_8px_rgba(168,85,247,0.5)]">
+                {unreadMsgCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </div>
