@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, Car, Clock3, FileText, MessageSquareWarning, PlaneLanding, QrCode, RefreshCw, ShieldCheck, Star, UserRound, X, Receipt } from 'lucide-react'
+import { Calendar, Car, Clock3, FileText, Heart, MessageSquareWarning, PackageSearch, PlaneLanding, QrCode, RefreshCw, Share2, ShieldCheck, Star, UserRound, X, Receipt } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { Driver, Order, Vehicle, CustomerProfile } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
@@ -9,6 +9,7 @@ import { StatusBadge } from '../ui/OrderBadges'
 import { ActivityScreen } from './ActivityScreen'
 import { FareBreakdownCard } from '../vehicles/FareBreakdownCard'
 import { TaiwanInvoiceModal } from '../invoices/TaiwanInvoiceModal'
+import { TipDriverModal, SplitFareModal, LostAndFoundModal } from './CustomerServiceModals'
 import { formatClock, formatDateTime, formatTWD, orderStatusLabel } from '../../lib/format'
 import { isDriverInfoRevealed, isVehicleSubstituted } from '../../lib/selectors'
 import { FREE_CANCELLATION_WINDOW_HOURS } from '../../lib/serviceRules'
@@ -125,6 +126,9 @@ function TripCard({ order, vehicles, lang, t }: { order: Order; vehicles: Vehicl
 
   const [showVoucher, setShowVoucher] = useState(false)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [showTipModal, setShowTipModal] = useState(false)
+  const [showSplitModal, setShowSplitModal] = useState(false)
+  const [showLostModal, setShowLostModal] = useState(false)
   const [showReschedule, setShowReschedule] = useState(false)
   const [showNote, setShowNote] = useState(false)
   const [noteInput, setNoteInput] = useState(order.notes)
@@ -132,6 +136,9 @@ function TripCard({ order, vehicles, lang, t }: { order: Order; vehicles: Vehicl
   const [rated, setRated] = useState(order.driverRatingByCustomer ?? 0)
   const [ticketCreated, setTicketCreated] = useState(false)
   const [invoiceRequested, setInvoiceRequested] = useState(order.invoiceRequested)
+
+  const drivers = useFleetStore((s) => s.drivers)
+  const assignedDriver = drivers.find((d) => d.id === order.driverId)
 
   const pickupName = lang === 'zh' ? order.pickup.nameZh : order.pickup.name
   const dropoffName = lang === 'zh' ? order.dropoff.nameZh : order.dropoff.name
@@ -266,6 +273,22 @@ function TripCard({ order, vehicles, lang, t }: { order: Order; vehicles: Vehicl
         <ChipButton onClick={() => setShowVoucher((v) => !v)} testId="trip-view-voucher">
           <QrCode className="h-3 w-3" /> {showVoucher ? t('customer.activity.hideVoucher') : t('customer.activity.viewVoucher')}
         </ChipButton>
+        {/* Split Fare & Share trip */}
+        <ChipButton onClick={() => setShowSplitModal(true)} testId="trip-split-fare-btn">
+          <Share2 className="h-3 w-3 text-cyan-600" /> {t('customer.split.btnLabel')}
+        </ChipButton>
+        {/* Tip & Rating appreciation */}
+        {order.status === 'COMPLETED' && (
+          <ChipButton onClick={() => setShowTipModal(true)} testId="trip-tip-driver-btn">
+            <Heart className="h-3 w-3 text-pink-500 fill-pink-500/20" /> {t('customer.tip.btnLabel')}
+          </ChipButton>
+        )}
+        {/* Lost & Found assistant */}
+        {order.status === 'COMPLETED' && (
+          <ChipButton onClick={() => setShowLostModal(true)} testId="trip-lost-found-btn">
+            <PackageSearch className="h-3 w-3 text-amber-600" /> {t('customer.lost.btnLabel')}
+          </ChipButton>
+        )}
         {/* Taiwan e-GUI Invoice proof modal trigger */}
         <ChipButton onClick={() => setShowInvoiceModal(true)} testId="trip-view-egui-invoice">
           <Receipt className="h-3 w-3 text-cyan-600" /> {lang === 'zh' ? '查看電子發票證明聯' : 'View e-GUI Invoice'}
@@ -418,6 +441,31 @@ function TripCard({ order, vehicles, lang, t }: { order: Order; vehicles: Vehicl
             mofSyncTime: new Date(order.createdAt + 5000).toISOString().replace('T', ' ').slice(0, 19),
           }}
           onClose={() => setShowInvoiceModal(false)}
+        />
+      )}
+
+      {showTipModal && (
+        <TipDriverModal
+          isOpen={showTipModal}
+          onClose={() => setShowTipModal(false)}
+          order={order}
+          driver={assignedDriver}
+        />
+      )}
+
+      {showSplitModal && (
+        <SplitFareModal
+          isOpen={showSplitModal}
+          onClose={() => setShowSplitModal(false)}
+          order={order}
+        />
+      )}
+
+      {showLostModal && (
+        <LostAndFoundModal
+          isOpen={showLostModal}
+          onClose={() => setShowLostModal(false)}
+          order={order}
         />
       )}
     </motion.div>

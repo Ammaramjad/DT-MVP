@@ -229,6 +229,17 @@ export interface DocumentRecord {
   lastUpdatedAt: string
 }
 
+export interface LostItemReport {
+  id: string
+  reportedAt: number
+  itemCategory: 'PHONE' | 'WALLET' | 'LUGGAGE' | 'KEYS' | 'DOCUMENT' | 'OTHER'
+  itemDescription: string
+  contactPhone: string
+  status: 'INVESTIGATING' | 'FOUND_SAFE' | 'RETURNED'
+  driverAcknowledged: boolean
+  dispatcherNotes?: string
+}
+
 export interface Driver {
   id: string
   name: string
@@ -259,6 +270,36 @@ export interface Driver {
    * login is currently enabled. Disabling mirrors the reference site's
    * staff-account 停用/啟用 toggle applied to the driver side. */
   loginEnabled: boolean
+
+  /** Hours of Service (HoS) & Fatigue Management */
+  serviceMinutesToday?: number
+  breakMode?: boolean
+  lastBreakStartedAt?: number | null
+
+  /** Pre-trip Vehicle Safety Inspection */
+  lastInspectionPassedAt?: number | null
+  inspectionChecklist?: {
+    tires: boolean
+    brakes: boolean
+    lights: boolean
+    dashcam: boolean
+  }
+
+  /** Instant Cashout Wallet Balance & Payout History */
+  walletBalance?: number
+  instantCashoutHistory?: InstantCashoutReceipt[]
+}
+
+export interface InstantCashoutReceipt {
+  id: string
+  timestamp: number
+  amount: number
+  method: 'BANK_TRANSFER' | 'LINE_PAY_MONEY'
+  accountMask: string
+  fee: number
+  netReceived: number
+  status: 'SUCCESS'
+  referenceNo: string
 }
 
 export interface Vehicle {
@@ -316,6 +357,8 @@ export interface FareBreakdown {
   parkingFee: number
   waitingFee: number
   vipSurcharge: number
+  /** Multi-stop intermediate stopover surcharge (e.g. +NT$150/stop) */
+  stopoverSurcharge: number
   /** Hourly Charter (計時包車) line items — see 萬馬接送's product rules.
    * `charterHours` is null for ordinary point-to-point trips. */
   charterHours: number | null
@@ -487,6 +530,13 @@ export interface Order {
   /** Informal multi-stop support (client trust signal: "completely free ...
    * multi-stop pickup/drop-off support"). */
   waypoints: TripWaypoint[]
+
+  /** Tip & driver appreciation rewards */
+  tipAmount?: number
+  tipTags?: string[]
+
+  /** Lost & Found Assistant report */
+  lostItemReport?: LostItemReport
 
   /** 翻譯校對 (Translation Proofreading) — mirrors the reference Fleet OS's
    * queue for orders that arrive from a foreign-language channel (Klook/
@@ -1015,6 +1065,20 @@ export interface CorporateAccount {
 // ---------------------------------------------------------------------------
 // 6. Customer AI Travel Concierge Assistant
 // ---------------------------------------------------------------------------
+export interface AddDriverInput {
+  name: string
+  nameZh: string
+  phone: string
+  avatarEmoji?: string
+  colorHex?: string
+  tier: DriverTier
+  vehiclePlate: string
+  vehicleCategory: VehicleCategory
+  serviceRegion: TaiwanRegion
+  licenseNumber?: string
+  insuranceNumber?: string
+}
+
 export interface AiConciergePrompt {
   id: string
   icon: string

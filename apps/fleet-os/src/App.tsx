@@ -35,6 +35,7 @@ import AccessLogsPanel from './panels/fleetos/AccessLogsPanel'
 import ForecastPanel from './panels/fleetos/ForecastPanel'
 import InvoicesPanel from './panels/fleetos/InvoicesPanel'
 import CorporatePanel from './panels/fleetos/CorporatePanel'
+import MultiScreenPanel from './panels/fleetos/MultiScreenPanel'
 
 function AppContent() {
   const { isLocked } = useGatekeeper()
@@ -63,6 +64,7 @@ function AppContent() {
         <Route path="/control" element={<Navigate to="/fleet-os" replace />} />
         <Route path="/fleet-os" element={<ControlCenterPanel />} />
         <Route path="/fleet-os/orders" element={<ControlCenterPanel />} />
+        <Route path="/fleet-os/multiscreen" element={<MultiScreenPanel />} />
         <Route path="/fleet-os/suppliers" element={<SuppliersPanel />} />
         <Route path="/fleet-os/catalog" element={<CatalogPanel />} />
         <Route path="/fleet-os/pricing/dynamic" element={<PricingDynamicPanel />} />

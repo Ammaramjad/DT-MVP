@@ -13,6 +13,7 @@ const APPS = [
   { to: '/marketplace', labelKey: 'nav.marketplace', icon: Globe2 },
   { to: '/booking', labelKey: 'nav.booking', icon: ClipboardList },
   { to: '/control', labelKey: 'nav.control', icon: Radar },
+  { to: '/fleet-os/multiscreen', labelKey: 'fleetos.nav.multiscreen', icon: LayoutGrid },
   { to: '/driver', labelKey: 'nav.driver', icon: Car },
   { to: '/customer', labelKey: 'nav.customer', icon: MapPinned },
 ]

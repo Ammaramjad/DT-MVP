@@ -17,6 +17,7 @@ import {
   Sparkles,
   TrendingUp,
   Truck,
+  Tv2,
   Users2,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -30,6 +31,7 @@ import { useLang } from '../../i18n'
  */
 const MODULES = [
   { to: '/fleet-os', end: true, labelKey: 'fleetos.nav.dashboard', icon: Gauge },
+  { to: '/fleet-os/multiscreen', labelKey: 'fleetos.nav.multiscreen', icon: Tv2 },
   { to: '/fleet-os/forecast', labelKey: 'fleetos.nav.forecast', icon: TrendingUp },
   { to: '/fleet-os/invoices', labelKey: 'fleetos.nav.invoices', icon: FileText },
   { to: '/fleet-os/corporate', labelKey: 'fleetos.nav.corporate', icon: Building2 },

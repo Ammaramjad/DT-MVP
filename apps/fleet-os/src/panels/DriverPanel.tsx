@@ -35,6 +35,7 @@ import { AccountScreen } from '../components/driver/AccountScreen'
 import { VehicleCard } from '../components/vehicles/VehicleCard'
 import { EmergencyReportModal } from '../components/driver/EmergencyReportModal'
 import { TaiwanInvoiceModal } from '../components/invoices/TaiwanInvoiceModal'
+import { DriverFatigueWidget, PreTripInspectionModal } from '../components/driver/DriverCockpitWidgets'
 import type { Order } from '../types'
 import { formatClock, formatTWD, ticksToMinutesLabel } from '../lib/format'
 import { remainingDistanceKm } from '../lib/geo'
@@ -63,6 +64,7 @@ export default function DriverPanel() {
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null)
   const [pinInput, setPinInput] = useState('')
   const [pinError, setPinError] = useState(false)
+  const [showInspectionModal, setShowInspectionModal] = useState(false)
 
   const activeDriverId = focusDriverId ?? drivers[0]?.id ?? null
   const driver = drivers.find((d) => d.id === activeDriverId) ?? drivers[0]
@@ -110,7 +112,13 @@ export default function DriverPanel() {
 
           {(driver.status === 'AVAILABLE' || driver.status === 'OFFLINE') && (
             <button
-              onClick={() => setDriverAvailability(driver.id, driver.status === 'AVAILABLE' ? 'OFFLINE' : 'AVAILABLE')}
+              onClick={() => {
+                if (driver.status === 'OFFLINE') {
+                  setShowInspectionModal(true)
+                } else {
+                  setDriverAvailability(driver.id, 'OFFLINE')
+                }
+              }}
               data-testid="driver-online-toggle"
               className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition shadow-lg ${
                 driver.status === 'AVAILABLE'
@@ -144,6 +152,11 @@ export default function DriverPanel() {
         {tab === 'HOME' && (
           <motion.div key="home" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="mx-auto mt-4 max-w-md px-4 space-y-4">
             <DriverStatsHeader stats={driver.stats} />
+
+            {/* Fatigue & HoS Monitor */}
+            <DriverFatigueWidget driver={driver} />
+
+            <PreTripInspectionModal isOpen={showInspectionModal} onClose={() => setShowInspectionModal(false)} driver={driver} />
 
             {!activeOrder && <DriverAvailabilityCard driver={driver} />}
 

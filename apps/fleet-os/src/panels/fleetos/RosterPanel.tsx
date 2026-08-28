@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Radio, Users2 } from 'lucide-react'
+import { Radio, UserPlus, Users2 } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { StatCard } from '../../components/ui/StatCard'
@@ -7,6 +7,7 @@ import { FleetRosterBreakdown } from '../../components/control/FleetRosterBreakd
 import { DriverScheduleMatrix } from '../../components/control/DriverScheduleMatrix'
 import { TodayRosterBoard } from '../../components/control/TodayRosterBoard'
 import { Badge } from '../../components/ui/Badge'
+import { AddDriverModal } from '../../components/fleetos/AddDriverModal'
 import type { DriverWorkingMode } from '../../types'
 import { useLang } from '../../i18n'
 
@@ -19,6 +20,7 @@ export default function RosterPanel() {
   const setDriverAutoAccept = useFleetStore((s) => s.setDriverAutoAccept)
   const [tab, setTab] = useState<'ROSTER' | 'SCHEDULE' | 'TODAY'>('ROSTER')
   const [query, setQuery] = useState('')
+  const [showAddDriver, setShowAddDriver] = useState(false)
 
   const available = drivers.filter((d) => d.status === 'AVAILABLE').length
   const busy = drivers.filter((d) => d.status === 'BUSY').length
@@ -31,7 +33,22 @@ export default function RosterPanel() {
   }, [drivers, query])
 
   return (
-    <FleetOsPage title={t('fleetos.roster.title')} subtitle={t('fleetos.roster.subtitle')} icon={<Users2 className="h-5 w-5" />}>
+    <FleetOsPage
+      title={t('fleetos.roster.title')}
+      subtitle={t('fleetos.roster.subtitle')}
+      icon={<Users2 className="h-5 w-5" />}
+      right={
+        <button
+          onClick={() => setShowAddDriver(true)}
+          data-testid="open-add-driver-modal-btn"
+          className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-lg shadow-cyan-500/25 hover:scale-[1.02] active:scale-[0.98] transition"
+        >
+          <UserPlus className="h-4 w-4" />
+          <span>{t('fleetos.roster.addDriverBtn')}</span>
+        </button>
+      }
+    >
+      <AddDriverModal isOpen={showAddDriver} onClose={() => setShowAddDriver(false)} />
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard icon={<Users2 className="h-4 w-4" />} label={t('fleetos.roster.totalDrivers')} value={drivers.length} tone="cyan" />
         <StatCard icon={<Radio className="h-4 w-4" />} label={t('fleetos.roster.available')} value={available} tone="lime" />

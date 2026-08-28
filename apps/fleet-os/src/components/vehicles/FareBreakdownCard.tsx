@@ -56,6 +56,7 @@ export function FareBreakdownCard({ fareBreakdown, distanceKm, durationMin }: { 
         {fb.tollFee > 0 && <Row label={t('pricing.fareToll')} value={fb.tollFee} />}
         {fb.parkingFee > 0 && <Row label={t('pricing.fareParking')} value={fb.parkingFee} />}
         {fb.waitingFee > 0 && <Row label={t('booking.fareWaiting')} value={fb.waitingFee} tone="amber" />}
+        {fb.stopoverSurcharge > 0 && <Row label={t('booking.fareStopoverSurcharge')} value={fb.stopoverSurcharge} tone="purple" />}
         {fb.vipSurcharge > 0 && <Row label={t('pricing.fareVip')} value={fb.vipSurcharge} tone="purple" />}
         <div className="flex justify-between border-t border-slate-100 pt-1 font-medium text-slate-700">
           <dt>{t('booking.fareSubtotal')}</dt>

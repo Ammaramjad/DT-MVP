@@ -11,6 +11,7 @@ const routes = [
   '/booking',
   '/control',
   '/fleet-os',
+  '/fleet-os/multiscreen',
   '/fleet-os/suppliers',
   '/fleet-os/catalog',
   '/fleet-os/campaigns',

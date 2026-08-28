@@ -3,6 +3,7 @@ import type {
   AccessAuthMethod,
   AccessAttemptStatus,
   AccessLogEntry,
+  AddDriverInput,
   AppNotification,
   AuditEntry,
   AuditLogEntry,
@@ -21,7 +22,9 @@ import type {
   EmergencyStatus,
   IncidentDetails,
   IncidentType,
+  InstantCashoutReceipt,
   LocationRef,
+  LostItemReport,
   ManualOrderInput,
   NotificationChannel,
   NotificationKind,
@@ -61,7 +64,7 @@ import { ensureOrderNoAbove, estimateDurationMin, findCoupon, genId, nextOrderNo
 import { buildInitialZoneConditions, computeDynamicFareBreakdown, countAvailableVehicles, DEFAULT_PRICING_RULES, driftZoneConditions } from '../lib/dynamicPricing'
 import { DEFAULT_CATEGORY_FOR_TYPE, VEHICLE_CATEGORY_CATALOG } from '../data/vehicleCatalog'
 import { suggestDriver } from '../lib/dispatch'
-import { buildCapacityForecast } from '../lib/capacity'
+import { buildCapacityForecast, buildShiftSchedule } from '../lib/capacity'
 import { DEFAULT_OPERATING_PARAMS, SEED_STAFF_ACCOUNTS } from '../data/fleetOsSeed'
 import { loadStoredAccessLogs, saveStoredAccessLogs, createAccessLogEntry } from '../lib/geoTracker'
 import {
@@ -177,6 +180,19 @@ interface FleetState {
   loginWithLine: () => void
   loginWithEmail: (email: string, displayName?: string) => void
   logout: () => void
+
+  // ---- Advanced Onboarding / Add Driver ----
+  addNewDriver: (input: AddDriverInput, actor?: string) => Driver
+
+  // ---- Driver App Advanced: Fatigue, Instant Cashout, Inspection ----
+  toggleDriverBreakMode: (driverId: string) => void
+  submitPreTripInspection: (driverId: string, checklist: { tires: boolean; brakes: boolean; lights: boolean; dashcam: boolean }) => boolean
+  requestInstantCashout: (driverId: string, amount: number, method: 'BANK_TRANSFER' | 'LINE_PAY_MONEY') => InstantCashoutReceipt
+
+  // ---- Customer App Advanced: Tips, Split Fare, Lost & Found ----
+  tipAndRateDriver: (orderId: string, tipAmount: number, ratingTags: string[], ratingStars?: number) => void
+  reportLostItem: (orderId: string, report: Omit<LostItemReport, 'id' | 'reportedAt' | 'status' | 'driverAcknowledged'>) => LostItemReport
+  acknowledgeLostItem: (orderId: string, dispatcherNotes?: string) => void
 
   setAutoDispatch: (v: boolean) => void
   setAmbientOrders: (v: boolean) => void
@@ -986,7 +1002,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       priceEstimate: input.quotedPrice,
       fareBreakdown: {
         baseFare: input.quotedPrice, distanceCost: 0, timeCost: 0, demandAdjustment: 0, weatherAdjustment: 0, nightSurcharge: 0,
-        holidaySurcharge: 0, airportSurcharge: 0, tollFee: 0, parkingFee: 0, waitingFee: 0, vipSurcharge: 0, charterHours: null,
+        holidaySurcharge: 0, airportSurcharge: 0, tollFee: 0, parkingFee: 0, waitingFee: 0, vipSurcharge: 0, stopoverSurcharge: 0, charterHours: null,
         mountainSurcharge: 0, subtotal: input.quotedPrice, discount: 0, couponCode: null, total: input.quotedPrice,
         demandLevel: 'NORMAL', weatherCondition: 'CLEAR', appliedSurchargePct: 0, fairnessCapApplied: false,
         supplierPrice: Math.round(input.quotedPrice * 0.82), platformMargin: Math.round(input.quotedPrice * 0.18),
@@ -1838,6 +1854,318 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       saveStoredAccessLogs([])
       return { accessLogs: [] }
     })
+  },
+
+  addNewDriver: (input, actor = 'fleet.admin') => {
+    const driverId = genId('drv')
+    const vehicleId = genId('veh')
+    const catalogEntry = VEHICLE_CATEGORY_CATALOG[input.vehicleCategory]
+    const physicalType = catalogEntry.category.includes('SEDAN')
+      ? 'SEDAN'
+      : catalogEntry.category.includes('SUV')
+        ? 'SUV'
+        : catalogEntry.category.includes('MINIBUS')
+          ? 'MINIBUS'
+          : catalogEntry.isVip
+            ? 'LUXURY'
+            : 'VAN'
+
+    const newVehicle: Vehicle = {
+      id: vehicleId,
+      plate: input.vehiclePlate.trim().toUpperCase(),
+      type: physicalType,
+      category: input.vehicleCategory,
+      colorHex: input.colorHex || '#22d3ee',
+      capacity: catalogEntry.maxPassengers,
+      luggageCapacity: catalogEntry.maxLuggage,
+      driverId,
+      serviceZone: input.serviceRegion,
+      features: catalogEntry.features,
+      insuranceStatus: 'VALID',
+      complianceStatus: 'OK',
+      maintenanceUntil: null,
+      maintenanceReason: null,
+    }
+
+    const newDriver: Driver = {
+      id: driverId,
+      name: input.name.trim(),
+      nameZh: input.nameZh.trim() || input.name.trim(),
+      avatarEmoji: input.avatarEmoji || '👨‍✈️',
+      colorHex: input.colorHex || '#22d3ee',
+      phone: input.phone.trim(),
+      tier: input.tier,
+      status: 'AVAILABLE',
+      rating: 5.0,
+      completedTrips: 0,
+      lat: 25.033,
+      lng: 121.5654,
+      svgX: 180,
+      svgY: 120,
+      vehicleId,
+      documents: {
+        license: {
+          number: input.licenseNumber || `DL-${Math.floor(100000 + Math.random() * 900000)}`,
+          expiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
+          status: 'VALID',
+          ocrStatus: 'VERIFIED',
+          lastUpdatedAt: new Date().toISOString(),
+        },
+        insurance: {
+          number: input.insuranceNumber || `INS-${Math.floor(100000 + Math.random() * 900000)}`,
+          expiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
+          status: 'VALID',
+          ocrStatus: 'VERIFIED',
+          lastUpdatedAt: new Date().toISOString(),
+        },
+        registration: {
+          number: `REG-${newVehicle.plate}`,
+          expiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
+          status: 'VALID',
+          ocrStatus: 'VERIFIED',
+          lastUpdatedAt: new Date().toISOString(),
+        },
+        inspection: {
+          number: `INSP-${Math.floor(10000 + Math.random() * 90000)}`,
+          expiresAt: new Date(Date.now() + 180 * 86400000).toISOString(),
+          status: 'VALID',
+          ocrStatus: 'VERIFIED',
+          lastUpdatedAt: new Date().toISOString(),
+        },
+      },
+      stats: {
+        totalAllTime: 0,
+        totalToday: 0,
+        totalWeek: 0,
+        acceptedToday: 0,
+        declinedToday: 0,
+        missedToday: 0,
+        acceptedAllTime: 0,
+        declinedAllTime: 0,
+        missedAllTime: 0,
+      },
+      shiftSchedule: buildShiftSchedule(driverId),
+      unresponsiveFlagUntil: null,
+      unresponsiveOrderNo: null,
+      workingMode: 'ANY',
+      currentZone: input.serviceRegion,
+      autoAcceptEnabled: true,
+      airportPreference: true,
+      shiftStartedAt: Date.now(),
+      loginEnabled: true,
+      serviceMinutesToday: 85,
+      breakMode: false,
+      lastBreakStartedAt: null,
+      lastInspectionPassedAt: Date.now(),
+      inspectionChecklist: { tires: true, brakes: true, lights: true, dashcam: true },
+      walletBalance: 8650,
+      instantCashoutHistory: [],
+    }
+
+    set((s) => ({
+      drivers: [newDriver, ...s.drivers],
+      vehicles: [newVehicle, ...s.vehicles],
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        actor,
+        `Added new driver ${newDriver.nameZh} (${newDriver.name}) with vehicle ${newVehicle.plate} (${newVehicle.category})`,
+        'Driver',
+        newDriver.id,
+      ),
+      notifications: pushNotification(
+        s.notifications,
+        'SUCCESS',
+        'notif.driverAdded.title',
+        'notif.driverAdded.message',
+        { driverName: newDriver.nameZh, plate: newVehicle.plate },
+      ),
+    }))
+
+    return newDriver
+  },
+
+  toggleDriverBreakMode: (driverId) =>
+    set((s) => ({
+      drivers: s.drivers.map((d) => {
+        if (d.id !== driverId) return d
+        const nextBreak = !d.breakMode
+        return {
+          ...d,
+          breakMode: nextBreak,
+          status: nextBreak ? 'BREAK' : 'AVAILABLE',
+          lastBreakStartedAt: nextBreak ? Date.now() : null,
+        }
+      }),
+    })),
+
+  submitPreTripInspection: (driverId, checklist) => {
+    const allPassed = checklist.tires && checklist.brakes && checklist.lights && checklist.dashcam
+    set((s) => ({
+      drivers: s.drivers.map((d) =>
+        d.id === driverId
+          ? {
+              ...d,
+              lastInspectionPassedAt: allPassed ? Date.now() : d.lastInspectionPassedAt,
+              inspectionChecklist: checklist,
+              status: allPassed && d.status === 'OFFLINE' ? 'AVAILABLE' : d.status,
+            }
+          : d,
+      ),
+    }))
+    return allPassed
+  },
+
+  requestInstantCashout: (driverId, amount, method) => {
+    const fee = method === 'BANK_TRANSFER' ? 15 : 0
+    const netReceived = Math.max(0, amount - fee)
+    const receipt: InstantCashoutReceipt = {
+      id: genId('cashout'),
+      timestamp: Date.now(),
+      amount,
+      method,
+      accountMask: method === 'BANK_TRANSFER' ? 'CTBC Bank (822) **** 6789' : 'LINE Pay Money (iPASS) **** 3318',
+      fee,
+      netReceived,
+      status: 'SUCCESS',
+      referenceNo: `TXN-${Math.floor(10000000 + Math.random() * 90000000)}`,
+    }
+
+    set((s) => {
+      const driver = s.drivers.find((d) => d.id === driverId)
+      const currentBalance = driver?.walletBalance ?? 12500
+      const nextBalance = Math.max(0, currentBalance - amount)
+
+      return {
+        drivers: s.drivers.map((d) =>
+          d.id === driverId
+            ? {
+                ...d,
+                walletBalance: nextBalance,
+                instantCashoutHistory: [receipt, ...(d.instantCashoutHistory ?? [])],
+              }
+            : d,
+        ),
+        notifications: pushNotification(
+          s.notifications,
+          'SUCCESS',
+          'notif.cashoutSuccess.title',
+          'notif.cashoutSuccess.message',
+          { amount: String(amount), net: String(netReceived) },
+        ),
+      }
+    })
+
+    return receipt
+  },
+
+  tipAndRateDriver: (orderId, tipAmount, ratingTags, ratingStars = 5) => {
+    set((s) => {
+      const order = s.orders.find((o) => o.id === orderId)
+      if (!order) return s
+
+      const driverId = order.driverId
+      const updatedOrders = s.orders.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              tipAmount,
+              tipTags: ratingTags,
+              driverRatingByCustomer: ratingStars,
+              fareBreakdown: {
+                ...o.fareBreakdown,
+                total: o.fareBreakdown.total + tipAmount,
+              },
+            }
+          : o,
+      )
+
+      const updatedDrivers = driverId
+        ? s.drivers.map((d) =>
+            d.id === driverId
+              ? {
+                  ...d,
+                  walletBalance: (d.walletBalance ?? 0) + tipAmount,
+                  rating: Math.min(5, (d.rating * d.completedTrips + ratingStars) / (d.completedTrips + 1 || 1)),
+                }
+              : d,
+          )
+        : s.drivers
+
+      return {
+        orders: updatedOrders,
+        drivers: updatedDrivers,
+        notifications: pushNotification(
+          s.notifications,
+          'SUCCESS',
+          'notif.tipReceived.title',
+          'notif.tipReceived.message',
+          { amount: String(tipAmount), orderNo: order.orderNo },
+          order.id,
+          undefined,
+          driverId || undefined,
+        ),
+      }
+    })
+  },
+
+  reportLostItem: (orderId, reportInput) => {
+    const report: LostItemReport = {
+      id: genId('lost'),
+      reportedAt: Date.now(),
+      ...reportInput,
+      status: 'INVESTIGATING',
+      driverAcknowledged: true,
+    }
+
+    set((s) => {
+      const order = s.orders.find((o) => o.id === orderId)
+      return {
+        orders: s.orders.map((o) =>
+          o.id === orderId
+            ? appendAudit(
+                { ...o, lostItemReport: report },
+                'CUSTOMER',
+                'Reported forgotten item in vehicle',
+                `${report.itemCategory}: ${report.itemDescription}`,
+              )
+            : o,
+        ),
+        globalAuditLog: pushGlobalAudit(
+          s.globalAuditLog,
+          'customer.portal',
+          `Lost & found report filed for order ${order?.orderNo ?? orderId}: ${report.itemCategory}`,
+          'Order',
+          orderId,
+        ),
+        notifications: pushNotification(
+          s.notifications,
+          'WARNING',
+          'notif.lostItemReported.title',
+          'notif.lostItemReported.message',
+          { item: report.itemDescription, orderNo: order?.orderNo ?? orderId },
+          orderId,
+        ),
+      }
+    })
+
+    return report
+  },
+
+  acknowledgeLostItem: (orderId, dispatcherNotes) => {
+    set((s) => ({
+      orders: s.orders.map((o) =>
+        o.id === orderId && o.lostItemReport
+          ? {
+              ...o,
+              lostItemReport: {
+                ...o.lostItemReport,
+                status: 'FOUND_SAFE',
+                dispatcherNotes: dispatcherNotes || 'Driver confirmed item secured in vehicle boot.',
+              },
+            }
+          : o,
+      ),
+    }))
   },
 }))
 

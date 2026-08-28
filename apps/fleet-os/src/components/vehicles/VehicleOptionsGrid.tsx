@@ -47,6 +47,7 @@ export function useVehicleOptions(params: {
   scheduledTimeIso: string
   waitingMinutes?: number
   couponCode?: string | null
+  stopoverCount?: number
   /** Hourly Charter (計時包車) mode — see `lib/serviceRules.ts`. When set,
    * every category's fare reflects the hourly-rate billing model instead of
    * the usual distance/time model. */
@@ -100,6 +101,7 @@ export function useVehicleOptions(params: {
         demand,
         rules: pricingRules,
         couponCode: params.couponCode ?? null,
+        stopoverCount: params.stopoverCount ?? 0,
         charterHours: params.charterHours ?? null,
         mountainRoute: params.mountainRoute ?? false,
       })
@@ -164,6 +166,7 @@ export function useVehicleOptions(params: {
     params.scheduledTimeIso,
     params.waitingMinutes,
     params.couponCode,
+    params.stopoverCount,
     params.charterHours,
     params.mountainRoute,
     zoneConditions,

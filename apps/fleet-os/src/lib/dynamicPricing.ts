@@ -153,6 +153,8 @@ export interface DynamicPricingInput {
   couponDiscount?: number
   couponCode?: string | null
   memberDiscountPct?: number
+  /** Multi-stop intermediate stopovers count */
+  stopoverCount?: number
   /** Hourly Charter (計時包車) mode — when set, the ride cost is billed by
    * reserved hours (category.hourlyRate × charterHours) instead of the
    * usual distance/time model. See `lib/serviceRules.ts`. */
@@ -205,13 +207,14 @@ export function computeDynamicFareBreakdown(input: DynamicPricingInput): FareBre
   const waitingMinutes = Math.max(0, Math.min(90, input.waitingMinutes ?? 0))
   const waitingFee = Math.round(waitingMinutes * 6)
   const vipSurcharge = category.isVip ? Math.round(rideCost * (rules.vipSurchargePct / 100)) : 0
+  const stopoverSurcharge = (input.stopoverCount ?? 0) * 150
   // Mountain-route surcharge is cash-to-driver at day's end (Wanma's rule),
   // not app-collected — shown as a display line but deliberately excluded
   // from `subtotal`/`total` below.
   const mountainSurcharge = isCharter && input.mountainRoute ? MOUNTAIN_ROUTE_SURCHARGE_TWD : 0
 
   const subtotalRaw =
-    rideCost + demandAdjustment + weatherAdjustment + nightSurcharge + holidaySurcharge + airportSurcharge + tollFee + parkingFee + waitingFee + vipSurcharge
+    rideCost + demandAdjustment + weatherAdjustment + nightSurcharge + holidaySurcharge + airportSurcharge + tollFee + parkingFee + waitingFee + vipSurcharge + stopoverSurcharge
   const roundTo = Math.max(1, rules.roundingIncrement)
   const subtotal = Math.round(subtotalRaw / roundTo) * roundTo
 
@@ -252,6 +255,7 @@ export function computeDynamicFareBreakdown(input: DynamicPricingInput): FareBre
     parkingFee,
     waitingFee,
     vipSurcharge,
+    stopoverSurcharge,
     charterHours: isCharter ? (input.charterHours ?? null) : null,
     mountainSurcharge,
     subtotal,

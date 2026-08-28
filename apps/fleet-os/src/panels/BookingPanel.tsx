@@ -224,6 +224,7 @@ export default function BookingPanel() {
     scheduledTimeIso: new Date(scheduledTime).toISOString(),
     waitingMinutes,
     couponCode: appliedCoupon,
+    stopoverCount: waypoints.length,
     charterHours: charterEnabled ? charterHours : null,
     mountainRoute: charterEnabled && mountainRoute,
   })

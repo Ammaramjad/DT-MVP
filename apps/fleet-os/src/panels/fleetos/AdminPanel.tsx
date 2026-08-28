@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, CheckCircle2, ClipboardList, Lock, ShieldCheck, Unlock } from 'lucide-react'
+import { Activity, CheckCircle2, ClipboardList, Lock, ShieldCheck, Unlock, UserPlus } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { StatCard } from '../../components/ui/StatCard'
 import { Badge } from '../../components/ui/Badge'
+import { AddDriverModal } from '../../components/fleetos/AddDriverModal'
 import { formatRelative } from '../../lib/format'
 import { useLang } from '../../i18n'
 
@@ -19,11 +20,27 @@ export default function AdminPanel() {
   const acknowledgeHealthAlert = useFleetStore((s) => s.acknowledgeHealthAlert)
   const globalAuditLog = useFleetStore((s) => s.globalAuditLog)
   const [tab, setTab] = useState<AdminTab>('ROLES')
+  const [showAddDriver, setShowAddDriver] = useState(false)
 
   const degraded = systemHealth.filter((h) => h.status !== 'OPERATIONAL').length
 
   return (
-    <FleetOsPage title={t('fleetos.admin.title')} subtitle={t('fleetos.admin.subtitle')} icon={<ShieldCheck className="h-5 w-5" />}>
+    <FleetOsPage
+      title={t('fleetos.admin.title')}
+      subtitle={t('fleetos.admin.subtitle')}
+      icon={<ShieldCheck className="h-5 w-5" />}
+      right={
+        <button
+          onClick={() => setShowAddDriver(true)}
+          data-testid="admin-add-driver-btn"
+          className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-lg shadow-cyan-500/25 hover:scale-[1.02] active:scale-[0.98] transition"
+        >
+          <UserPlus className="h-4 w-4" />
+          <span>{t('fleetos.roster.addDriverBtn')}</span>
+        </button>
+      }
+    >
+      <AddDriverModal isOpen={showAddDriver} onClose={() => setShowAddDriver(false)} />
       <div className="mt-4 flex gap-1.5">
         {(['ROLES', 'HEALTH', 'AUDIT'] as const).map((k) => (
           <button

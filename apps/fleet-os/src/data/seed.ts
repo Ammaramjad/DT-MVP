@@ -684,9 +684,16 @@ export function createSeedState(): {
       autoAcceptEnabled: i % 3 === 0,
       airportPreference: i % 2 === 0,
       shiftStartedAt: Date.now() - (1 + (i % 6)) * 3_600_000,
-      loginEnabled: true,
-    }
-  })
+    loginEnabled: true,
+    serviceMinutesToday: 120 + ((i * 31) % 240),
+    breakMode: false,
+    lastBreakStartedAt: null,
+    lastInspectionPassedAt: Date.now() - ((i * 19) % 3600) * 1000,
+    inspectionChecklist: { tires: true, brakes: true, lights: true, dashcam: true },
+    walletBalance: 4500 + ((i * 280) % 15000),
+    instantCashoutHistory: [],
+  }
+})
 
   const findDriver = (id: string) => drivers.find((d) => d.id === id)!
 
