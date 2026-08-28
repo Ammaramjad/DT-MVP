@@ -1,9 +1,57 @@
-import type { AppNotification, CustomerProfile, Driver, DriverStats, DocumentRecord, Order, OrderStatus, Vehicle } from '../types'
+import type { AppNotification, CustomerProfile, Driver, DriverStats, DocumentRecord, Order, OrderStatus, PassengerRequirements, TaiwanRegion, Vehicle, VehicleCategory } from '../types'
 import { getLocation, LOCATIONS } from './locations'
 import { buildRoutePath, evaluateRoute } from '../lib/geo'
 import { computeFareBreakdown, estimateDurationMin, genId } from '../lib/pricing'
 import { lookupFlight } from '../lib/flight'
 import { buildShiftSchedule } from '../lib/capacity'
+import { DEFAULT_CATEGORY_FOR_TYPE, VEHICLE_CATEGORY_CATALOG } from '../lib/../data/vehicleCatalog'
+import { computeTranslationFields } from '../lib/translation'
+
+const NO_REQUIREMENTS: PassengerRequirements = { childSeat: false, wheelchair: false, pet: false, specialAssistance: '' }
+
+const ALL_CATEGORIES: VehicleCategory[] = [
+  'ECONOMY_SEDAN',
+  'COMFORT_SEDAN',
+  'PREMIUM_SEDAN',
+  'SUV',
+  'VAN_6',
+  'VAN_9',
+  'ACCESSIBLE',
+  'LUXURY_SEDAN',
+  'LUXURY_VAN',
+  'CHARTER_MINIBUS',
+]
+
+const CATEGORY_TO_PHYSICAL_TYPE: Record<VehicleCategory, Vehicle['type']> = {
+  ECONOMY_SEDAN: 'SEDAN',
+  COMFORT_SEDAN: 'SEDAN',
+  PREMIUM_SEDAN: 'SEDAN',
+  SUV: 'SUV',
+  VAN_6: 'VAN',
+  VAN_9: 'VAN',
+  ACCESSIBLE: 'VAN',
+  LUXURY_SEDAN: 'LUXURY',
+  LUXURY_VAN: 'LUXURY',
+  CHARTER_MINIBUS: 'MINIBUS',
+}
+
+const VEHICLE_COLORS = [
+  '#22d3ee', '#a855f7', '#fbbf24', '#f472b6', '#a3e635',
+  '#38bdf8', '#fb923c', '#60a5fa', '#f87171', '#34d399',
+  '#e879f9', '#facc15', '#4ade80', '#818cf8', '#fb7185',
+  '#2dd4bf', '#c084fc', '#f59e0b', '#10b981', '#06b6d4',
+  '#6366f1', '#ec4899', '#84cc16', '#14b8a6', '#0ea5e9',
+]
+
+const SERVICE_ZONE_ROTATION: TaiwanRegion[] = [
+  'TAIPEI', 'TAIPEI', 'TAIPEI', 'NEW_TAIPEI', 'NEW_TAIPEI',
+  'TAOYUAN', 'TAOYUAN', 'HSINCHU', 'TAICHUNG', 'TAICHUNG',
+  'NANTOU', 'TAINAN', 'KAOHSIUNG', 'KAOHSIUNG', 'HUALIEN', 'TAITUNG',
+]
+
+function zoneForIndex(i: number): TaiwanRegion {
+  return SERVICE_ZONE_ROTATION[i % SERVICE_ZONE_ROTATION.length]
+}
 
 function iso(daysFromNow: number, hour: number, minute = 0): string {
   const d = new Date()
@@ -20,90 +68,170 @@ function doc(number: string, expiresAt: string, status: DocumentRecord['status']
   return { number, expiresAt, status, ocrStatus, lastUpdatedAt: iso(-Math.floor(Math.random() * 60), 9) }
 }
 
-export const SEED_VEHICLES: Vehicle[] = [
-  { id: 'veh-1', plate: 'ABC-5581', type: 'SEDAN', colorHex: '#22d3ee', capacity: 3, driverId: 'drv-1' },
-  { id: 'veh-2', plate: 'AFG-2210', type: 'SUV', colorHex: '#a855f7', capacity: 5, driverId: 'drv-2' },
-  { id: 'veh-3', plate: 'AKT-7754', type: 'VAN', colorHex: '#fbbf24', capacity: 7, driverId: 'drv-3' },
-  { id: 'veh-4', plate: 'ARL-0093', type: 'LUXURY', colorHex: '#f472b6', capacity: 3, driverId: 'drv-4' },
-  { id: 'veh-5', plate: 'AWY-4471', type: 'MINIBUS', colorHex: '#a3e635', capacity: 12, driverId: 'drv-5' },
-  { id: 'veh-6', plate: 'ABD-6620', type: 'SEDAN', colorHex: '#38bdf8', capacity: 3, driverId: 'drv-6' },
-  { id: 'veh-7', plate: 'AJX-1138', type: 'SUV', colorHex: '#fb923c', capacity: 5, driverId: 'drv-7' },
+const FIRST_7_VEHICLES = [
+  { id: 'veh-1', plate: 'ABC-5581', type: 'SEDAN' as const, category: 'COMFORT_SEDAN' as VehicleCategory, colorHex: '#22d3ee', capacity: 3, driverId: 'drv-1' },
+  { id: 'veh-2', plate: 'AFG-2210', type: 'SUV' as const, category: 'SUV' as VehicleCategory, colorHex: '#a855f7', capacity: 5, driverId: 'drv-2' },
+  { id: 'veh-3', plate: 'AKT-7754', type: 'VAN' as const, category: 'VAN_6' as VehicleCategory, colorHex: '#fbbf24', capacity: 7, driverId: 'drv-3' },
+  { id: 'veh-4', plate: 'ARL-0093', type: 'LUXURY' as const, category: 'LUXURY_SEDAN' as VehicleCategory, colorHex: '#f472b6', capacity: 3, driverId: 'drv-4' },
+  { id: 'veh-5', plate: 'AWY-4471', type: 'MINIBUS' as const, category: 'CHARTER_MINIBUS' as VehicleCategory, colorHex: '#a3e635', capacity: 12, driverId: 'drv-5' },
+  { id: 'veh-6', plate: 'ABD-6620', type: 'SEDAN' as const, category: 'ECONOMY_SEDAN' as VehicleCategory, colorHex: '#38bdf8', capacity: 3, driverId: 'drv-6' },
+  { id: 'veh-7', plate: 'AJX-1138', type: 'SUV' as const, category: 'SUV' as VehicleCategory, colorHex: '#fb923c', capacity: 5, driverId: 'drv-7' },
 ]
 
-const EXTRA_VEHICLE_TYPES: Vehicle['type'][] = ['SEDAN', 'SUV', 'VAN', 'SEDAN', 'LUXURY', 'SUV', 'SEDAN', 'MINIBUS', 'SEDAN', 'SUV', 'VAN', 'SEDAN', 'SEDAN', 'SUV', 'LUXURY', 'SEDAN', 'VAN']
-const EXTRA_VEHICLE_COLORS = ['#22d3ee', '#a855f7', '#fbbf24', '#f472b6', '#a3e635', '#38bdf8', '#fb923c', '#60a5fa', '#f87171', '#34d399', '#e879f9', '#facc15', '#4ade80', '#818cf8', '#fb7185', '#2dd4bf', '#c084fc']
-for (let i = 0; i < 17; i++) {
-  const id = `drv-${8 + i}`
-  SEED_VEHICLES.push({ id: `veh-${8 + i}`, plate: `A${(10 + i).toString(36).toUpperCase()}-${4000 + i * 37}`, type: EXTRA_VEHICLE_TYPES[i], colorHex: EXTRA_VEHICLE_COLORS[i], capacity: { SEDAN: 3, SUV: 5, VAN: 7, LUXURY: 3, MINIBUS: 12 }[EXTRA_VEHICLE_TYPES[i]], driverId: id })
+const TOTAL_FLEET_SIZE = 360
+
+const PLATE_PREFIXES = ['ABC', 'AFG', 'AKT', 'ARL', 'AWY', 'ABD', 'AJX', 'RBA', 'TDF', 'EAB', 'RAC', 'BCA', 'KLA', 'WXY', 'QPR', 'NVB', 'TDG', 'HJK', 'MBZ', 'VWT', 'TYT', 'LEX', 'TES', 'BWM', 'VOL']
+
+function generatePlate(index: number): string {
+  if (index < FIRST_7_VEHICLES.length) return FIRST_7_VEHICLES[index].plate
+  const prefix = PLATE_PREFIXES[index % PLATE_PREFIXES.length]
+  const num = 1000 + ((index * 37 + 13) % 8999)
+  return `${prefix}-${num}`
 }
 
-const BASE_DRIVERS: Omit<
-  Driver,
-  'status' | 'lat' | 'lng' | 'svgX' | 'svgY' | 'stats' | 'shiftSchedule' | 'unresponsiveFlagUntil' | 'unresponsiveOrderNo' | 'workingMode' | 'currentZone' | 'autoAcceptEnabled' | 'airportPreference' | 'shiftStartedAt'
->[] = [
+export const SEED_VEHICLES: Vehicle[] = Array.from({ length: TOTAL_FLEET_SIZE }, (_, i) => {
+  const id = `veh-${i + 1}`
+  const driverId = `drv-${i + 1}`
+  const category = i < FIRST_7_VEHICLES.length ? FIRST_7_VEHICLES[i].category : ALL_CATEGORIES[i % ALL_CATEGORIES.length]
+  const type = CATEGORY_TO_PHYSICAL_TYPE[category]
+  const catalogEntry = VEHICLE_CATEGORY_CATALOG[category]
+  const plate = generatePlate(i)
+  const colorHex = i < FIRST_7_VEHICLES.length ? FIRST_7_VEHICLES[i].colorHex : VEHICLE_COLORS[i % VEHICLE_COLORS.length]
+  const serviceZone = zoneForIndex(i)
+
+  const isExpiredIns = i === 12 || i === 84 || i === 192 || i === 310
+  const isExpiringIns = i % 18 === 3
+  const insuranceStatus: Vehicle['insuranceStatus'] = isExpiredIns ? 'EXPIRED' : isExpiringIns ? 'EXPIRING' : 'VALID'
+
+  const isFlaggedCompliance = i === 19 || i === 95 || i === 220 || i === 340
+  const complianceStatus: Vehicle['complianceStatus'] = isFlaggedCompliance ? 'FLAGGED' : 'OK'
+
+  const underMaintenance = i === 9 || i === 77 || i === 155 || i === 280
+
+  return {
+    id,
+    plate,
+    type,
+    category,
+    colorHex,
+    capacity: catalogEntry.maxPassengers,
+    luggageCapacity: catalogEntry.maxLuggage,
+    serviceZone,
+    features: catalogEntry.features,
+    driverId,
+    insuranceStatus,
+    complianceStatus,
+    maintenanceUntil: underMaintenance ? Date.now() + 3 * 3_600_000 : null,
+    maintenanceReason: underMaintenance ? 'Scheduled brake & tire safety service' : null,
+  }
+})
+
+// Realistic Taiwanese Surnames & Given names
+const SURNAMES: [string, string][] = [
+  ['Chen', '陳'], ['Lin', '林'], ['Huang', '黃'], ['Chang', '張'], ['Li', '李'],
+  ['Wang', '王'], ['Wu', '吳'], ['Liu', '劉'], ['Tsai', '蔡'], ['Yang', '楊'],
+  ['Hsu', '許'], ['Cheng', '鄭'], ['Hsieh', '謝'], ['Kuo', '郭'], ['Hung', '洪'],
+  ['Tseng', '曾'], ['Chiu', '邱'], ['Liao', '廖'], ['Lai', '賴'], ['Chou', '周'],
+  ['Hsu', '徐'], ['Su', '蘇'], ['Yeh', '葉'], ['Chuang', '莊'], ['Lu', '呂'],
+  ['Chiang', '江'], ['Ho', '何'], ['Hsiao', '蕭'], ['Pan', '潘'], ['Chu', '朱'],
+  ['Peng', '彭'], ['Ma', '馬'], ['Deng', '鄧'], ['Tang', '湯'], ['Lu', '魯'], ['Fang', '方'],
+]
+
+const GIVEN_NAMES: [string, string][] = [
+  ['Chih-Ming', '志明'], ['Mei-Hui', '美惠'], ['Da-Tong', '大同'], ['Chia-Hao', '家豪'],
+  ['Wen-Bin', '文彬'], ['Shu-Fen', '淑芬'], ['Chien-Cheng', '建成'], ['Yu-Ting', '雨婷'],
+  ['Kai-Wen', '凱文'], ['Pei-Ru', '佩如'], ['Zhi-Qiang', '智強'], ['Hui-Ling', '惠玲'],
+  ['Jun-Jie', '偉杰'], ['Shu-Wen', '淑文'], ['Bo-Han', '博含'], ['Yi-Chun', '依春'],
+  ['Zong-Han', '宗漢'], ['Meng-Yao', '孟瑞'], ['Jia-Le', '嘉樂'], ['Xin-Yi', '心思'],
+  ['Guan-Yu', '官宇'], ['Rui-En', '瑞恩'], ['Wan-Ru', '婉如'], ['Cheng-Yu', '承宇'],
+  ['Kuan-Yu', '冠宇'], ['Ya-Ting', '雅婷'], ['Po-Chun', '柏均'], ['Ting-Wei', '廷威'],
+  ['Yu-Chen', '宇晨'], ['Hao-Ran', '浩然'], ['Yi-Ling', '怡伶'], ['Chun-Wei', '俊偉'],
+  ['Sheng-Xian', '聖賢'], ['Ming-Feng', '明峰'], ['Yi-Ting', '宜庭'], ['Chia-Wei', '嘉偉'],
+  ['Zhi-Yuan', '志遠'], ['Wan-Ting', '婉婷'], ['Yu-Xuan', '宇軒'], ['Jing-Yi', '靜宜'],
+]
+
+const FIRST_7_DRIVERS = [
   {
-    id: 'drv-1', name: 'Chih-Ming Chen', nameZh: '\u9673\u5fd7\u660e', avatarEmoji: '\ud83e\uddd1\ud83c\udffb\u200d\u2708\ufe0f', colorHex: '#22d3ee', phone: '0912-345-671', tier: 'OWNED_FLEET', rating: 4.9, completedTrips: 812, vehicleId: 'veh-1',
+    id: 'drv-1', name: 'Chih-Ming Chen', nameZh: '陳志明', avatarEmoji: '🧑🏻‍✈️', colorHex: '#22d3ee', phone: '0912-345-671', tier: 'OWNED_FLEET' as const, rating: 4.9, completedTrips: 812, vehicleId: 'veh-1',
     documents: { license: doc('TPE-DL-88213', iso(210, 0), 'VALID'), insurance: doc('INS-2291-A', iso(160, 0), 'VALID'), registration: doc('REG-1188-A', iso(280, 0), 'VALID'), inspection: doc('INSP-3301-A', iso(95, 0), 'VALID') },
   },
   {
-    id: 'drv-2', name: 'Mei-Hui Lin', nameZh: '\u6797\u7f8e\u60e0', avatarEmoji: '\ud83d\udc69\ud83c\udffb\u200d\u2708\ufe0f', colorHex: '#a855f7', phone: '0922-118-430', tier: 'OWNED_FLEET', rating: 4.8, completedTrips: 654, vehicleId: 'veh-2',
+    id: 'drv-2', name: 'Mei-Hui Lin', nameZh: '林美惠', avatarEmoji: '👩🏻‍✈️', colorHex: '#a855f7', phone: '0922-118-430', tier: 'OWNED_FLEET' as const, rating: 4.8, completedTrips: 654, vehicleId: 'veh-2',
     documents: { license: doc('TPE-DL-77120', iso(9, 0), 'EXPIRING'), insurance: doc('INS-1187-B', iso(300, 0), 'VALID'), registration: doc('REG-2210-B', iso(180, 0), 'VALID'), inspection: doc('INSP-4402-B', iso(40, 0), 'VALID') },
   },
   {
-    id: 'drv-3', name: 'Da-Tong Wang', nameZh: '\u738b\u5927\u540c', avatarEmoji: '\ud83e\uddd1\ud83c\udffd\u200d\u2708\ufe0f', colorHex: '#fbbf24', phone: '0933-882-041', tier: 'PAID_MEMBER', rating: 4.7, completedTrips: 401, vehicleId: 'veh-3',
+    id: 'drv-3', name: 'Da-Tong Wang', nameZh: '王大同', avatarEmoji: '🧑🏽‍✈️', colorHex: '#fbbf24', phone: '0933-882-041', tier: 'PAID_MEMBER' as const, rating: 4.7, completedTrips: 401, vehicleId: 'veh-3',
     documents: { license: doc('TPE-DL-55302', iso(120, 0), 'VALID'), insurance: doc('INS-3391-C', iso(5, 0), 'EXPIRING'), registration: doc('REG-3321-C', iso(210, 0), 'VALID'), inspection: doc('INSP-5503-C', iso(150, 0), 'VALID', 'PENDING') },
   },
   {
-    id: 'drv-4', name: 'Chia-Hao Chang', nameZh: '\u5f35\u5bb6\u8c6a', avatarEmoji: '\ud83e\uddd1\ud83c\udffb\u200d\u2708\ufe0f', colorHex: '#f472b6', phone: '0955-206-889', tier: 'PAID_MEMBER', rating: 5.0, completedTrips: 289, vehicleId: 'veh-4',
+    id: 'drv-4', name: 'Chia-Hao Chang', nameZh: '張家豪', avatarEmoji: '🧑🏻‍✈️', colorHex: '#f472b6', phone: '0955-206-889', tier: 'PAID_MEMBER' as const, rating: 5.0, completedTrips: 289, vehicleId: 'veh-4',
     documents: { license: doc('TPE-DL-90911', iso(88, 0), 'VALID'), insurance: doc('INS-4471-D', iso(200, 0), 'VALID'), registration: doc('REG-4432-D', iso(300, 0), 'VALID'), inspection: doc('INSP-6604-D', iso(60, 0), 'VALID') },
   },
   {
-    id: 'drv-5', name: 'Wen-Bin Li', nameZh: '\u674e\u6587\u5f6c', avatarEmoji: '\ud83e\uddd1\ud83c\udffb\u200d\u2708\ufe0f', colorHex: '#a3e635', phone: '0966-773-215', tier: 'OUTSIDE_CONTRACTOR', rating: 4.6, completedTrips: 133, vehicleId: 'veh-5',
+    id: 'drv-5', name: 'Wen-Bin Li', nameZh: '李文彬', avatarEmoji: '🧑🏻‍✈️', colorHex: '#a3e635', phone: '0966-773-215', tier: 'OUTSIDE_CONTRACTOR' as const, rating: 4.6, completedTrips: 133, vehicleId: 'veh-5',
     documents: { license: doc('TPE-DL-33218', iso(-3, 0), 'EXPIRED'), insurance: doc('INS-5521-E', iso(45, 0), 'VALID'), registration: doc('REG-5543-E', iso(20, 0), 'VALID'), inspection: doc('INSP-7705-E', iso(-10, 0), 'EXPIRED', 'FLAGGED') },
   },
   {
-    id: 'drv-6', name: 'Shu-Fen Huang', nameZh: '\u9ec3\u6dd1\u82ac', avatarEmoji: '\ud83d\udc69\ud83c\udffb\u200d\u2708\ufe0f', colorHex: '#38bdf8', phone: '0977-664-902', tier: 'OWNED_FLEET', rating: 4.9, completedTrips: 977, vehicleId: 'veh-6',
+    id: 'drv-6', name: 'Shu-Fen Huang', nameZh: '黃淑芬', avatarEmoji: '👩🏻‍✈️', colorHex: '#38bdf8', phone: '0977-664-902', tier: 'OWNED_FLEET' as const, rating: 4.9, completedTrips: 977, vehicleId: 'veh-6',
     documents: { license: doc('TPE-DL-10087', iso(365, 0), 'VALID'), insurance: doc('INS-6631-F', iso(365, 0), 'VALID'), registration: doc('REG-6654-F', iso(365, 0), 'VALID'), inspection: doc('INSP-8806-F', iso(365, 0), 'VALID') },
   },
   {
-    id: 'drv-7', name: 'Chien-Cheng Wu', nameZh: '\u5433\u5efa\u6210', avatarEmoji: '\ud83e\uddd1\ud83c\udffd\u200d\u2708\ufe0f', colorHex: '#fb923c', phone: '0988-402-671', tier: 'OUTSIDE_CONTRACTOR', rating: 4.5, completedTrips: 76, vehicleId: 'veh-7',
+    id: 'drv-7', name: 'Chien-Cheng Wu', nameZh: '吳建成', avatarEmoji: '🧑🏽‍✈️', colorHex: '#fb923c', phone: '0988-402-671', tier: 'OUTSIDE_CONTRACTOR' as const, rating: 4.5, completedTrips: 76, vehicleId: 'veh-7',
     documents: { license: doc('TPE-DL-20044', iso(60, 0), 'VALID'), insurance: doc('INS-7741-G', iso(12, 0), 'EXPIRING'), registration: doc('REG-7765-G', iso(90, 0), 'VALID'), inspection: doc('INSP-9907-G', iso(75, 0), 'VALID') },
   },
 ]
 
-const EXTRA_NAMES: [string, string][] = [
-  ['Yu-Ting Kuo', '\u90ed\u96e8\u5ef7'], ['Kai-Wen Hsu', '\u8a31\u51f1\u6587'], ['Pei-Ru Lai', '\u8cf4\u4f69\u5982'], ['Zhi-Qiang Peng', '\u5f6d\u667a\u5f37'],
-  ['Hui-Ling Cai', '\u8521\u60e0\u73b2'], ['Jun-Jie Xie', '\u8b1d\u5049\u6770'], ['Shu-Wen Yang', '\u6768\u6dd1\u6587'], ['Bo-Han Liu', '\u5289\u535a\u542b'],
-  ['Yi-Chun Ho', '\u4f55\u4f9d\u6625'], ['Zong-Han Su', '\u82cf\u5b97\u6f22'], ['Meng-Yao Fang', '\u65b9\u5b5f\u745e'], ['Jia-Le Zhu', '\u6731\u5609\u6a02'],
-  ['Xin-Yi Lu', '\u9b6f\u5fc3\u601d'], ['Guan-Yu Deng', '\u9127\u5b98\u5b87'], ['Rui-En Tang', '\u6c64\u745e\u6069'], ['Wan-Ru Fan', '\u6f58\u5a49\u5982'],
-  ['Cheng-Yu Ma', '\u99ac\u627f\u5b87'],
-]
-const EXTRA_EMOJI = ['\ud83e\uddd1\ud83c\udffb\u200d\u2708\ufe0f', '\ud83d\udc69\ud83c\udffb\u200d\u2708\ufe0f', '\ud83e\uddd1\ud83c\udffd\u200d\u2708\ufe0f', '\ud83d\udc68\ud83c\udffb\u200d\u2708\ufe0f']
-const EXTRA_TIERS: Driver['tier'][] = ['OWNED_FLEET', 'PAID_MEMBER', 'OUTSIDE_CONTRACTOR']
-const EXTRA_ZONES = ['taipei-101', 'taipei-main-station', 'tpe-airport', 'banqiao-station', 'neihu-business', 'taichung-hsr', 'kaohsiung-hsr', 'hualien-city', 'tainan-hsr']
+const DRIVER_EMOJIS = ['🧑🏻‍✈️', '👩🏻‍✈️', '🧑🏽‍✈️', '👨🏻‍✈️', '🧑🏼‍✈️', '👩🏼‍✈️']
+const DRIVER_TIERS: Driver['tier'][] = ['OWNED_FLEET', 'OWNED_FLEET', 'PAID_MEMBER', 'PAID_MEMBER', 'OUTSIDE_CONTRACTOR']
 
-for (let i = 0; i < 17; i++) {
-  const id = `drv-${8 + i}`
-  const [name, nameZh] = EXTRA_NAMES[i]
-  BASE_DRIVERS.push({
+const BASE_DRIVERS: Omit<
+  Driver,
+  | 'status' | 'lat' | 'lng' | 'svgX' | 'svgY' | 'stats' | 'shiftSchedule' | 'unresponsiveFlagUntil' | 'unresponsiveOrderNo'
+  | 'workingMode' | 'currentZone' | 'autoAcceptEnabled' | 'airportPreference' | 'shiftStartedAt' | 'loginEnabled'
+>[] = Array.from({ length: TOTAL_FLEET_SIZE }, (_, i) => {
+  if (i < FIRST_7_DRIVERS.length) return FIRST_7_DRIVERS[i]
+
+  const id = `drv-${i + 1}`
+  const vehicleId = `veh-${i + 1}`
+  const sIdx = (i * 7 + 3) % SURNAMES.length
+  const gIdx = (i * 13 + 5) % GIVEN_NAMES.length
+  const [sEng, sZh] = SURNAMES[sIdx]
+  const [gEng, gZh] = GIVEN_NAMES[gIdx]
+  const name = `${gEng} ${sEng}`
+  const nameZh = `${sZh}${gZh}`
+
+  const avatarEmoji = DRIVER_EMOJIS[i % DRIVER_EMOJIS.length]
+  const colorHex = VEHICLE_COLORS[i % VEHICLE_COLORS.length]
+  const phone = `09${10 + (i % 80)}-${100 + ((i * 17) % 899)}-${100 + ((i * 23) % 899)}`
+  const tier = DRIVER_TIERS[i % DRIVER_TIERS.length]
+  const rating = Math.round((4.5 + ((i % 6) * 0.1)) * 10) / 10
+  const completedTrips = 35 + ((i * 47) % 920)
+
+  const isExpiringLic = i % 24 === 0
+  const isExpiredLic = i === 48 || i === 188 || i === 312
+  const isExpiringIns = i % 20 === 2
+  const isFlaggedInsp = i % 30 === 5
+  const isPendingInsp = i % 40 === 7
+
+  return {
     id,
     name,
     nameZh,
-    avatarEmoji: EXTRA_EMOJI[i % EXTRA_EMOJI.length],
-    colorHex: EXTRA_VEHICLE_COLORS[i],
-    phone: `09${20 + i}-${100 + i * 7}-${200 + i * 3}`,
-    tier: EXTRA_TIERS[i % EXTRA_TIERS.length],
-    rating: Math.round((4.4 + (i % 6) * 0.1) * 10) / 10,
-    completedTrips: 40 + i * 53,
-    vehicleId: `veh-${8 + i}`,
+    avatarEmoji,
+    colorHex,
+    phone,
+    tier,
+    rating,
+    completedTrips,
+    vehicleId,
     documents: {
-      license: doc(`TPE-DL-${40000 + i * 11}`, iso(30 + i * 12, 0), i % 9 === 0 ? 'EXPIRING' : 'VALID'),
-      insurance: doc(`INS-${8800 + i * 9}`, iso(60 + i * 8, 0), 'VALID'),
-      registration: doc(`REG-${9900 + i * 7}`, iso(120 + i * 5, 0), 'VALID'),
-      inspection: doc(`INSP-${10100 + i * 6}`, iso(20 + i * 9, 0), 'VALID', i % 11 === 0 ? 'FLAGGED' : 'VERIFIED'),
+      license: doc(`TPE-DL-${30000 + i * 17}`, iso(isExpiredLic ? -5 : isExpiringLic ? 12 : 90 + (i % 250), 0), isExpiredLic ? 'EXPIRED' : isExpiringLic ? 'EXPIRING' : 'VALID'),
+      insurance: doc(`INS-${7000 + i * 13}`, iso(isExpiringIns ? 8 : 60 + (i % 280), 0), isExpiringIns ? 'EXPIRING' : 'VALID'),
+      registration: doc(`REG-${8000 + i * 11}`, iso(120 + (i % 200), 0), 'VALID'),
+      inspection: doc(`INSP-${9000 + i * 9}`, iso(40 + (i % 300), 0), 'VALID', isFlaggedInsp ? 'FLAGGED' : isPendingInsp ? 'PENDING' : 'VERIFIED'),
     },
-  })
-}
+  }
+})
 
 function buildDriverStats(driverId: string, completedTrips: number): DriverStats {
   const seed = driverId.split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 9973, 7)
@@ -157,6 +285,17 @@ function freshOrderShell(id: string, orderNo: string): Pick<
   | 'pickupInstructions'
   | 'invoiceRequested'
   | 'invoiceIssued'
+  | 'bookingUrgency'
+  | 'flightLandedAt'
+  | 'driverInfoRevealOverride'
+  | 'paymentMethod'
+  | 'lateFeeAmount'
+  | 'lateFeeWaitMinutes'
+  | 'waitingFeeAgreed'
+  | 'waypoints'
+  | 'translationStatus'
+  | 'sourceLanguage'
+  | 'originalNoteText'
 > {
   const now = Date.now()
   return {
@@ -193,6 +332,17 @@ function freshOrderShell(id: string, orderNo: string): Pick<
     pickupInstructions: null,
     invoiceRequested: false,
     invoiceIssued: false,
+    bookingUrgency: 'STANDARD',
+    flightLandedAt: null,
+    driverInfoRevealOverride: true,
+    paymentMethod: 'card',
+    lateFeeAmount: null,
+    lateFeeWaitMinutes: null,
+    waitingFeeAgreed: false,
+    waypoints: [],
+    translationStatus: 'NOT_NEEDED',
+    sourceLanguage: null,
+    originalNoteText: null,
   }
 }
 
@@ -203,6 +353,8 @@ function buildOrderBase(params: {
   pickupId: string
   dropoffId: string
   vehicleType: Order['vehicleType']
+  vehicleCategory?: VehicleCategory
+  passengerRequirements?: PassengerRequirements
   passengers: number
   luggage: number
   scheduledTime: string
@@ -219,6 +371,7 @@ function buildOrderBase(params: {
   const isAirport = pickup.isAirport || dropoff.isAirport
   const durationMin = estimateDurationMin(routeToDropoff.distanceKm)
   const fareBreakdown = computeFareBreakdown(routeToDropoff.distanceKm, durationMin, params.vehicleType, isAirport)
+  const translation = computeTranslationFields(params.channel, params.customer.name, params.id)
 
   return {
     ...freshOrderShell(params.id, params.orderNo),
@@ -231,9 +384,14 @@ function buildOrderBase(params: {
     pickup,
     dropoff,
     vehicleType: params.vehicleType,
+    vehicleCategory: params.vehicleCategory ?? DEFAULT_CATEGORY_FOR_TYPE[params.vehicleType],
+    passengerRequirements: params.passengerRequirements ?? NO_REQUIREMENTS,
     passengers: params.passengers,
     luggage: params.luggage,
-    notes: params.notes ?? '',
+    notes: translation.notes ?? params.notes ?? '',
+    translationStatus: translation.translationStatus,
+    sourceLanguage: translation.sourceLanguage,
+    originalNoteText: translation.originalNoteText,
     flightNumber: params.flightNumber ?? null,
     flightInfo,
     priceEstimate: fareBreakdown.total,
@@ -242,7 +400,7 @@ function buildOrderBase(params: {
     durationMin,
     routeToDropoff,
     pickupInstructions: pickup.isAirport
-      ? { terminal: Math.random() > 0.5 ? 'Terminal 2' : 'Terminal 1', gate: `${String.fromCharCode(65 + Math.floor(Math.random() * 6))}${Math.floor(Math.random() * 20) + 1}`, meetAndGreetBoard: `Zhaofeng Travel \u00b7 ${params.customer.name}` }
+      ? { terminal: Math.random() > 0.5 ? 'Terminal 2' : 'Terminal 1', gate: `${String.fromCharCode(65 + Math.floor(Math.random() * 6))}${Math.floor(Math.random() * 20) + 1}`, meetAndGreetBoard: `Zhaofeng Travel · ${params.customer.name}` }
       : null,
   }
 }
@@ -358,8 +516,9 @@ function buildCustomerProfiles(): CustomerProfile[] {
 
 const BULK_CHANNELS: Order['channel'][] = ['Website', 'LINE@', 'KKday', 'Booking.com', 'Klook', 'Phone / Agent', 'ezTravel']
 const BULK_NAMES = [
-  'Kenji Watanabe', 'Olivia Chen', 'Liam O\u2019Connor', 'Anya Petrova', 'Noah Kim', 'Fatima Al-Sayed', 'Lucas Silva', 'Grace Park',
+  'Kenji Watanabe', 'Olivia Chen', 'Liam O’Connor', 'Anya Petrova', 'Noah Kim', 'Fatima Al-Sayed', 'Lucas Silva', 'Grace Park',
   'Ethan Brooks', 'Mia Rossi', 'Yusuf Demir', 'Chloe Martin', 'Ravi Shah', 'Hana Kobayashi', 'Diego Fernandez', 'Freya Nilsen',
+  'David Miller', 'Sophie Dubois', 'Hans Mueller', 'Carlos Santana', 'Emily Watson', 'Alexander Wright', 'Elena Popova', 'Ji-Hoon Park',
 ]
 
 function pickRandom<T>(arr: T[]): T {
@@ -371,11 +530,6 @@ function randomOrderNoCounter(start: number) {
   return () => `FP-${n++}`
 }
 
-/** Builds one bulk-generated, pre-driver-assignment active order (any of the
- * early lifecycle states that don't require a driver yet) — powers the "86
- * active rides" figure from the client brief without over-booking the
- * limited demo driver roster. Deliberately skips real OSRM hydration (see
- * `hydrateSeedRoutes` in the store) so seeding stays fast and offline-safe. */
 function buildBulkActiveOrder(id: string, orderNo: string, status: OrderStatus, ageMinutes: number): Order {
   const isAirport = Math.random() > 0.4
   let pickupId: string
@@ -387,7 +541,7 @@ function buildBulkActiveOrder(id: string, orderNo: string, status: OrderStatus, 
     pickupId = inbound ? airport.id : (other ?? LOCATIONS[0]).id
     dropoffId = inbound ? (other ?? LOCATIONS[0]).id : airport.id
   } else {
-    const region = pickRandom(['TAIPEI', 'NEW_TAIPEI', 'TAOYUAN', 'TAICHUNG', 'KAOHSIUNG', 'HUALIEN', 'TAINAN', 'NANTOU'])
+    const region = pickRandom(['TAIPEI', 'NEW_TAIPEI', 'TAOYUAN', 'TAICHUNG', 'KAOHSIUNG', 'HUALIEN', 'TAINAN', 'NANTOU', 'HSINCHU', 'TAITUNG'])
     const inRegion = LOCATIONS.filter((l) => l.region === region)
     const a = pickRandom(inRegion.length >= 2 ? inRegion : LOCATIONS)
     let b = pickRandom(inRegion.length >= 2 ? inRegion : LOCATIONS)
@@ -396,7 +550,8 @@ function buildBulkActiveOrder(id: string, orderNo: string, status: OrderStatus, 
     dropoffId = b.id
   }
 
-  const vehicleType = pickRandom<Order['vehicleType']>(['SEDAN', 'SUV', 'VAN', 'LUXURY', 'MINIBUS'])
+  const category = pickRandom(ALL_CATEGORIES)
+  const vehicleType = CATEGORY_TO_PHYSICAL_TYPE[category]
   const channel = pickRandom(BULK_CHANNELS)
   const name = pickRandom(BULK_NAMES)
   const createdAt = Date.now() - ageMinutes * 60_000
@@ -407,6 +562,7 @@ function buildBulkActiveOrder(id: string, orderNo: string, status: OrderStatus, 
     pickupId,
     dropoffId,
     vehicleType,
+    vehicleCategory: category,
     passengers: 1 + Math.floor(Math.random() * 5),
     luggage: Math.floor(Math.random() * 4),
     scheduledTime: new Date(Date.now() + (20 + Math.random() * 200) * 60_000).toISOString(),
@@ -416,17 +572,19 @@ function buildBulkActiveOrder(id: string, orderNo: string, status: OrderStatus, 
 
   order.createdAt = createdAt
   order.status = status
-  order.paymentStatus = status === 'DRAFT' || status === 'PENDING_PAYMENT' ? 'UNPAID' : status === 'PAID' || status === 'SUPPLIER_PENDING' ? 'PAID' : 'PAID'
+  order.paymentStatus = status === 'DRAFT' || status === 'PENDING_PAYMENT' ? 'UNPAID' : 'PAID'
   order.supplierStatus = channel === 'Website' || channel === 'Phone / Agent' || channel === 'LINE@' ? 'NOT_APPLICABLE' : status === 'SUPPLIER_PENDING' ? 'PENDING' : 'CONFIRMED'
   order.voucherStatus = ['DRAFT', 'PENDING_PAYMENT'].includes(status) ? 'NOT_ISSUED' : 'ISSUED'
   order.statusHistory = [{ id: genId('hist'), status, at: createdAt, actor: 'CUSTOMER' }]
   order.auditLog = [{ id: genId('aud'), at: createdAt, actor: 'CUSTOMER', action: `Order created via ${channel}` }]
+  const translation = computeTranslationFields(channel, name, id)
+  order.translationStatus = translation.translationStatus
+  order.sourceLanguage = translation.sourceLanguage
+  order.originalNoteText = translation.originalNoteText
+  if (translation.notes) order.notes = translation.notes
   return order
 }
 
-/** Builds one bulk-generated completed order aged by `ageMinutes`, used to
- * populate the client brief's "completed rides for last 3h/4h/today/week/
- * month" figures with genuinely time-distributed data. */
 function buildBulkCompletedOrder(id: string, orderNo: string, ageMinutes: number): Order {
   const isAirport = Math.random() > 0.45
   let pickupId: string
@@ -447,7 +605,8 @@ function buildBulkCompletedOrder(id: string, orderNo: string, ageMinutes: number
     dropoffId = b.id
   }
 
-  const vehicleType = pickRandom<Order['vehicleType']>(['SEDAN', 'SUV', 'VAN', 'LUXURY', 'MINIBUS'])
+  const category = pickRandom(ALL_CATEGORIES)
+  const vehicleType = CATEGORY_TO_PHYSICAL_TYPE[category]
   const channel = pickRandom(BULK_CHANNELS)
   const name = pickRandom(BULK_NAMES)
   const createdAt = Date.now() - ageMinutes * 60_000 - 40 * 60_000
@@ -460,6 +619,7 @@ function buildBulkCompletedOrder(id: string, orderNo: string, ageMinutes: number
     pickupId,
     dropoffId,
     vehicleType,
+    vehicleCategory: category,
     passengers: 1 + Math.floor(Math.random() * 5),
     luggage: Math.floor(Math.random() * 4),
     scheduledTime: new Date(createdAt + 30 * 60_000).toISOString(),
@@ -472,6 +632,11 @@ function buildBulkCompletedOrder(id: string, orderNo: string, ageMinutes: number
   order.paymentStatus = 'PAID'
   order.voucherStatus = 'REDEEMED'
   order.driverRatingByCustomer = 4 + Math.round(Math.random())
+  const translation = computeTranslationFields(channel, name, id)
+  order.translationStatus = translation.translationStatus
+  order.sourceLanguage = translation.sourceLanguage
+  order.originalNoteText = translation.originalNoteText
+  if (translation.notes) order.notes = translation.notes
   order.statusHistory = [
     { id: genId('hist'), status: 'CONFIRMED', at: createdAt, actor: 'CUSTOMER' },
     { id: genId('hist'), status: 'ASSIGNED', at: createdAt + 3 * 60_000, actor: 'DISPATCHER' },
@@ -489,15 +654,33 @@ export function createSeedState(): {
   notifications: AppNotification[]
   customerProfiles: CustomerProfile[]
 } {
-  const homeBaseIds = ['taipei-main-station', 'taipei-101', 'ximending', 'neihu-business']
+  const homeBaseIds = [
+    'taipei-main-station', 'taipei-101', 'ximending', 'neihu-business', 'banqiao-station',
+    'tpe-airport', 'tsa-airport', 'taoyuan-hsr', 'hsinchu-hsr', 'taichung-hsr',
+    'tainan-hsr', 'kaohsiung-hsr', 'hualien-city', 'taitung-city', 'sun-moon-lake', 'jiufen',
+  ]
 
   const drivers: Driver[] = BASE_DRIVERS.map((d, i) => {
     const vehicle = SEED_VEHICLES.find((v) => v.id === d.vehicleId)!
-    const isMetro = i < 7
-    const homeLoc = isMetro ? getLocation(homeBaseIds[i % homeBaseIds.length]) : getLocation(EXTRA_ZONES[i % EXTRA_ZONES.length])
+    const homeLocId = homeBaseIds[i % homeBaseIds.length]
+    const homeLoc = getLocation(homeLocId)
+    const isBusy = i === 0 || i === 2 || i === 3
+    const isOffline = i > 300 && i % 4 === 0
+
+    // Assign realistic driver shifts: Morning, Day, Night, Custom
+    const shiftType = i % 4 === 0 ? 'MORNING' : i % 4 === 1 ? 'DAY' : i % 4 === 2 ? 'NIGHT' : 'CUSTOM'
+    const shiftTiming =
+      shiftType === 'MORNING'
+        ? { shiftStart: '06:00', shiftEnd: '14:00', breakStart: '10:00', breakEnd: '10:30' }
+        : shiftType === 'DAY'
+        ? { shiftStart: '09:00', shiftEnd: '18:00', breakStart: '12:30', breakEnd: '13:30' }
+        : shiftType === 'NIGHT'
+        ? { shiftStart: '18:00', shiftEnd: '03:00', breakStart: '22:00', breakEnd: '22:30' }
+        : { shiftStart: '07:00', shiftEnd: '17:00', breakStart: '12:00', breakEnd: '13:00' }
+
     return {
       ...d,
-      status: 'AVAILABLE',
+      status: isBusy ? 'BUSY' : isOffline ? 'OFFLINE' : 'AVAILABLE',
       lat: homeLoc.lat + (Math.random() - 0.5) * 0.02,
       lng: homeLoc.lng + (Math.random() - 0.5) * 0.02,
       svgX: homeLoc.svgX + (Math.random() - 0.5) * 40,
@@ -505,15 +688,30 @@ export function createSeedState(): {
       vehicleId: vehicle.id,
       stats: buildDriverStats(d.id, d.completedTrips),
       shiftSchedule: buildShiftSchedule(d.id),
+      workingHours: {
+        shiftType,
+        ...shiftTiming,
+        activeDays: [1, 2, 3, 4, 5, 6],
+        onShift: !isOffline,
+        customLabel: shiftType === 'CUSTOM' ? '彈性日班 07:00-17:00' : undefined,
+      },
       unresponsiveFlagUntil: null,
       unresponsiveOrderNo: null,
-      workingMode: pickRandom<Driver['workingMode']>(['AIRPORT_PRIORITY', 'CITY_PRIORITY', 'ANY']),
+      workingMode: (['AIRPORT_PRIORITY', 'CITY_PRIORITY', 'ANY'] as const)[i % 3],
       currentZone: homeLoc.name,
       autoAcceptEnabled: i % 3 === 0,
       airportPreference: i % 2 === 0,
-      shiftStartedAt: Date.now() - Math.floor(Math.random() * 4) * 3_600_000,
-    }
-  })
+      shiftStartedAt: Date.now() - (1 + (i % 6)) * 3_600_000,
+    loginEnabled: true,
+    serviceMinutesToday: 120 + ((i * 31) % 240),
+    breakMode: false,
+    lastBreakStartedAt: null,
+    lastInspectionPassedAt: Date.now() - ((i * 19) % 3600) * 1000,
+    inspectionChecklist: { tires: true, brakes: true, lights: true, dashcam: true },
+    walletBalance: 4500 + ((i * 280) % 15000),
+    instantCashoutHistory: [],
+  }
+})
 
   const findDriver = (id: string) => drivers.find((d) => d.id === id)!
 
@@ -523,15 +721,16 @@ export function createSeedState(): {
   // ---- Flagship narrative orders (hand-authored, real drivers/positions) ----
 
   const o1 = buildOrderBase({
-    id: 'ord-1', orderNo: 'FP-1042', channel: 'KKday', pickupId: 'tpe-airport', dropoffId: 'grand-hyatt', vehicleType: 'SUV', passengers: 3, luggage: 3,
+    id: 'ord-1', orderNo: 'FP-1042', channel: 'KKday', pickupId: 'tpe-airport', dropoffId: 'grand-hyatt', vehicleType: 'SUV', vehicleCategory: 'SUV', passengers: 3, luggage: 3,
     scheduledTime: iso(0, new Date().getHours() + 2), customer: { name: 'Haruto Sasaki', phone: '+81 90-1234-5678', email: 'haruto.s@example.com' },
     flightNumber: 'NH851', notes: 'Family with a toddler, prefers child seat if available.',
+    passengerRequirements: { ...NO_REQUIREMENTS, childSeat: true },
   })
   o1.supplierStatus = 'CONFIRMED'
   orders.push(o1)
 
   const o2 = buildOrderBase({
-    id: 'ord-2', orderNo: 'FP-1039', channel: 'Website', pickupId: 'grand-hyatt', dropoffId: 'jiufen', vehicleType: 'VAN', passengers: 5, luggage: 2,
+    id: 'ord-2', orderNo: 'FP-1039', channel: 'Website', pickupId: 'grand-hyatt', dropoffId: 'jiufen', vehicleType: 'VAN', vehicleCategory: 'VAN_6', passengers: 5, luggage: 2,
     scheduledTime: iso(0, new Date().getHours() + 1), customer: { name: 'Emma Whitfield', phone: '+1 415-555-0199', email: 'emma.w@example.com' },
     notes: 'Full-day charter, 3 stops requested (Jiufen, Shifen, Houtong).',
   })
@@ -542,7 +741,7 @@ export function createSeedState(): {
   orders.push(o2)
 
   const o3 = buildOrderBase({
-    id: 'ord-3', orderNo: 'FP-1035', channel: 'Booking.com', pickupId: 'ximending', dropoffId: 'tpe-airport', vehicleType: 'SEDAN', passengers: 2, luggage: 2,
+    id: 'ord-3', orderNo: 'FP-1035', channel: 'Booking.com', pickupId: 'ximending', dropoffId: 'tpe-airport', vehicleType: 'SEDAN', vehicleCategory: 'COMFORT_SEDAN', passengers: 2, luggage: 2,
     scheduledTime: iso(0, new Date().getHours() + 1, 30), customer: { name: 'Isabelle Laurent', phone: '+33 6 12 34 56 78', email: 'isabelle.l@example.com' },
     flightNumber: 'CI67', notes: 'Please arrive 15 minutes early, connecting to international flight.',
   })
@@ -558,7 +757,7 @@ export function createSeedState(): {
   orders.push(o3)
 
   const o4 = buildOrderBase({
-    id: 'ord-4', orderNo: 'FP-1031', channel: 'LINE@', pickupId: 'taipei-main-station', dropoffId: 'tsa-airport', vehicleType: 'LUXURY', passengers: 1, luggage: 1,
+    id: 'ord-4', orderNo: 'FP-1031', channel: 'LINE@', pickupId: 'taipei-main-station', dropoffId: 'tsa-airport', vehicleType: 'LUXURY', vehicleCategory: 'LUXURY_VAN', passengers: 1, luggage: 1,
     scheduledTime: iso(0, new Date().getHours()), customer: { name: 'Marcus Webb', phone: '+44 7700 900123', email: 'marcus.webb@example.com' },
     flightNumber: 'BR212', notes: 'VIP client, silent ride preferred.',
   })
@@ -577,7 +776,7 @@ export function createSeedState(): {
   orders.push(o4)
 
   const o5 = buildOrderBase({
-    id: 'ord-5', orderNo: 'FP-1024', channel: 'Klook', pickupId: 'tpe-airport', dropoffId: 'taipei-101', vehicleType: 'SEDAN', passengers: 2, luggage: 2,
+    id: 'ord-5', orderNo: 'FP-1024', channel: 'Klook', pickupId: 'tpe-airport', dropoffId: 'taipei-101', vehicleType: 'SEDAN', vehicleCategory: 'ECONOMY_SEDAN', passengers: 2, luggage: 2,
     scheduledTime: iso(0, Math.max(0, new Date().getHours() - 3)), customer: { name: 'Sofia Alvarez', phone: '+34 611 22 33 44', email: 'sofia.a@example.com' },
     flightNumber: 'SQ879', notes: '',
   })
@@ -597,7 +796,7 @@ export function createSeedState(): {
   orders.push(o5)
 
   const o6 = buildOrderBase({
-    id: 'ord-6', orderNo: 'FP-1046', channel: 'KKday', pickupId: 'tpe-airport', dropoffId: 'w-hotel', vehicleType: 'SUV', passengers: 2, luggage: 3,
+    id: 'ord-6', orderNo: 'FP-1046', channel: 'KKday', pickupId: 'tpe-airport', dropoffId: 'w-hotel', vehicleType: 'SUV', vehicleCategory: 'SUV', passengers: 2, luggage: 3,
     scheduledTime: iso(0, new Date().getHours() + 3), customer: { name: 'Grace Park', phone: '+82 10-2233-4455', email: 'grace.p@example.com' },
     flightNumber: 'KE185', notes: 'Requested cancellation — travel plans changed.',
   })
@@ -608,7 +807,7 @@ export function createSeedState(): {
   orders.push(o6)
 
   const o7 = buildOrderBase({
-    id: 'ord-7', orderNo: 'FP-1018', channel: 'Booking.com', pickupId: 'taipei-101', dropoffId: 'tsa-airport', vehicleType: 'SEDAN', passengers: 1, luggage: 1,
+    id: 'ord-7', orderNo: 'FP-1018', channel: 'Booking.com', pickupId: 'taipei-101', dropoffId: 'tsa-airport', vehicleType: 'SEDAN', vehicleCategory: 'ECONOMY_SEDAN', passengers: 1, luggage: 1,
     scheduledTime: iso(-1, 14), customer: { name: 'Diego Fernandez', phone: '+34 622 33 44 55', email: 'diego.f@example.com' },
     flightNumber: 'IB6754', notes: '',
   })
@@ -658,24 +857,29 @@ export function createSeedState(): {
   d3.svgX = d3Loc.svgX + 8
   d3.svgY = d3Loc.svgY + 8
 
-  // ---- Bulk-generated orders: hit the "86 active rides" figure + completed
-  // counts for the last 3h / 4h / today / week / month, per the client brief. ----
-  const narrativeActiveCount = orders.filter((o) => !['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED'].includes(o.status)).length
-  const bulkActiveTarget = Math.max(0, 86 - narrativeActiveCount)
-  const bulkActiveStatuses: OrderStatus[] = ['DRAFT', 'PENDING_PAYMENT', 'PAID', 'SUPPLIER_PENDING', 'CONFIRMED', 'CONFIRMED', 'DRIVER_MATCHING', 'CONFIRMED', 'DRIVER_MATCHING', 'SUPPLIER_PENDING']
-  for (let i = 0; i < bulkActiveTarget; i++) {
+  // ---- Bulk active orders (~75 active orders across all lifecycle states) ----
+  const bulkActiveStatuses: OrderStatus[] = [
+    'DRAFT', 'PENDING_PAYMENT', 'PAID', 'SUPPLIER_PENDING',
+    'CONFIRMED', 'CONFIRMED', 'CONFIRMED', 'DRIVER_MATCHING',
+    'CONFIRMED', 'DRIVER_MATCHING', 'SUPPLIER_PENDING', 'CONFIRMED',
+  ]
+
+  const bulkActiveCount = 75
+  for (let i = 0; i < bulkActiveCount; i++) {
     const status = bulkActiveStatuses[i % bulkActiveStatuses.length]
     const ageMinutes = Math.random() * 180
     orders.push(buildBulkActiveOrder(`ord-bulk-active-${i}`, nextNo(), status, ageMinutes))
   }
 
+  // ---- Bulk completed orders (~215 completed orders across all time windows) ----
   const completedBuckets: { count: number; minAge: number; maxAge: number }[] = [
-    { count: 8, minAge: 5, maxAge: 175 }, // last 3h
-    { count: 5, minAge: 181, maxAge: 235 }, // 3h-4h
-    { count: 33, minAge: 241, maxAge: 1420 }, // 4h-24h (today)
-    { count: 130, minAge: 1450, maxAge: 10000 }, // 1-7 days (this week)
-    { count: 260, minAge: 10100, maxAge: 43000 }, // 7-30 days (this month)
+    { count: 10, minAge: 5, maxAge: 175 },       // last 3h
+    { count: 6, minAge: 181, maxAge: 235 },      // 3h-4h
+    { count: 30, minAge: 241, maxAge: 1420 },    // 4h-24h (today)
+    { count: 65, minAge: 1450, maxAge: 10000 },  // 1-7 days (this week)
+    { count: 104, minAge: 10100, maxAge: 43000 }, // 7-30 days (this month)
   ]
+
   let bulkIdx = 0
   for (const bucket of completedBuckets) {
     for (let i = 0; i < bucket.count; i++) {
@@ -685,7 +889,7 @@ export function createSeedState(): {
     }
   }
 
-  // A handful of terminal CANCELLED/FAILED orders for realism in Fleet OS filters.
+  // Terminal CANCELLED / FAILED / REFUNDED orders for realism in Fleet OS filters.
   for (let i = 0; i < 6; i++) {
     const ageMinutes = 60 + Math.random() * 4000
     const o = buildBulkActiveOrder(`ord-bulk-terminal-${i}`, nextNo(), 'CONFIRMED', ageMinutes)

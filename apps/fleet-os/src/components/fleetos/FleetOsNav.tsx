@@ -1,18 +1,30 @@
 import { NavLink } from 'react-router-dom'
 import {
+  ArrowLeftRight,
   BadgeDollarSign,
+  Building2,
+  Car,
+  ClipboardEdit,
+  FileText,
   Gauge,
   Headset,
   LayoutGrid,
+  Languages,
+  MessageSquare,
   Package,
+  Plane,
   ReceiptText,
+  Settings2,
   ShieldCheck,
   Sparkles,
+  TrendingUp,
   Truck,
+  Tv2,
   Users2,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useLang } from '../../i18n'
+import { useFleetStore } from '../../store/useFleetStore'
 
 /**
  * Module switcher for the Fleet OS "advanced desktop command center" — a
@@ -22,8 +34,16 @@ import { useLang } from '../../i18n'
  */
 const MODULES = [
   { to: '/fleet-os', end: true, labelKey: 'fleetos.nav.dashboard', icon: Gauge },
+  { to: '/fleet-os/dispatch', labelKey: 'fleetos.nav.dispatch', icon: ArrowLeftRight, badgeKey: 'unassigned' },
+  { to: '/fleet-os/messenger', labelKey: 'fleetos.nav.messenger', icon: MessageSquare, badgeKey: 'messenger' },
+  { to: '/fleet-os/multiscreen', labelKey: 'fleetos.nav.multiscreen', icon: Tv2 },
+  { to: '/fleet-os/forecast', labelKey: 'fleetos.nav.forecast', icon: TrendingUp },
+  { to: '/fleet-os/invoices', labelKey: 'fleetos.nav.invoices', icon: FileText },
+  { to: '/fleet-os/corporate', labelKey: 'fleetos.nav.corporate', icon: Building2 },
   { to: '/fleet-os/suppliers', labelKey: 'fleetos.nav.suppliers', icon: Truck },
   { to: '/fleet-os/catalog', labelKey: 'fleetos.nav.catalog', icon: Package },
+  { to: '/fleet-os/pricing/dynamic', labelKey: 'fleetos.nav.pricingDynamic', icon: Gauge },
+  { to: '/fleet-os/vehicles', labelKey: 'fleetos.nav.vehicles', icon: Car },
   { to: '/fleet-os/campaigns', labelKey: 'fleetos.nav.campaigns', icon: Sparkles },
   { to: '/fleet-os/support', labelKey: 'fleetos.nav.support', icon: Headset },
   { to: '/fleet-os/refunds', labelKey: 'fleetos.nav.refunds', icon: ReceiptText },
@@ -31,14 +51,26 @@ const MODULES = [
   { to: '/fleet-os/compliance', labelKey: 'fleetos.nav.compliance', icon: ShieldCheck },
   { to: '/fleet-os/finance', labelKey: 'fleetos.nav.finance', icon: BadgeDollarSign },
   { to: '/fleet-os/reports', labelKey: 'fleetos.nav.reports', icon: LayoutGrid },
+  { to: '/fleet-os/manual-order', labelKey: 'fleetos.nav.manualOrder', icon: ClipboardEdit },
+  { to: '/fleet-os/translation-qa', labelKey: 'fleetos.nav.translationQa', icon: Languages },
+  { to: '/fleet-os/flights', labelKey: 'fleetos.nav.flights', icon: Plane },
+  { to: '/fleet-os/accounts', labelKey: 'fleetos.nav.accounts', icon: Headset },
+  { to: '/fleet-os/params', labelKey: 'fleetos.nav.params', icon: Settings2 },
+  { to: '/fleet-os/access-logs', labelKey: 'fleetos.nav.accessLogs', icon: ShieldCheck },
   { to: '/fleet-os/admin', labelKey: 'fleetos.nav.admin', icon: ShieldCheck },
 ]
 
 export function FleetOsNav() {
   const { t } = useLang()
+  const orders = useFleetStore((s) => s.orders)
+  const chatMessages = useFleetStore((s) => s.chatMessages)
+  
+  const unassignedCount = orders.filter((o) => ['CONFIRMED', 'DRIVER_MATCHING'].includes(o.status)).length
+  const unreadMsgCount = chatMessages.length > 0 ? Math.min(chatMessages.length, 5) : 0
+
   return (
-    <div className="sticky top-[64px] z-[600] -mx-4 mb-3 overflow-x-auto border-b border-white/5 bg-mission-950/95 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6" data-testid="fleetos-nav">
-      <div className="flex items-center gap-1.5">
+    <div className="sticky top-[64px] z-[600] mb-4 overflow-x-auto rounded-2xl border border-white/10 bg-slate-950/85 p-2 backdrop-blur-2xl shadow-xl scrollbar-none" data-testid="fleetos-nav">
+      <div className="flex items-center gap-1.5 min-w-max">
         {MODULES.map((m) => (
           <NavLink
             key={m.to}
@@ -47,12 +79,25 @@ export function FleetOsNav() {
             data-testid={`fleetos-nav-${m.to.split('/').pop()}`}
             className={({ isActive }) =>
               clsx(
-                'flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11.5px] font-medium transition',
-                isActive ? 'bg-cyan-400/15 text-cyan-300' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200',
+                'relative flex shrink-0 items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold transition',
+                isActive
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-[0_0_12px_rgba(34,211,238,0.25)]'
+                  : 'text-slate-400 border border-transparent hover:bg-white/5 hover:text-slate-200',
               )
             }
           >
-            <m.icon className="h-3.5 w-3.5" /> {t(m.labelKey)}
+            <m.icon className="h-3.5 w-3.5" />
+            <span>{t(m.labelKey)}</span>
+            {m.badgeKey === 'unassigned' && unassignedCount > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/30 px-1 text-[10px] font-bold text-amber-300 border border-amber-400/40 animate-pulse">
+                {unassignedCount}
+              </span>
+            )}
+            {m.badgeKey === 'messenger' && unreadMsgCount > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-purple-500/40 px-1 text-[10px] font-bold text-purple-200 border border-purple-400/50 shadow-[0_0_8px_rgba(168,85,247,0.5)]">
+                {unreadMsgCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </div>

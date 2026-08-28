@@ -1,6 +1,6 @@
-import { Plane, PlaneLanding, PlaneTakeoff, MapPinned, Bell, MessageCircle, Mail, PhoneCall, Globe2 } from 'lucide-react'
+import { Plane, PlaneLanding, PlaneTakeoff, MapPinned, Bell, MessageCircle, Mail, PhoneCall, Globe2, ShieldCheck, Zap } from 'lucide-react'
 import { Badge } from './Badge'
-import type { BookingChannel, Driver, FlightStatusKind, NotificationChannel, Order, OrderStatus } from '../../types'
+import type { BookingChannel, BookingUrgency, Driver, FlightStatusKind, NotificationChannel, Order, OrderStatus } from '../../types'
 import { orderStatusLabel, orderTypeLabel, driverTierLabel, notificationChannelLabel } from '../../lib/format'
 import { flightStatusLabel } from '../../lib/flight'
 import { useLang } from '../../i18n'
@@ -96,12 +96,13 @@ const FLIGHT_TONE: Record<FlightStatusKind, 'cyan' | 'red' | 'amber' | 'green'> 
   DELAYED: 'red',
   BOARDING: 'amber',
   LANDED: 'cyan',
+  DIVERTED: 'red',
 }
 
 export function FlightBadge({ status }: { status: FlightStatusKind }) {
   const { lang } = useLang()
   return (
-    <Badge tone={FLIGHT_TONE[status]} pulse={status === 'DELAYED'}>
+    <Badge tone={FLIGHT_TONE[status]} pulse={status === 'DELAYED' || status === 'DIVERTED'}>
       <Plane className="h-3 w-3" /> {flightStatusLabel(status, lang)}
     </Badge>
   )
@@ -124,6 +125,25 @@ export function SourceBadge({ channel }: { channel: BookingChannel }) {
   return (
     <Badge tone={SOURCE_TONE[channel] ?? 'slate'}>
       <Globe2 className="h-3 w-3" /> {channel}
+    </Badge>
+  )
+}
+
+/** 機場快綫-style booking-urgency badge — "保證有車" guaranteed vs. the
+ * best-effort/NOT-guaranteed last-minute tier — surfaced on every order card
+ * that shows a trip so the distinction stays visible past the booking flow. */
+export function UrgencyBadge({ urgency }: { urgency: BookingUrgency }) {
+  const { t } = useLang()
+  if (urgency === 'STANDARD') {
+    return (
+      <Badge tone="green">
+        <ShieldCheck className="h-3 w-3" /> {t('booking.urgencyStandardShort')}
+      </Badge>
+    )
+  }
+  return (
+    <Badge tone="amber" pulse>
+      <Zap className="h-3 w-3" /> {t('booking.urgencyLastMinuteShort')}
     </Badge>
   )
 }

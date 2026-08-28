@@ -16,6 +16,8 @@ connected, real-time system even though each app is designed and branded as a ge
 | **Fleet OS** — Orders & Dispatch (dashboard) | `/fleet-os`, `/fleet-os/orders` | `/control` | yes — `/control` **redirects** to `/fleet-os` (`<Navigate replace>`) so old bookmarks/links keep working |
 | Fleet OS — Suppliers | `/fleet-os/suppliers` | — (new) | — |
 | Fleet OS — Catalog & Inventory | `/fleet-os/catalog` | — (new) | — |
+| **Fleet OS — Dynamic Pricing Service** | `/fleet-os/pricing/dynamic` | — (new) | — |
+| **Fleet OS — Fleet & Vehicle Inventory** | `/fleet-os/vehicles` | — (new) | — |
 | Fleet OS — Campaigns & Coupons | `/fleet-os/campaigns` | — (new) | — |
 | Fleet OS — Support | `/fleet-os/support` | — (new) | — |
 | Fleet OS — Refunds | `/fleet-os/refunds` | — (new) | — |
@@ -23,6 +25,12 @@ connected, real-time system even though each app is designed and branded as a ge
 | Fleet OS — Driver Compliance | `/fleet-os/compliance` | — (new) | — |
 | Fleet OS — Finance / Settlement | `/fleet-os/finance` | — (new) | — |
 | Fleet OS — Reports | `/fleet-os/reports` | — (new) | — |
+| **Fleet OS — Manual Order Entry** (手動開單) | `/fleet-os/manual-order` | — (new) | — |
+| **Fleet OS — Translation Proofreading** (翻譯校對) | `/fleet-os/translation-qa` | — (new) | — |
+| **Fleet OS — Flight Board** (航班看板) | `/fleet-os/flights` | — (new) | — |
+| **Fleet OS — Account Management** (帳號管理) | `/fleet-os/accounts` | — (new) | — |
+| **Fleet OS — Operating Parameters** (營運參數) | `/fleet-os/params` | — (new) | — |
+| **Fleet OS — Access Audit & Visitor Security** (門禁存取紀錄) | `/fleet-os/access-logs`, `/fleet-os/security` | — (new) | yes — `/fleet-os/security` redirects to `/fleet-os/access-logs` |
 | Fleet OS — Administration (roles, privacy/audit, system health) | `/fleet-os/admin` | — (new) | — |
 | Driver App | `/driver` | — | — |
 | Customer App | `/customer` | — | — |
@@ -73,6 +81,175 @@ transition — rendered as a collapsible **Status Audit Timeline** on order card
 Customer App's Trips detail and the Driver App's job history. A global **audit log** (`auditLog` in the store) also
 records cross-cutting Fleet OS actions (supplier status changes, refund approvals, role/permission edits, etc.) for
 the Admin → Privacy/Audit module.
+
+## Vehicle categories, availability, and dynamic pricing
+
+Every booking flow (Marketplace → Booking, or Booking directly) now shows **multiple vehicle recommendations**, not
+one fixed vehicle. After the customer enters pickup/destination, date/time, passenger count, luggage, flight number
+(for airport trips), and any child-seat/wheelchair/pet/special-assistance requirements, the booking panel renders a
+grid of cards — one per customer-facing category — computed live by `useVehicleOptions()`
+(`src/components/vehicles/VehicleOptionsGrid.tsx`).
+
+### The 10 vehicle categories
+
+`src/data/vehicleCatalog.ts` defines a `VehicleCategoryEntry` for each category, layered on top of the five
+underlying physical vehicle types (`SEDAN`/`SUV`/`VAN`/`LUXURY`/`MINIBUS`) that the rest of the simulation (seed
+fleet, dispatch, Fleet OS inventory) already used — the same way a real ride-hailing platform runs several "product
+types" over a smaller set of physical vehicle classes.
+
+| Category | Example model | Max passengers | Max luggage | Notable features |
+|---|---|---|---|---|
+| Economy Sedan | Toyota Corolla Altis | 3 | 2 | — |
+| Comfort Sedan | Toyota Camry | 3 | 2 | Large luggage |
+| Premium Sedan | Toyota Camry (premium trim) | 3 | 3 | Wi-Fi, large luggage |
+| SUV | Honda CR-V | 4 | 3 | Large luggage |
+| 6-Seater Van | Toyota Hiace (6-seat) | 6 | 5 | Large luggage |
+| 9-Seater Van | Toyota Hiace (9-seat) | 9 | 6 | Large luggage |
+| Luxury / VIP Sedan | Mercedes-Benz E-Class | 3 | 3 | VIP interior, Wi-Fi, meet & greet |
+| Luxury / VIP Van | Mercedes-Benz V-Class | 6 | 5 | VIP interior, Wi-Fi, meet & greet, large luggage |
+| Accessible Vehicle | Toyota Hiace (wheelchair-adapted) | 4 | 3 | Wheelchair access, child seat |
+| Private Charter / Minibus | Toyota Coaster | 18 | 10 | Large luggage |
+
+Every category card shows a photo, category + example model, max passengers/luggage, child-seat/accessibility
+availability, an estimated pickup time, a supplier-source badge (**Direct Fleet, Klook, KKday, ezTravel,** or
+partner fleet), base price + final TWD total, a cancellation-policy summary, and a badge where earned — **Best
+Value, Fastest Pickup, Most Luggage Space, VIP Comfort,** or **Recommended** (smallest vehicle that comfortably fits
+the party, tie-broken by price). A category that can't safely carry the stated passengers/luggage, is missing a
+required child seat/wheelchair feature, or has zero available vehicles in the pickup zone right now is shown
+**visually disabled with a specific stated reason** (e.g. "This vehicle supports up to 3 passengers and 2 large
+suitcases") rather than hidden or silently omitted. Customers can also select up to **3 categories to compare**
+side by side in a dedicated drawer (`VehicleCompareDrawer.tsx`).
+
+### Dynamic pricing engine
+
+`src/lib/dynamicPricing.ts` exports `computeDynamicFareBreakdown()` — a pure function shared by the Booking panel,
+the seed/ambient order generator, and the Fleet OS pricing-preview table, so every screen quotes from the exact same
+logic. It combines:
+
+- **Base ride cost** — the selected category's base fare + per-km rate × distance + per-minute rate × predicted
+  duration.
+- **Demand adjustment** — a Fleet-Manager-configured surcharge % per demand level (`LOW`/`NORMAL`/`HIGH`/`CRITICAL`),
+  plus an extra "low availability" surcharge if fewer than the configured minimum vehicles are available in the
+  pickup zone right now.
+- **Weather adjustment** — a surcharge % per simulated weather state (`CLEAR`/`RAIN`/`HEAVY_RAIN`/
+  `TYPHOON_WARNING`).
+- **Night-service and holiday/peak-period surcharges** — configurable start/end hour and a small built-in Taiwan
+  holiday/Saturday calendar.
+- **Airport/zone surcharge, tolls, parking, and a waiting fee** (e.g. for a delayed flight) — each itemized
+  separately, never bundled invisibly into the base fare.
+- **VIP surcharge** for VIP-tagged categories.
+- **Coupon and member-tier discounts**, applied after all surcharges.
+- A **fairness cap**: the combined demand + weather surcharge percentage is capped at the Fleet Manager's configured
+  maximum, with a `fairnessCapApplied` flag surfaced wherever that quote is shown.
+- A **supplier price / platform margin** split (18% take rate, matching the Driver App's existing earnings model),
+  so Fleet OS can show the customer price, the supplier/driver-facing price, and the platform's margin side by side.
+
+Every fare comes back as a fully itemized `FareBreakdown` — base fare, distance/time cost, demand adjustment,
+weather adjustment, night/holiday surcharges, airport/toll/parking/waiting fees, VIP surcharge, discount, and final
+total — rendered by `FareBreakdownCard.tsx` with **nothing hidden**: the same breakdown a customer sees in Booking
+is what they see later in the Customer App's Trips/Activity screens for that trip. When at least one dynamic factor
+is active, the breakdown also shows a calm, translated one-line explanation (e.g. *"High-demand pricing applies
+because available vehicles near Taoyuan Airport are limited during heavy rain. The final fare is always shown
+before payment."*) sourced from the Fleet Manager's configurable transparency message.
+
+The zone-condition simulation (`buildInitialZoneConditions()` / `driftZoneConditions()`) seeds Taoyuan with a live
+heavy-rain + high-demand state on load specifically so this surge scenario is visible immediately without waiting —
+booking a Taoyuan Airport pickup shows the demand/weather adjustment and calm explanation right away.
+
+### Matching integration
+
+The selected category and passenger requirements aren't cosmetic — they drive real dispatch:
+
+1. Booking stores the selected `vehicleCategory`, the full `fareBreakdown`, and `passengerRequirements` on the
+   order.
+2. `lib/dispatch.ts#vehicleSatisfiesOrder()` is a hard eligibility gate: a vehicle only matches if its physical type
+   matches the category's underlying type, its capacity/luggage cover the party, it has the wheelchair-access/
+   child-seat feature when required, and (for VIP categories) it has a VIP interior.
+3. `suggestDriver()` only ranks drivers/vehicles that pass that gate — by tier priority, then exact-category match,
+   then distance — so dispatch can never offer a trip to an incompatible vehicle.
+4. The Driver App's incoming-request modal and active-job card show the passenger count, luggage, service class,
+   and any special requirement chips (child seat/wheelchair/pet), plus the driver's **expected earnings** (the
+   fare breakdown's supplier price, not the customer total).
+5. The Customer App's Trips/Activity screens show the selected category badge and an expandable full fare
+   breakdown for every trip.
+
+## Competitor-inspired realism additions (Taiwan airport-transfer research round)
+
+The client pointed at two real Taiwan airport-transfer competitor sites — **機場快綫 Airport Express**
+(airportfrstcar.com) and **萬馬接送 Wanma Transfer** (wanma.tw/express) — and asked to adapt genuinely valuable
+concepts from each into this prototype's Marketplace/Booking experience, judgment-scoped rather than as a literal
+checklist. All new business rules/constants live in `src/lib/serviceRules.ts`, with real-world timers compressed to
+short, watchable demo durations (documented inline) the same way the pre-existing dispatch-escalation ladder does.
+
+| Adapted from | Concept | How it's wired in |
+|---|---|---|
+| Airport Express | Booking-urgency tiers: "保證有車" guaranteed vs. "24小時內臨時預約" best-effort/NOT-guaranteed last-minute (15 min–24 hr ahead) | `BookingUrgency` on `Order`; a visible tier picker in `BookingPanel` Step 1, an `UrgencyBadge` everywhere an order card renders, and a `tick()` rule that auto-cancels (free, with refund) a `LAST_MINUTE` `AIRPORT_PICKUP` still unmatched (`CONFIRMED`/`DRIVER_MATCHING`) once the demo-compressed equivalent of "30 min after actual landing" elapses |
+| Airport Express | 3-step flow: Fare Estimate → Payment Method → Booking Confirmation | `BookingPanel` restructured into an explicit `step` state + `BookingProgressSteps` stepper; Step 1 is the existing dynamic-pricing/vehicle-grid flow, Step 2 adds payment method + notes, Step 3 is the existing confirmation modal |
+| Airport Express | Pay online by card, or cash on arrival/drop-off + a notes field | `PaymentMethodKey` (`card`/`linepay`/`applepay`/`cash`) on `Order`; choosing `cash` skips simulated payment capture and instead marks `paymentStatus: 'PAID'` only once the trip reaches `COMPLETED` |
+| Airport Express | Free-cancellation / multi-stop / insured / 24h-support trust badges | Real, functioning `TrustBadge`s in `BookingPanel` (the cancellation one flips tone live based on `hoursUntilTrip`) plus a free-text waypoint list (`TripWaypoint[]`) with add/remove UI |
+| Wanma Transfer | Driver-info-reveal timing (sent night-before, not at booking) | `isDriverInfoRevealed()` in `lib/selectors.ts` — full driver name/phone/plate stay withheld until the order is genuinely `DRIVER_EN_ROUTE`+ or within `DRIVER_REVEAL_WINDOW_MS` of departure; a "Driver details available closer to your trip" placeholder (with a demo "reveal now" shortcut) shows beforehand in both `TripsScreen` and `ActivityScreen` |
+| Wanma Transfer | 48-hour free-cancellation window | `FREE_CANCELLATION_WINDOW_HOURS = 48`, surfaced as a live badge in both `BookingPanel` and `TripsScreen` (computed off each trip's actual `scheduledTime`, not static copy) |
+| Wanma Transfer | Vehicle substitution within a compatible capacity band (e.g. 9-seat van → 8-seat van for ≤7 passengers) | `isVehicleSubstituted()` compares the dispatched vehicle's actual category to what was booked; an honest "Your vehicle was updated to an equivalent option" notice renders in `TripsScreen`, `ActivityScreen`, and the Fleet OS `OrderQueueCard` whenever they differ |
+| Wanma Transfer | Late-boarding waiting fee: 15-min grace, then 30-min cash blocks, per-vehicle-category rate, forfeit if unresolved | `computeWaitingFee()` in `serviceRules.ts` (NT$200 sedan/SUV/accessible, NT$300 van, NT$400 minibus, NT$500 luxury); the Driver App's ARRIVED screen shows a live wait timer, a fee preview, an "agree to wait" action, and a forfeiture warning past `WAITING_FEE_FORFEIT_MINUTES` |
+| Wanma Transfer | Flight-aware airport-ready buffers (bigger buffer for bigger airports) + free-wait-then-fee escalation + full refund on diversion/2h+ shift | `AIRPORT_READY_BUFFER_MIN` (Taoyuan 55 min, Songshan 50 min, Kaohsiung 35 min, else 45 min default) and `AIRPORT_FREE_WAIT_AFTER_LANDING_MIN`/`AIRPORT_FEE_ESCALATION_END_MIN` in `serviceRules.ts`; `tick()` records `flightLandedAt` and auto-cancels-with-refund any active order whose flight diverts or shifts ≥120 min from what was booked |
+| Wanma Transfer | Hourly Charter (計時包車): billed by reserved hours, no guiding/admission/meals, mountain-route cash surcharge | New `charterHours`/`mountainRoute` fields feed `computeDynamicFareBreakdown()` (hourly rate × reserved hours instead of distance-based fare, plus a flat `MOUNTAIN_ROUTE_SURCHARGE_TWD` cash-to-driver line); a dedicated toggle + hours picker in `BookingPanel`, a Home-screen quick action, and a Marketplace listing that pre-enables charter mode |
+| Wanma Transfer | LINE quick login/registration + email login/registration, order lookup, shopping-cart-style checkout | Simulated `authSession` (`loginWithLine`/`loginWithEmail`/`logout` — no real backend/session) plus an order-lookup-by-order-number card, both added to the Customer App's Account screen; "shopping cart" maps onto the existing single-trip checkout flow rather than a literal multi-item cart, since bookings here are one trip at a time |
+| Airport Express | Passenger guidelines (乘客須知) / company profile info pages | Added as collapsible info sections in the Account screen rather than separate routes, kept prototype-grade per the brief |
+
+**Deliberately not (re)built this round**, because it would duplicate work already shipped in earlier rounds:
+cancellation/refund request states, the dynamic-pricing engine's core zone/weather/demand factors, and the
+capability-gated vehicle-matching/dispatch logic all already existed — this round only *deepens* them (urgency-tier
+auto-cancel, major-flight-change refund, vehicle-substitution transparency) rather than re-implementing them. A
+literal multi-item "shopping cart" and 企業專區/B2B zone were also skipped as out-of-scope depth for a demo that
+already models one trip at a time end-to-end.
+
+### Trying it live
+
+- **Urgency tier + auto-cancel**: `/booking` → select "Last-Minute / Same-Day", pick Airport Pickup, look up a flight
+  → submit → in `/fleet-os` (Control Center), use the order card's demo "simulate flight landed" button → within the
+  compressed demo window the order auto-cancels with a refund note in its audit log.
+- **3-step flow**: `/booking` walks Fare Estimate → Payment Method (try "Cash on arrival") → Confirmation with a
+  real order number.
+- **Hourly Charter**: `/booking` → toggle "Book as Hourly Charter" → pick reserved hours → check "mountain route" →
+  watch the fare breakdown switch to an hourly rate + a cash mountain surcharge line.
+- **Driver-info-reveal / vehicle-substitution / waiting fee**: Customer App → My Trips → an upcoming/active trip
+  shows the "driver details available closer to your trip" placeholder (with a demo reveal button) and, when
+  applicable, the vehicle-substitution notice; the Driver App's ARRIVED screen shows the live wait timer + fee
+  preview once a passenger is running late.
+- **Account surface**: Customer App → Account → "Continue with LINE"/"Continue with Email", and the order-lookup
+  card (try a real order number from a confirmation screen, or a bogus one to see the not-found state).
+
+## Fleet OS scheduling-dashboard audit (workhive.uk reference round)
+
+The client referenced a live "Fleet OS" scheduling dashboard (Chinese: 排班總覽 / Schedule Overview) as a target for
+feature parity. This round re-verified, screen by screen, that every genuine feature on that reference dashboard has
+a real, working equivalent here — not just a visual placeholder.
+
+| Reference feature | Status before this round | What was done |
+|---|---|---|
+| 排班總覽 Schedule Overview (KPI cards, 30-day capacity heatmap, shift split, hourly volume chart) | Present — `/fleet-os` dashboard + Analytics/Reports tabs | Verified fully present; no change needed |
+| 排班管理 Shift Management (driver × day matrix) | Present — `DriverScheduleMatrix` under Roster → Schedule | Verified fully present; no change needed |
+| 本日班表 Today's Roster (per-driver job list, shift/status filters) | **Missing** — no per-driver "today's jobs" view existed | Added as a new **Today's Roster** tab in `/fleet-os/roster` (`TodayRosterBoard.tsx`): shift/status filters, reassignment + shift-adjustment counters, expandable per-driver job list |
+| 訂單總表 Order List | Present — Orders & Dispatch queue with the full 16-state badge set | Verified fully present; our version is deeper (16 states vs. the reference's simpler status set) |
+| 手動開單 Manual Order Entry | **Missing** — no staff-facing "key in a phone booking" form existed | Added `/fleet-os/manual-order` (`ManualOrderPanel.tsx`) — creates a real `CONFIRMED` order in the shared store |
+| 航班看板 Flight Board | **Missing** — flight data only existed inline on individual order cards, no dedicated board | Added `/fleet-os/flights` (`FlightBoardPanel.tsx`) — aggregates every flight linked to today's orders live, with delay-severity highlighting and an auto-refresh note |
+| 車隊地圖 Fleet Map incl. anomaly/unresponsive-driver legend | Partially present — unresponsive drivers already pulsed red on the map, but there was no legend/filter UI or click-through detail | Enhanced `FleetMapView.tsx`: tier legend doubles as a filter, an "unresponsive only" isolate toggle, click-through to a new **Driver Task Panel**, and a full-viewport **Big Screen** mode |
+| 司機管理 Driver Management by tier | Present — Driver Roster tab, tier badges throughout | Verified fully present; no change needed |
+| 帳號管理 Account Management (staff logins + driver login toggle) | **Missing** — no staff-account CRUD and no way to disable a driver's app login independent of dispatch status | Added `/fleet-os/accounts` (`AccountsPanel.tsx`) — staff account create/disable, driver login enable/disable |
+| 營運參數 Operating Parameters (shift windows, roster publish lead time, etc.) | **Missing** — these values existed as hardcoded constants, not an editable settings screen | Added `/fleet-os/params` (`OperatingParametersPanel.tsx`) — editable, audit-logged system-wide scheduling config |
+| 翻譯校對 Translation Proofreading (AI-pretranslated order notes needing human review) | **Missing** entirely — no concept of foreign-language order notes existed | Added `/fleet-os/translation-qa` (`TranslationQaPanel.tsx`) plus `lib/translation.ts`: orders from foreign OTA/LINE channels with a foreign-sounding customer name deterministically get an AI-pretranslated Chinese draft + original-language source text queued for review |
+| Manual Excel export / other back-office-only tooling unrelated to airport-transfer dispatch | N/A | Deliberately **not** built — out of scope for this platform's actual data domain, consistent with earlier rounds' documented judgment calls |
+
+Everything in the "What was done" column above is a real, store-backed feature (not a static mock): Manual Order
+Entry creates an actual order; Translation Proofreading edits are saved via `submitTranslationReview`; Account
+Management's enable/disable toggles flip real `staffAccounts`/`driver.loginEnabled` state; Operating Parameters
+writes to the compliance audit log on save; the Flight Board is derived live from the order list rather than a
+separate mock feed; and Today's Roster reads the same live driver/order state as the rest of Fleet OS.
+
+One incidental bug was found and fixed during verification: the Operating Parameters "Save" button (and any future
+header-right action button) could render directly underneath the fixed `DemoModeSwitcher` pill's hit area,
+making it unclickable at common viewport widths. `PanelHeader.tsx` now reserves a permanent right-side gutter so
+every module's header-right button stays clear of that pill.
 
 ## Module-by-module rundown
 
@@ -147,11 +324,31 @@ Customer App.
   drivers, anomalies, revenue), a filterable order queue with the full 16-state badge set, per-order multi-channel
   dispatch/escalation log and Status Audit Timeline, a live Taiwan map with animated driver markers, a notification
   feed, driver-document expiry alerts, the Analytics & Reports dashboard, and Capacity Forecast / Driver Schedule /
-  Fleet Roster tabs.
+  Fleet Roster tabs. The Fleet Map itself (`FleetMapView.tsx`, shared by both the Leaflet renderer and the offline
+  SVG fallback) adds a tier legend that doubles as a click-to-filter control, an "unresponsive drivers only" isolate
+  toggle, click-through from any driver marker to a **Driver Task Panel** (current job, dispatch log, status
+  timeline), and a full-viewport **Big Screen** mode for an ops-room display.
 - **Suppliers** (`/fleet-os/suppliers`) — supplier list (Klook/KKday/ezTravel/Booking.com/Direct-style adapters)
   with commission %, active orders, rating, avg. confirmation time, and pause/activate/suspend actions per
   supplier — modeling the supplier-adapter pattern (product/availability/pricing/booking/status/cancellation).
 - **Catalog & Inventory** (`/fleet-os/catalog`) — product/route catalog with pricing and inventory controls.
+- **Dynamic Pricing Service** (`/fleet-os/pricing/dynamic`) — a backend-ready module, visibly labeled **"Demo API
+  simulation,"** built so a real Weather API, Maps/traffic API, fleet-GPS API, supplier-availability API, and
+  pricing-rules service could replace its data source without touching any downstream consumer. Shows current
+  simulated weather and demand level per Taiwan zone, available vehicles by category/zone, a live fare-preview
+  table (multiplier, customer price, supplier price, platform margin, fairness-cap alert) for a selectable
+  category, an active/upcoming trips table, and a **Fleet Manager configuration panel**: max dynamic price
+  increase, weather/demand adjustment rules, minimum available vehicles before surge, VIP/night/holiday surcharges,
+  airport & city-zone surcharges (route-specific base prices), price rounding, and the customer-facing transparency
+  message — every change is approved-and-saved into a persistent audit log.
+- **Fleet & Vehicle Inventory** (`/fleet-os/vehicles`) — the backend control center for vehicle categories,
+  availability, and matching: the category catalogue with per-category price overrides (base fare/per-km/per-min,
+  with a reset-to-default action); a real-time supply-vs-demand bar chart by Taiwan zone; an individual-vehicle
+  table (plate, driver, category, service zone, status, insurance/compliance) with a detail panel to change a
+  vehicle's category or service zone, toggle features (child seat, wheelchair access, VIP interior, Wi-Fi, meet &
+  greet, large luggage), and **block it for maintenance** — which immediately hides it from both the customer
+  booking flow and the dispatch matcher; a supplier fleet inventory summary; and an audit log for every vehicle,
+  capacity, price, and availability change.
 - **Campaigns & Coupons** (`/fleet-os/campaigns`) — fixed/percentage coupons, eligibility, validity windows, and
   per-user limits.
 - **Support** (`/fleet-os/support`) — support tickets linked to orders (including ones customers create from Trips/
@@ -160,7 +357,24 @@ Customer App.
   approve/reject actions that drive the order back through `CANCELLATION_REQUESTED → CANCELLED → REFUND_PENDING →
   REFUNDED`.
 - **Driver Roster** (`/fleet-os/roster`) — fleet breakdown by tier (owned fleet/paid member/outside contractor) and
-  live unresponsive-driver flags.
+  live unresponsive-driver flags, plus **Schedule** (driver × day shift matrix) and **Today's Roster** tabs — the
+  latter groups today's jobs per on-shift driver with shift/status filters, reassignment and shift-adjustment
+  counters, and an expandable per-driver job list (time, type, route, status, price).
+- **Manual Order Entry** (`/fleet-os/manual-order`) — a dispatcher/counter-staff form (手動開單) for phone or walk-in
+  bookings: type (airport pickup/drop-off/tour charter), source, flight number, customer info, pickup/drop-off,
+  vehicle type, quoted price, and notes — submitting creates a real `CONFIRMED` order directly in the shared store.
+- **Translation Proofreading** (`/fleet-os/translation-qa`) — a queue (翻譯校對) of orders whose free-text notes
+  arrived from a foreign-language OTA/LINE channel and were AI-pretranslated into a Traditional Chinese working
+  draft; staff review the original text side by side with the editable draft and confirm it before it's treated as
+  final.
+- **Flight Board** (`/fleet-os/flights`) — every today's flight (航班看板) that has at least one linked order,
+  aggregated live from the shared order list: direction (arrival/departure/mixed), gate, scheduled vs. estimated
+  time, delay severity, linked-order count, and the drivers already matched to that flight.
+- **Account Management** (`/fleet-os/accounts`) — staff logins (帳號管理: create/disable support & admin accounts)
+  and a driver tab to enable/disable each driver's app-login access, independent of their on-shift/dispatch status.
+- **Operating Parameters** (`/fleet-os/params`) — system-wide scheduling configuration (營運參數): day-shift
+  start/end hour, night-/day-shift roster publish lead time, driver planning window, and the Flight Board
+  auto-refresh interval — every save is written to the compliance audit log with the acting account.
 - **Driver Compliance** (`/fleet-os/compliance`) — document expiry/OCR review across the whole fleet (the Fleet OS
   side of the Driver App's own document center).
 - **Finance / Settlement** (`/fleet-os/finance`) — payout records surfaced in the Driver App's Earnings screen.
@@ -234,8 +448,10 @@ professional Traditional Chinese, using terminology consistent with the client's
 
 ## Realistic vehicle fleet & Taiwan geography
 
-Vehicles are real-sounding make + model entries (`src/data/vehicleCatalog.ts`: Toyota Camry, Honda CR-V, Toyota
-Hiace, Mercedes-Benz E-Class, Toyota Coaster) with studio-style product photos. Location seed data
+Vehicles are real-sounding make + model entries across all 10 customer-facing categories (`src/data/
+vehicleCatalog.ts`: Toyota Corolla Altis, Toyota Camry, Honda CR-V, Toyota Hiace in 6-/9-seat/wheelchair-adapted
+trims, Mercedes-Benz E-Class/V-Class, Toyota Coaster) with studio-style product photos generated to match the
+existing photo style/aspect ratio. Location seed data
 (`src/data/locations.ts`) spans Taipei, New Taipei, Taoyuan, Hsinchu, Taichung, Tainan, Kaohsiung, Hualien, Taitung,
 Nantou and Jiufen, with bilingual names and real-feeling coordinates for both the Leaflet map and the SVG map
 fallback.
@@ -282,8 +498,11 @@ npm run lint       # oxlint
 Playwright scripts live in `e2e/` (make sure `npm run dev` is running first, then in another terminal):
 
 ```bash
-npm run test:e2e:smoke      # visits every app/route (incl. every /fleet-os/* module), fails on any console/page error
-npm run test:e2e:lifecycle  # books a real order and drives it through the full 16-state lifecycle across all apps
+npm run test:e2e:smoke             # visits every app/route (incl. every /fleet-os/* module), fails on any console/page error
+npm run test:e2e:lifecycle         # books a real order and drives it through the full 16-state lifecycle across all apps
+npm run test:e2e:vehicle-pricing   # multi-vehicle-card selection, ineligibility, compare-3, dynamic pricing, both new Fleet OS modules, matching integration
+npm run test:e2e:realism-features  # urgency-tier auto-cancel, 3-step flow, Hourly Charter, driver-reveal timing, vehicle substitution, waiting fee, LINE/email login + order lookup
+npm run test:e2e:emergency-rescue  # Phase 2 emergency SOS, accident breakdown report, Fleet OS alert banner, rescue matching & mid-trip re-dispatch
 ```
 
 `test:e2e:lifecycle` is the best single proof that the "connected system" illusion works: it creates a booking,
@@ -292,6 +511,26 @@ starts the trip in the Driver App, and confirms the same live position + status 
 until the order reaches `COMPLETED`. It navigates between apps exclusively through the `DemoModeSwitcher` (never
 `page.goto`), so the shared store state survives every "hop" — exactly like a real user switching between apps
 would need the underlying data to stay in sync.
+
+`test:e2e:vehicle-pricing` proves the vehicle-selection + dynamic-pricing feature area end to end: it confirms the
+booking grid renders all 10 categories, bumps passengers to 9 to show a category becoming ineligible with a stated
+reason, compares up to 3 eligible categories, confirms the fare breakdown reflects Taoyuan's seeded heavy-rain/
+high-demand pricing factor, switches to a zone with the fleet's one wheelchair-accessible vehicle and enables the
+wheelchair requirement (confirming every other category becomes ineligible), submits that booking, edits a Fleet
+Manager pricing rule in `/fleet-os/pricing/dynamic` and confirms it lands in the audit log, blocks/unblocks a
+vehicle for maintenance in `/fleet-os/vehicles` and confirms its audit log, and finally confirms the
+wheelchair-accessible order is matched by the dispatch engine to a real driver whose Driver App job card shows the
+wheelchair requirement — the full matching-integration proof.
+
+`test:e2e:realism-features` proves this round's competitor-inspired additions end to end: books a `LAST_MINUTE`
+flight-based airport pickup, forces it unmatched and simulates the flight landing via the dev store hook, and
+confirms the compressed post-landing window actually auto-cancels it with a refund; configures an Hourly Charter
+trip with the mountain-route surcharge and confirms it appears as a fare line item; forces a driver into an ARRIVED
+trip with a 20-minute wait to prove the late-boarding waiting-fee UI (preview + "agree to wait") appears past the
+grace period; forces a far-future `ASSIGNED` trip with a substituted vehicle category to prove both the
+driver-info-reveal placeholder (and its "reveal now" demo action) and the vehicle-substitution notice render
+correctly; and finally logs in via the simulated LINE flow and looks up that earlier order by its order number
+(plus a bogus number to confirm the not-found state).
 
 There are also several demo/recording helper scripts (not part of CI, but handy for re-generating walkthrough
 artifacts or exploring a flow yourself). Unless noted "headless", these open a **real, visible** browser window:
@@ -304,6 +543,8 @@ npm run demo:redesign-tour   # headless — captures PNGs + short screen-recordi
 node e2e/demo-i18n-vehicles.mjs [port]           # toggles EN <-> 中文 across apps, confirms localStorage persistence
 node e2e/demo-booking-ota.mjs [port]              # OSRM live-route badge, fare breakdown, coupon, QR voucher, audit timeline
 node e2e/demo-new-feature-screenshots.mjs [port]  # headless — captures PNGs of new UI into /opt/cursor/artifacts
+node e2e/record-booking-realism.mjs [port]           # headless — records the urgency-tier/3-step/Hourly-Charter walkthrough video
+node e2e/record-trip-lifecycle-realism.mjs [port]    # headless — records the driver-reveal/vehicle-substitution/waiting-fee walkthrough video
 ```
 
 ## What's simulated vs. what would be real integrations
@@ -323,6 +564,10 @@ would need.
 | Refunds / support | Store-backed queues in Fleet OS, driven by customer-initiated requests | Real payment-gateway refund calls + ticketing system |
 | Roles / permissions / 2FA | Represented as a Fleet OS Admin module UI | Real RBAC + enforced 2FA for admin accounts |
 | Privacy / audit | `statusHistory` + a global `auditLog`, plus a customer Privacy Center (consent, data download/delete requests) | Real data-retention pipeline honoring those requests |
+| Weather / demand feed | Simulated per-zone state that drifts over time (`lib/dynamicPricing.ts`), clearly labeled "Demo API simulation" in `/fleet-os/pricing/dynamic` | Real Weather API + a real demand/telemetry pipeline behind the same `ZoneCondition` shape |
+| Dynamic pricing rules | Fleet-Manager-editable rules stored in the client-side store, applied identically everywhere a fare is quoted | A real pricing-rules service with approval workflow, versioning, and rollout controls |
+| Fleet/vehicle GPS & supplier availability | Simulated vehicle records + driver status in the store | Real fleet-GPS telemetry and supplier-availability API integrations feeding the same inventory shape |
+| Customer login / order lookup | Client-side `authSession` flag flipped by simulated "LINE"/email login (no real OAuth, no real credential check); order lookup searches the live in-memory order list | Real LINE Login OAuth + email/password auth with sessions, and a real order-management API behind the lookup |
 
 ## Deliberately simplified or deferred
 
@@ -331,12 +576,25 @@ Given the scope of this round (8 new/restructured routes and dozens of screens),
 - Marketplace product detail shows structured inclusions/exclusions/cancellation/rating info rather than a full
   photo gallery + review-thread UI — kept to the data the client brief actually calls out (photos, rules, rating,
   cancellation terms, route map) without building a separate reviews subsystem.
-- Login/OTP/password-reset are represented as account-security concepts in the Account screen's copy rather than a
-  full separate auth flow, since there is no real backend/session to authenticate against in this prototype.
+- Login is now a real (fully simulated, no backend) UI flow — LINE quick login and email login/registration in the
+  Account screen both flip a client-side `authSession` flag — but OTP/password-reset stay represented as
+  account-security copy rather than a full separate auth flow, since there is still no real backend/session to
+  authenticate against in this prototype.
 - 2FA-for-admins and full RBAC enforcement are represented as Fleet OS Admin UI (roles, permissions list) rather
   than actually gating any route — there's no real login session in this client-only prototype to gate.
 - Emergency/temporary dispatch conflict-resolution UI is noted on the landing page's roadmap rather than fully
   modeled, consistent with the original Phase 2 scope notes.
+- The seed fleet (24 vehicles across 10 categories × 10 zones) intentionally has thin per-zone/per-category
+  availability in places — e.g. the whole fleet has exactly one wheelchair-accessible vehicle. This is realistic
+  ("we don't have an accessible car in this zone right now" is itself a valid demo state, and is exactly what
+  drives the "no availability" ineligibility reason), but it does mean a specific category may show 0 available
+  vehicles in a specific zone at a given moment in the live simulation — pick a different pickup zone or refresh
+  the quote to see another category's live availability.
+- Route-specific per-pair base prices are represented via a per-zone airport/city surcharge (Fleet Manager
+  configurable) rather than a full pairwise route-price matrix across all ~30 seeded locations, to keep the
+  Fleet Manager configuration UI reviewable rather than an unwieldy grid.
+- Corporate-rate pricing is represented by the existing member-tier discount mechanism rather than a separate
+  corporate-account subsystem (no B2B account management exists in this prototype).
 
 Phase 3 (in-app payments beyond the simulated flow, native driver/customer app-store releases) remains intentionally
 out of scope for this prototype — the landing page includes a small "coming soon" roadmap nod for it.

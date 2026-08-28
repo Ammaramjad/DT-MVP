@@ -1,13 +1,18 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, FileText, MessageSquareWarning, QrCode, RefreshCw, Star, X } from 'lucide-react'
+import { Calendar, Car, Clock3, FileText, Heart, MessageSquareWarning, PackageSearch, PlaneLanding, QrCode, RefreshCw, Share2, ShieldCheck, Star, UserRound, X, Receipt } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { Driver, Order, Vehicle, CustomerProfile } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
-import { OrderTypeBadge } from '../ui/OrderBadges'
+import { OrderTypeBadge, UrgencyBadge } from '../ui/OrderBadges'
 import { StatusBadge } from '../ui/OrderBadges'
 import { ActivityScreen } from './ActivityScreen'
+import { FareBreakdownCard } from '../vehicles/FareBreakdownCard'
+import { TaiwanInvoiceModal } from '../invoices/TaiwanInvoiceModal'
+import { TipDriverModal, SplitFareModal, LostAndFoundModal } from './CustomerServiceModals'
 import { formatClock, formatDateTime, formatTWD, orderStatusLabel } from '../../lib/format'
+import { isDriverInfoRevealed, isVehicleSubstituted } from '../../lib/selectors'
+import { FREE_CANCELLATION_WINDOW_HOURS } from '../../lib/serviceRules'
 import { useLang } from '../../i18n'
 
 type TripFilter = 'UPCOMING' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'REFUND'
@@ -36,6 +41,7 @@ export function TripsScreen({
   onSelectOrder,
   driver,
   vehicle,
+  vehicles,
   profile,
   liveOrders,
   onGoToSafety,
@@ -45,6 +51,7 @@ export function TripsScreen({
   onSelectOrder: (id: string) => void
   driver: Driver | undefined
   vehicle: Vehicle | undefined
+  vehicles: Vehicle[]
   profile: CustomerProfile | null
   liveOrders: Order[]
   onGoToSafety?: () => void
@@ -93,12 +100,12 @@ export function TripsScreen({
       </div>
 
       {filter === 'ACTIVE' && ACTIVE_SET.has(order.status) ? (
-        <ActivityScreen order={order} orders={orders} onSelectOrder={onSelectOrder} driver={driver} vehicle={vehicle} profile={profile} liveOrders={liveOrders} onGoToSafety={onGoToSafety} />
+        <ActivityScreen order={order} orders={orders} onSelectOrder={onSelectOrder} driver={driver} vehicle={vehicle} vehicles={vehicles} profile={profile} liveOrders={liveOrders} onGoToSafety={onGoToSafety} />
       ) : (
         <div className="space-y-3">
           {filtered.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-xs text-slate-400 shadow-sm ring-1 ring-slate-100">{t('trips.empty')}</p>}
           {filtered.map((o) => (
-            <TripCard key={o.id} order={o} lang={lang} t={t} />
+            <TripCard key={o.id} order={o} vehicles={vehicles} lang={lang} t={t} />
           ))}
         </div>
       )}
@@ -106,7 +113,7 @@ export function TripsScreen({
   )
 }
 
-function TripCard({ order, lang, t }: { order: Order; lang: 'en' | 'zh'; t: (key: string, vars?: Record<string, string | number>) => string }) {
+function TripCard({ order, vehicles, lang, t }: { order: Order; vehicles: Vehicle[]; lang: 'en' | 'zh'; t: (key: string, vars?: Record<string, string | number>) => string }) {
   const rescheduleOrder = useFleetStore((s) => s.rescheduleOrder)
   const addOrderNote = useFleetStore((s) => s.addOrderNote)
   const updateFlightNumber = useFleetStore((s) => s.updateFlightNumber)
@@ -114,8 +121,14 @@ function TripCard({ order, lang, t }: { order: Order; lang: 'en' | 'zh'; t: (key
   const rateDriver = useFleetStore((s) => s.rateDriver)
   const requestInvoice = useFleetStore((s) => s.requestInvoice)
   const createSupportTicket = useFleetStore((s) => s.createSupportTicket)
+  const revealDriverInfoNow = useFleetStore((s) => s.revealDriverInfoNow)
+  const simulateFlightEvent = useFleetStore((s) => s.simulateFlightEvent)
 
   const [showVoucher, setShowVoucher] = useState(false)
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [showTipModal, setShowTipModal] = useState(false)
+  const [showSplitModal, setShowSplitModal] = useState(false)
+  const [showLostModal, setShowLostModal] = useState(false)
   const [showReschedule, setShowReschedule] = useState(false)
   const [showNote, setShowNote] = useState(false)
   const [noteInput, setNoteInput] = useState(order.notes)
@@ -124,10 +137,21 @@ function TripCard({ order, lang, t }: { order: Order; lang: 'en' | 'zh'; t: (key
   const [ticketCreated, setTicketCreated] = useState(false)
   const [invoiceRequested, setInvoiceRequested] = useState(order.invoiceRequested)
 
+  const drivers = useFleetStore((s) => s.drivers)
+  const assignedDriver = drivers.find((d) => d.id === order.driverId)
+
   const pickupName = lang === 'zh' ? order.pickup.nameZh : order.pickup.name
   const dropoffName = lang === 'zh' ? order.dropoff.nameZh : order.dropoff.name
   const canModify = UPCOMING_SET.has(order.status) || order.status === 'CONFIRMED'
   const canCancel = !['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED', 'CANCELLATION_REQUESTED'].includes(order.status)
+
+  // 萬馬接送-style 48h free-cancellation window & driver-info-reveal timing,
+  // computed live off this specific trip rather than shown as static copy.
+  const hoursUntilTrip = (new Date(order.scheduledTime).getTime() - Date.now()) / 3_600_000
+  const withinFreeCancellationWindow = hoursUntilTrip >= FREE_CANCELLATION_WINDOW_HOURS
+  const driverRevealed = isDriverInfoRevealed(order)
+  const substituted = isVehicleSubstituted(order, vehicles)
+  const showAutoCancelDemo = order.bookingUrgency === 'LAST_MINUTE' && order.type === 'AIRPORT_PICKUP' && order.flightInfo && ['CONFIRMED', 'DRIVER_MATCHING'].includes(order.status)
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl bg-white p-4 shadow-md shadow-slate-200/50 ring-1 ring-slate-100" data-testid="trip-card">
@@ -135,8 +159,12 @@ function TripCard({ order, lang, t }: { order: Order; lang: 'en' | 'zh'; t: (key
         <span className="font-mono text-xs font-bold text-slate-700">{order.orderNo}</span>
         <StatusBadge status={order.status} />
       </div>
-      <div className="mt-2 flex items-center gap-1.5">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <OrderTypeBadge type={order.type} />
+        <UrgencyBadge urgency={order.bookingUrgency} />
+        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10.5px] font-semibold text-blue-600" data-testid="trip-vehicle-category">
+          {t(`vehicle.category.${order.vehicleCategory}`)}
+        </span>
         <span className="text-[11px] text-slate-400">{order.channel}</span>
       </div>
       <p className="mt-2 truncate text-sm text-slate-700">
@@ -146,6 +174,67 @@ function TripCard({ order, lang, t }: { order: Order; lang: 'en' | 'zh'; t: (key
         <span>{formatDateTime(order.scheduledTime, lang)}</span>
         <span className="font-semibold text-slate-600">{formatTWD(order.priceEstimate)}</span>
       </div>
+
+      {/* Driver-info-reveal timing (萬馬接送) — full contact details are
+          withheld until the reveal window/dispatch, with an honest
+          placeholder state beforehand rather than showing them instantly. */}
+      {order.driverId && !['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED'].includes(order.status) && (
+        <div
+          className={`mt-2.5 flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[11px] ${driverRevealed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}
+          data-testid={driverRevealed ? 'trip-driver-revealed' : 'trip-driver-not-revealed'}
+        >
+          <span className="flex items-center gap-1.5">
+            <UserRound className="h-3.5 w-3.5" /> {driverRevealed ? t('trips.driverRevealed') : t('trips.driverNotRevealedYet')}
+          </span>
+          {!driverRevealed && (
+            <button onClick={() => revealDriverInfoNow(order.id)} data-testid="trip-reveal-driver-now" className="font-semibold text-blue-600 hover:underline">
+              {t('trips.revealNowDemo')}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Vehicle-substitution transparency (萬馬接送) — an honest notice, not
+          a silent swap, when dispatch assigned a compatible-but-different
+          category/vehicle than what was originally booked. */}
+      {substituted && (
+        <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-[11px] text-amber-700" data-testid="trip-vehicle-substituted-notice">
+          <Car className="h-3.5 w-3.5" /> {t('trips.vehicleSubstituted')}
+        </div>
+      )}
+
+      {/* Late-boarding waiting fee (萬馬接送) — surfaced on the trip's
+          charges once actually incurred at pickup, cash to the driver. */}
+      {order.lateFeeAmount != null && order.lateFeeAmount > 0 && (
+        <div className="mt-2 flex items-center justify-between gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-[11px] text-amber-700" data-testid="trip-waiting-fee-notice">
+          <span className="flex items-center gap-1.5">
+            <Clock3 className="h-3.5 w-3.5" /> {t('trips.waitingFeeCharged', { min: order.lateFeeWaitMinutes ?? 0 })}
+          </span>
+          <span className="font-semibold">{t('pricing.cashToDriver', { amount: formatTWD(order.lateFeeAmount) })}</span>
+        </div>
+      )}
+
+      {/* Free-cancellation-window trust text — a real, functioning state
+          rather than static marketing copy (機場快綫 / 萬馬接送). */}
+      {canCancel && (
+        <p className={`mt-2 flex items-center gap-1.5 text-[10.5px] ${withinFreeCancellationWindow ? 'text-emerald-500' : 'text-amber-500'}`} data-testid="trip-cancellation-window">
+          <ShieldCheck className="h-3 w-3" />
+          {withinFreeCancellationWindow ? t('booking.trustFreeCancellation', { h: FREE_CANCELLATION_WINDOW_HOURS }) : t('booking.trustCancellationWindowClosing')}
+        </p>
+      )}
+
+      {/* Demo-only: force the last-minute auto-cancel simulation to play out
+          live by fast-forwarding this flight to LANDED (see `tick()`'s
+          post-landing auto-cancel window in useFleetStore.ts). */}
+      {showAutoCancelDemo && (
+        <button
+          onClick={() => simulateFlightEvent(order.id, 'LANDED')}
+          data-testid="trip-simulate-flight-landed"
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-50 py-1.5 text-[10.5px] font-medium text-cyan-700 hover:bg-cyan-100"
+        >
+          <PlaneLanding className="h-3 w-3" /> {t('trips.simulateFlightLandedDemo')}
+        </button>
+      )}
 
       {order.status === 'COMPLETED' && (
         <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 p-2.5">
@@ -183,6 +272,26 @@ function TripCard({ order, lang, t }: { order: Order; lang: 'en' | 'zh'; t: (key
         </ChipButton>
         <ChipButton onClick={() => setShowVoucher((v) => !v)} testId="trip-view-voucher">
           <QrCode className="h-3 w-3" /> {showVoucher ? t('customer.activity.hideVoucher') : t('customer.activity.viewVoucher')}
+        </ChipButton>
+        {/* Split Fare & Share trip */}
+        <ChipButton onClick={() => setShowSplitModal(true)} testId="trip-split-fare-btn">
+          <Share2 className="h-3 w-3 text-cyan-600" /> {t('customer.split.btnLabel')}
+        </ChipButton>
+        {/* Tip & Rating appreciation */}
+        {order.status === 'COMPLETED' && (
+          <ChipButton onClick={() => setShowTipModal(true)} testId="trip-tip-driver-btn">
+            <Heart className="h-3 w-3 text-pink-500 fill-pink-500/20" /> {t('customer.tip.btnLabel')}
+          </ChipButton>
+        )}
+        {/* Lost & Found assistant */}
+        {order.status === 'COMPLETED' && (
+          <ChipButton onClick={() => setShowLostModal(true)} testId="trip-lost-found-btn">
+            <PackageSearch className="h-3 w-3 text-amber-600" /> {t('customer.lost.btnLabel')}
+          </ChipButton>
+        )}
+        {/* Taiwan e-GUI Invoice proof modal trigger */}
+        <ChipButton onClick={() => setShowInvoiceModal(true)} testId="trip-view-egui-invoice">
+          <Receipt className="h-3 w-3 text-cyan-600" /> {lang === 'zh' ? '查看電子發票證明聯' : 'View e-GUI Invoice'}
         </ChipButton>
         {order.status === 'COMPLETED' && !invoiceRequested && (
           <ChipButton
@@ -284,6 +393,13 @@ function TripCard({ order, lang, t }: { order: Order; lang: 'en' | 'zh'; t: (key
         )}
       </AnimatePresence>
 
+      <details className="mt-3 rounded-xl bg-slate-50 p-3 text-[11px]" data-testid="trip-fare-breakdown">
+        <summary className="cursor-pointer font-medium text-slate-500">{t('booking.fareBreakdown')}</summary>
+        <div className="mt-2">
+          <FareBreakdownCard fareBreakdown={order.fareBreakdown} distanceKm={order.distanceKm} durationMin={order.durationMin} />
+        </div>
+      </details>
+
       {order.statusHistory.length > 0 && (
         <details className="mt-3 text-[11px]">
           <summary className="cursor-pointer font-medium text-slate-500">{t('customer.statusTimeline')}</summary>
@@ -296,6 +412,61 @@ function TripCard({ order, lang, t }: { order: Order; lang: 'en' | 'zh'; t: (key
             ))}
           </ol>
         </details>
+      )}
+
+      {showInvoiceModal && (
+        <TaiwanInvoiceModal
+          invoice={{
+            id: `inv-${order.id}`,
+            invoiceNo: `AB-${order.orderNo.replace(/[^0-9]/g, '').slice(-8).padStart(8, '0') || '89234120'}`,
+            period: '115年07-08月',
+            issueDate: new Date(order.createdAt).toISOString().replace('T', ' ').slice(0, 19),
+            type: order.invoiceRequested ? 'B2B' : 'B2C',
+            carrierType: order.invoiceRequested ? 'CORPORATE_UBN' : 'MOBILE_BARCODE',
+            carrierCode: order.invoiceRequested ? '23307688' : '/AB12+CD',
+            buyerUbn: order.invoiceRequested ? '23307688' : undefined,
+            buyerTitle: order.invoiceRequested ? `${order.customer.name} (Corporate Account)` : undefined,
+            sellerUbn: '83294821',
+            sellerTitle: '走瘋派車智慧科技股份有限公司',
+            amountUntaxed: Math.round(order.priceEstimate / 1.05),
+            taxAmount: order.priceEstimate - Math.round(order.priceEstimate / 1.05),
+            amountTotal: order.priceEstimate,
+            randomCode: '8842',
+            orderId: order.id,
+            orderNo: order.orderNo,
+            customerName: order.customer.name,
+            customerPhone: order.customer.phone,
+            status: 'ISSUED',
+            mofSynced: true,
+            mofSyncTime: new Date(order.createdAt + 5000).toISOString().replace('T', ' ').slice(0, 19),
+          }}
+          onClose={() => setShowInvoiceModal(false)}
+        />
+      )}
+
+      {showTipModal && (
+        <TipDriverModal
+          isOpen={showTipModal}
+          onClose={() => setShowTipModal(false)}
+          order={order}
+          driver={assignedDriver}
+        />
+      )}
+
+      {showSplitModal && (
+        <SplitFareModal
+          isOpen={showSplitModal}
+          onClose={() => setShowSplitModal(false)}
+          order={order}
+        />
+      )}
+
+      {showLostModal && (
+        <LostAndFoundModal
+          isOpen={showLostModal}
+          onClose={() => setShowLostModal(false)}
+          order={order}
+        />
       )}
     </motion.div>
   )

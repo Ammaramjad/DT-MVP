@@ -2,9 +2,11 @@ import { useState, type ReactNode } from 'react'
 import {
   Award,
   Bell,
+  Building2,
   ChevronRight,
   CreditCard,
   Download,
+  FileSearch,
   Globe2,
   HelpCircle,
   LogOut,
@@ -12,6 +14,7 @@ import {
   MessageCircle,
   Phone,
   Plus,
+  Search,
   Share2,
   ShieldCheck,
   Sparkles,
@@ -21,7 +24,7 @@ import {
   UserPlus,
 } from 'lucide-react'
 import type { CustomerProfile, Order } from '../../types'
-import { formatMonthYear, formatTWD } from '../../lib/format'
+import { formatDateTime, formatMonthYear, formatTWD, orderStatusLabel } from '../../lib/format'
 import { LANGS } from '../../i18n/translations'
 import { useLang } from '../../i18n'
 import { useFleetStore } from '../../store/useFleetStore'
@@ -58,6 +61,11 @@ export function AccountScreen({
   const requestPrivacyAction = useFleetStore((s) => s.requestPrivacyAction)
   const setConsentMarketing = useFleetStore((s) => s.setConsentMarketing)
   const campaigns = useFleetStore((s) => s.campaigns)
+  const authSession = useFleetStore((s) => s.authSession)
+  const loginWithLine = useFleetStore((s) => s.loginWithLine)
+  const loginWithEmail = useFleetStore((s) => s.loginWithEmail)
+  const logout = useFleetStore((s) => s.logout)
+  const allOrders = useFleetStore((s) => s.orders)
 
   const [showAddPassenger, setShowAddPassenger] = useState(false)
   const [passengerName, setPassengerName] = useState('')
@@ -65,6 +73,13 @@ export function AccountScreen({
   const [notifOpen, setNotifOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [couponsOpen, setCouponsOpen] = useState(false)
+  const [guidelinesOpen, setGuidelinesOpen] = useState(false)
+  const [companyInfoOpen, setCompanyInfoOpen] = useState(false)
+  const [emailLoginOpen, setEmailLoginOpen] = useState(false)
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [lookupOrderNo, setLookupOrderNo] = useState('')
+  const [lookupResult, setLookupResult] = useState<Order | null | 'NOT_FOUND'>(null)
 
   const name = profile?.name ?? fallbackOrder.customer.name
   const phone = profile?.phone ?? fallbackOrder.customer.phone
@@ -112,6 +127,120 @@ export function AccountScreen({
             <p className="text-[10.5px] text-amber-500">{t('account.points')}</p>
           </div>
         </div>
+      </div>
+
+      {/* Lightweight simulated account access (機場快綫's member login +
+          萬馬接送's LINE quick login) — fully demo-grade, no real backend or
+          session; just a store-level `authSession` flag. */}
+      <div className="rounded-2xl bg-white p-4 shadow-xl shadow-slate-200/70 ring-1 ring-slate-100" data-testid="account-auth-card">
+        {authSession.isLoggedIn ? (
+          <div className="flex items-center justify-between">
+            <p className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              {t('account.loggedInAs', { name: authSession.displayName ?? '' })}
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{authSession.method}</span>
+            </p>
+            <button onClick={logout} data-testid="account-logout-session" className="text-xs font-semibold text-red-500 hover:underline">
+              {t('customer.account.logout')}
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{t('account.signInTitle')}</p>
+            <div className="flex gap-2">
+              <button
+                onClick={loginWithLine}
+                data-testid="account-login-line"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#06C755] py-2.5 text-xs font-bold text-white shadow-sm hover:brightness-95"
+              >
+                <MessageCircle className="h-3.5 w-3.5" /> {t('account.loginWithLine')}
+              </button>
+              <button
+                onClick={() => setEmailLoginOpen((v) => !v)}
+                data-testid="account-login-email-toggle"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-100 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-200"
+              >
+                <Mail className="h-3.5 w-3.5" /> {t('account.loginWithEmail')}
+              </button>
+            </div>
+            {emailLoginOpen && (
+              <div className="mt-3 space-y-2 rounded-xl border border-dashed border-slate-200 p-3">
+                <input
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder={t('account.emailPlaceholder')}
+                  data-testid="account-login-email-input"
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-blue-400"
+                />
+                <input
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  type="password"
+                  placeholder={t('account.passwordPlaceholder')}
+                  data-testid="account-login-password-input"
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-blue-400"
+                />
+                <button
+                  onClick={() => {
+                    if (!loginEmail.trim()) return
+                    loginWithEmail(loginEmail.trim(), loginEmail.split('@')[0])
+                    setEmailLoginOpen(false)
+                  }}
+                  data-testid="account-login-email-submit"
+                  disabled={!loginEmail.trim()}
+                  className="w-full rounded-lg bg-blue-500 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+                >
+                  {t('account.loginOrRegister')}
+                </button>
+                <p className="text-center text-[10px] text-slate-400">{t('account.forgotPasswordDemo')}</p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Order lookup by order number (機場快綫's 訂單查詢) — fully simulated,
+          searches the live in-memory order list rather than a real backend. */}
+      <div className="rounded-2xl bg-white p-4 shadow-xl shadow-slate-200/70 ring-1 ring-slate-100" data-testid="account-order-lookup">
+        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <FileSearch className="h-3.5 w-3.5" /> {t('account.orderLookupTitle')}
+        </p>
+        <div className="flex gap-2">
+          <input
+            value={lookupOrderNo}
+            onChange={(e) => setLookupOrderNo(e.target.value.toUpperCase())}
+            placeholder={t('account.orderLookupPlaceholder')}
+            data-testid="account-order-lookup-input"
+            className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-blue-400"
+          />
+          <button
+            onClick={() => setLookupResult(allOrders.find((o) => o.orderNo === lookupOrderNo.trim()) ?? 'NOT_FOUND')}
+            data-testid="account-order-lookup-submit"
+            disabled={!lookupOrderNo.trim()}
+            className="flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+          >
+            <Search className="h-3.5 w-3.5" /> {t('account.orderLookupSubmit')}
+          </button>
+        </div>
+        {lookupResult === 'NOT_FOUND' && <p className="mt-2 text-[11px] text-red-500" data-testid="account-order-lookup-not-found">{t('account.orderLookupNotFound')}</p>}
+        {lookupResult && lookupResult !== 'NOT_FOUND' && (
+          <div className="mt-2.5 rounded-xl bg-slate-50 p-3 text-xs" data-testid="account-order-lookup-result">
+            <div className="flex items-center justify-between">
+              <span className="font-mono font-bold text-slate-700">{lookupResult.orderNo}</span>
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">{orderStatusLabel(lookupResult.status, lang)}</span>
+            </div>
+            <p className="mt-1.5 text-slate-500">
+              {lang === 'zh' ? lookupResult.pickup.nameZh : lookupResult.pickup.name} → {lang === 'zh' ? lookupResult.dropoff.nameZh : lookupResult.dropoff.name}
+            </p>
+            <div className="mt-1 flex items-center justify-between text-slate-400">
+              <span>{formatDateTime(lookupResult.scheduledTime, lang)}</span>
+              <span className="font-semibold text-slate-700">{formatTWD(lookupResult.priceEstimate)}</span>
+            </div>
+            <button onClick={() => onSelectOrder(lookupResult.id)} data-testid="account-order-lookup-view" className="mt-2 font-semibold text-blue-600 hover:underline">
+              {t('account.orderLookupView')}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Saved passengers & emergency contacts */}
@@ -317,7 +446,47 @@ export function AccountScreen({
         <SettingsRow icon={<HelpCircle className="h-4 w-4" />} label={t('customer.account.support')} last />
       </div>
 
-      <button className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3 text-sm font-semibold text-red-500 shadow-sm ring-1 ring-slate-100 hover:bg-red-50">
+      {/* Passenger guidelines (乘客須知) & company info (公司簡介) — light,
+          prototype-grade informational panels, not the focus of this round. */}
+      <div className="overflow-hidden rounded-2xl bg-white shadow-xl shadow-slate-200/70 ring-1 ring-slate-100" data-testid="account-passenger-guidelines">
+        <button onClick={() => setGuidelinesOpen((v) => !v)} data-testid="account-guidelines-toggle" className="flex w-full items-center justify-between px-4 py-3.5">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+            <FileSearch className="h-4 w-4 text-blue-500" /> {t('account.passengerGuidelines')}
+          </span>
+          <ChevronRight className={clsx('h-4 w-4 text-slate-300 transition', guidelinesOpen && 'rotate-90')} />
+        </button>
+        {guidelinesOpen && (
+          <ul className="space-y-1.5 border-t border-slate-100 px-4 py-3 text-xs text-slate-600">
+            <li>• {t('account.guideline1')}</li>
+            <li>• {t('account.guideline2')}</li>
+            <li>• {t('account.guideline3')}</li>
+            <li>• {t('account.guideline4')}</li>
+            <li>• {t('account.guideline5')}</li>
+          </ul>
+        )}
+      </div>
+
+      <div className="overflow-hidden rounded-2xl bg-white shadow-xl shadow-slate-200/70 ring-1 ring-slate-100" data-testid="account-company-info">
+        <button onClick={() => setCompanyInfoOpen((v) => !v)} data-testid="account-company-info-toggle" className="flex w-full items-center justify-between px-4 py-3.5">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+            <Building2 className="h-4 w-4 text-blue-500" /> {t('account.companyInfo')}
+          </span>
+          <ChevronRight className={clsx('h-4 w-4 text-slate-300 transition', companyInfoOpen && 'rotate-90')} />
+        </button>
+        {companyInfoOpen && (
+          <div className="space-y-1.5 border-t border-slate-100 px-4 py-3 text-xs text-slate-600">
+            <p>{t('account.companyDesc')}</p>
+            <p className="text-slate-400">{t('account.companyRegNo')}</p>
+            <p className="text-slate-400">{t('account.companyContact')}</p>
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={logout}
+        data-testid="customer-account-logout"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3 text-sm font-semibold text-red-500 shadow-sm ring-1 ring-slate-100 hover:bg-red-50"
+      >
         <LogOut className="h-4 w-4" /> {t('customer.account.logout')}
       </button>
 

@@ -1,11 +1,12 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Award, Clock3, Download, Gauge, Percent, ShieldX, Star, Wallet } from 'lucide-react'
+import { Award, Clock3, Coins, Download, Gauge, Percent, ShieldX, Star, Wallet } from 'lucide-react'
 import type { Driver } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
 import { buildDriverEarnings } from '../../lib/earnings'
 import { formatTWD } from '../../lib/format'
 import { Badge } from '../ui/Badge'
+import { InstantCashoutModal } from './DriverCockpitWidgets'
 import { useLang } from '../../i18n'
 
 const TOOLTIP_STYLE = {
@@ -20,17 +21,12 @@ type Period = 'TODAY' | 'WEEK' | 'MONTH' | 'ALLTIME'
 
 const PAYOUT_TONE: Record<string, 'lime' | 'amber' | 'cyan'> = { PAID: 'lime', PROCESSING: 'cyan', PENDING: 'amber' }
 
-/** Uber-driver-earnings-screen-style breakdown: today / this week / this
- * month / all-time totals, incentives/tips/adjustments/commission,
- * completed-ride performance metrics, a ride-type breakdown, a 7-day bar
- * chart, and this driver's live payout status pulled straight from Fleet
- * OS's Finance/Settlement module (single shared store, so both surfaces
- * always agree). */
 export function EarningsScreen({ driver }: { driver: Driver }) {
   const { t, lang } = useLang()
   const payouts = useFleetStore((s) => s.payouts)
   const earnings = useMemo(() => buildDriverEarnings(driver, lang), [driver, lang])
   const [period, setPeriod] = useState<Period>('WEEK')
+  const [showCashoutModal, setShowCashoutModal] = useState(false)
 
   const driverPayouts = useMemo(() => payouts.filter((p) => p.driverId === driver.id).slice(0, 3), [payouts, driver.id])
 
@@ -38,6 +34,8 @@ export function EarningsScreen({ driver }: { driver: Driver }) {
 
   return (
     <div className="mx-auto max-w-md space-y-4 px-4 pb-6" data-testid="driver-earnings-screen">
+      <InstantCashoutModal isOpen={showCashoutModal} onClose={() => setShowCashoutModal(false)} driver={driver} />
+
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {(['TODAY', 'WEEK', 'MONTH', 'ALLTIME'] as Period[]).map((p) => (
           <button
@@ -53,12 +51,25 @@ export function EarningsScreen({ driver }: { driver: Driver }) {
         ))}
       </div>
 
-      <div className="glass-panel rounded-2xl p-5 text-center">
-        <p className="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          <Wallet className="h-3.5 w-3.5 text-emerald-300" /> {t(`driver.earnings.period.${period}`)}
-        </p>
+      <div className="glass-panel rounded-2xl p-5 text-center relative overflow-hidden">
+        <div className="flex items-center justify-between mb-1">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <Wallet className="h-3.5 w-3.5 text-emerald-300" /> {t(`driver.earnings.period.${period}`)}
+          </p>
+          <button
+            onClick={() => setShowCashoutModal(true)}
+            data-testid="instant-cashout-trigger-btn"
+            className="flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 px-3 py-1 text-xs font-bold text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)] hover:scale-105 active:scale-95 transition"
+          >
+            <Coins className="h-3.5 w-3.5" />
+            <span>{t('driver.cashout.btnLabel')}</span>
+          </button>
+        </div>
         <p className="mt-1 text-4xl font-black text-emerald-300">{formatTWD(headline)}</p>
-        <p className="mt-1 text-xs text-slate-500">{t('driver.earnings.tripsCount', { n: earnings.tripsToday })}</p>
+        <div className="mt-2 flex items-center justify-between text-xs text-slate-400 border-t border-white/5 pt-2">
+          <span>{t('driver.earnings.tripsCount', { n: earnings.tripsToday })}</span>
+          <span className="font-mono text-emerald-400 font-semibold">Wallet: {formatTWD(driver.walletBalance ?? 12800)}</span>
+        </div>
       </div>
 
       {/* Incentives / tips / adjustments / commission breakdown */}

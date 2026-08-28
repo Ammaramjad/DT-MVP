@@ -1,36 +1,61 @@
 import { create } from 'zustand'
 import type {
+  AccessAuthMethod,
+  AccessAttemptStatus,
+  AccessLogEntry,
+  AddDriverInput,
   AppNotification,
   AuditEntry,
   AuditLogEntry,
+  AuthMethod,
+  AuthSession,
   BookingInput,
   Campaign,
   CampaignStatus,
   CatalogProduct,
+  ChatMessage,
   CustomerProfile,
   DeclineReason,
   DispatchAttempt,
   Driver,
   DriverStats,
+  DriverWorkingHours,
   DriverWorkingMode,
+  EmergencyStatus,
+  IncidentDetails,
+  IncidentType,
+  InstantCashoutReceipt,
   LocationRef,
+  LostItemReport,
+  ManualOrderInput,
   NotificationChannel,
   NotificationKind,
   NotificationPreference,
+  OperatingParams,
   Order,
   OrderStatus,
+  OrderSwapRequest,
+  PassengerRequirements,
   PaymentToken,
+  PricingRules,
   RefundRequest,
   RefundRequestStatus,
   Role,
   SavedPassenger,
+  StaffAccount,
+  StaffAccountStatus,
+  StaffRole,
   Supplier,
   SupplierStatus,
   SupportTicket,
   SupportTicketStatus,
   SystemHealthMetric,
   StatusActor,
+  TaiwanRegion,
   Vehicle,
+  VehicleCategory,
+  VehicleFeature,
+  ZoneCondition,
 } from '../types'
 import { createSeedState, SEED_VEHICLES } from '../data/seed'
 import { buildFleetOsSeed } from '../data/fleetOsSeed'
@@ -38,9 +63,21 @@ import { AIRPORTS, getLocation, NON_AIRPORTS } from '../data/locations'
 import { buildRoutePath, evaluateRoute } from '../lib/geo'
 import { getCachedRoute, resolveDynamicRoute } from '../lib/routing'
 import { driftFlightStatus, lookupFlight, randomFlightNumber } from '../lib/flight'
-import { computeFareBreakdown, ensureOrderNoAbove, estimateDurationMin, genId, nextOrderNo } from '../lib/pricing'
+import { ensureOrderNoAbove, estimateDurationMin, findCoupon, genId, nextOrderNo } from '../lib/pricing'
+import { buildInitialZoneConditions, computeDynamicFareBreakdown, countAvailableVehicles, DEFAULT_PRICING_RULES, driftZoneConditions } from '../lib/dynamicPricing'
+import { DEFAULT_CATEGORY_FOR_TYPE, VEHICLE_CATEGORY_CATALOG } from '../data/vehicleCatalog'
 import { suggestDriver } from '../lib/dispatch'
-import { buildCapacityForecast } from '../lib/capacity'
+import { buildCapacityForecast, buildShiftSchedule } from '../lib/capacity'
+import { DEFAULT_OPERATING_PARAMS, SEED_STAFF_ACCOUNTS } from '../data/fleetOsSeed'
+import { loadStoredAccessLogs, saveStoredAccessLogs, createAccessLogEntry } from '../lib/geoTracker'
+import {
+  computeWaitingFee,
+  LAST_MINUTE_AUTO_CANCEL_DEMO_MS,
+  MAJOR_FLIGHT_SHIFT_MINUTES,
+  WAITING_GRACE_MINUTES,
+} from '../lib/serviceRules'
+
+const NO_PASSENGER_REQUIREMENTS: PassengerRequirements = { childSeat: false, wheelchair: false, pet: false, specialAssistance: '' }
 
 const MAX_NOTIFICATIONS = 60
 const AMBIENT_ORDER_CHANCE = 0.05
@@ -80,6 +117,19 @@ interface FleetState {
   catalogProducts: CatalogProduct[]
   payouts: ReturnType<typeof buildFleetOsSeed>['payouts']
   globalAuditLog: AuditLogEntry[]
+  staffAccounts: StaffAccount[]
+  operatingParams: OperatingParams
+
+  /** Security Access Logs & Visitor Geolocation tracking */
+  accessLogs: AccessLogEntry[]
+
+  /** Simulated Dynamic Pricing Service state — see `lib/dynamicPricing.ts`. */
+  zoneConditions: ZoneCondition[]
+  pricingRules: PricingRules
+  categoryPriceOverrides: Partial<Record<VehicleCategory, { baseFare: number; perKmRate: number; perMinRate: number }>>
+
+  /** Lightweight, fully-simulated account access (no real backend/session). */
+  authSession: AuthSession
 
   createOrder: (input: BookingInput & { simulateFailure?: boolean }) => Order
   retryPayment: (orderId: string) => void
@@ -103,6 +153,49 @@ interface FleetState {
   rescheduleOrder: (orderId: string, newIso: string) => void
   addOrderNote: (orderId: string, note: string) => void
   updateFlightNumber: (orderId: string, flightNumber: string) => void
+  /** 翻譯校對 (Translation Proofreading) — ops confirms (optionally after
+   * editing) the Traditional Chinese working translation for one order's
+   * `notes`, moving it out of the pending queue. See `lib/translation.ts`. */
+  submitTranslationReview: (orderId: string, editedNotesZh: string) => void
+  /** Creates a phone/walk-in order directly in a confirmed state — mirrors
+   * the reference site's 手動開單 (Manual Order Entry) screen. */
+  createManualOrder: (input: ManualOrderInput) => Order
+
+  /** Realism/depth additions inspired by 機場快綫 Airport Express and 萬馬接送
+   * Wanma Transfer — see `lib/serviceRules.ts` for every rule's provenance. */
+  revealDriverInfoNow: (orderId: string) => void
+  agreeToWaitForLatePassenger: (orderId: string) => void
+  simulateLatePassenger: (orderId: string) => void
+  simulateFlightEvent: (orderId: string, kind: 'LANDED' | 'DIVERTED' | 'MAJOR_DELAY') => void
+  addOrderWaypoint: (orderId: string, label: string) => void
+  removeOrderWaypoint: (orderId: string, waypointId: string) => void
+
+  /** Phase 2 Blueprint module: 緊急處理 + 臨時調度系統 (Emergency & Rescue Dispatch) */
+  reportDriverEmergency: (
+    orderId: string,
+    incidentType: IncidentType,
+    details: { note: string; passengerSafe: boolean; needsAmbulance: boolean; vehicleTowed: boolean },
+  ) => void
+  dispatchRescueDriver: (orderId: string, replacementDriverId: string) => void
+  acceptRescueMission: (orderId: string, driverId: string) => void
+  resolveEmergencyIncident: (orderId: string) => void
+
+  loginWithLine: () => void
+  loginWithEmail: (email: string, displayName?: string) => void
+  logout: () => void
+
+  // ---- Advanced Onboarding / Add Driver ----
+  addNewDriver: (input: AddDriverInput, actor?: string) => Driver
+
+  // ---- Driver App Advanced: Fatigue, Instant Cashout, Inspection ----
+  toggleDriverBreakMode: (driverId: string) => void
+  submitPreTripInspection: (driverId: string, checklist: { tires: boolean; brakes: boolean; lights: boolean; dashcam: boolean }) => boolean
+  requestInstantCashout: (driverId: string, amount: number, method: 'BANK_TRANSFER' | 'LINE_PAY_MONEY') => InstantCashoutReceipt
+
+  // ---- Customer App Advanced: Tips, Split Fare, Lost & Found ----
+  tipAndRateDriver: (orderId: string, tipAmount: number, ratingTags: string[], ratingStars?: number) => void
+  reportLostItem: (orderId: string, report: Omit<LostItemReport, 'id' | 'reportedAt' | 'status' | 'driverAcknowledged'>) => LostItemReport
+  acknowledgeLostItem: (orderId: string, dispatcherNotes?: string) => void
 
   setAutoDispatch: (v: boolean) => void
   setAmbientOrders: (v: boolean) => void
@@ -114,8 +207,16 @@ interface FleetState {
   setDriverZone: (driverId: string, zone: string) => void
   setDriverAutoAccept: (driverId: string, v: boolean) => void
   setDriverAirportPreference: (driverId: string, v: boolean) => void
+  setDriverLoginEnabled: (driverId: string, v: boolean) => void
   hydrateSeedRoutes: () => void
   tick: () => void
+
+  // ---- 帳號管理 (Account Management) ----
+  addStaffAccount: (input: { name: string; email: string; role: StaffRole }) => void
+  setStaffAccountStatus: (id: string, status: StaffAccountStatus) => void
+
+  // ---- 營運參數 (Operating Parameters) ----
+  updateOperatingParams: (patch: Partial<OperatingParams>, actor?: string) => void
 
   setSupplierStatus: (id: string, status: SupplierStatus) => void
   setCampaignStatus: (id: string, status: CampaignStatus) => void
@@ -128,6 +229,17 @@ interface FleetState {
   setCatalogProductStatus: (id: string, status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED') => void
   markPayoutPaid: (id: string) => void
 
+  // ---- Dynamic Pricing Service (/fleet-os/pricing/dynamic) ----
+  updatePricingRules: (patch: Partial<PricingRules>, actor?: string) => void
+  setZoneCondition: (region: TaiwanRegion, patch: Partial<Pick<ZoneCondition, 'weather' | 'demand'>>, actor?: string) => void
+  setCategoryPriceOverride: (category: VehicleCategory, patch: { baseFare: number; perKmRate: number; perMinRate: number }, actor?: string) => void
+
+  // ---- Fleet & Vehicle Inventory backend (/fleet-os/vehicles) ----
+  setVehicleMaintenance: (vehicleId: string, hours: number | null, reason: string, actor?: string) => void
+  setVehicleServiceZone: (vehicleId: string, zone: TaiwanRegion, actor?: string) => void
+  setVehicleCategory: (vehicleId: string, category: VehicleCategory, actor?: string) => void
+  toggleVehicleFeature: (vehicleId: string, feature: VehicleFeature, actor?: string) => void
+
   addSavedPassenger: (customerId: string, passenger: Omit<SavedPassenger, 'id'>) => void
   removeSavedPassenger: (customerId: string, passengerId: string) => void
   addPaymentMethod: (customerId: string, token: Omit<PaymentToken, 'id'>) => void
@@ -136,6 +248,27 @@ interface FleetState {
   setNotificationPreference: (customerId: string, key: keyof NotificationPreference, v: boolean) => void
   requestPrivacyAction: (customerId: string, kind: 'DATA_DOWNLOAD' | 'DELETE_ACCOUNT') => void
   setConsentMarketing: (customerId: string, v: boolean) => void
+
+  // ---- Driver Shift & Working Hours Management ----
+  updateDriverShift: (driverId: string, hours: Partial<DriverWorkingHours>) => void
+
+  // ---- Real-time Team Messenger ----
+  chatMessages: ChatMessage[]
+  sendChatMessage: (input: { channelId: string; senderId: string; senderName: string; senderRole: 'DISPATCHER' | 'DRIVER'; text: string; avatarEmoji?: string; swapRequestId?: string }) => ChatMessage
+
+  // ---- Driver Order Handover & Swap Exchange ----
+  orderSwapRequests: OrderSwapRequest[]
+  createOrderSwapRequest: (input: { orderId: string; fromDriverId: string; reason: OrderSwapRequest['reason']; reasonCustom?: string }) => OrderSwapRequest
+  acceptOrderSwap: (swapRequestId: string, toDriverId: string) => boolean
+  approveOrderSwap: (swapRequestId: string) => boolean
+  cancelOrderSwap: (swapRequestId: string) => void
+
+  // ---- Force Override Manual Assignment ----
+  forceAssignOrder: (orderId: string, driverId: string) => void
+
+  // ---- Visitor IP & Access Security Log Actions ----
+  recordAccessAttempt: (authMethod: AccessAuthMethod, status: AccessAttemptStatus, inputIdentifier?: string) => Promise<AccessLogEntry>
+  clearAccessLogs: () => void
 }
 
 function pushNotification(
@@ -210,7 +343,8 @@ function startDispatchAttempt(
   return { order: updatedOrder, notifications: nextNotifications }
 }
 
-export function classifyOrderType(pickupId: string, dropoffId: string): Order['type'] {
+export function classifyOrderType(pickupId: string, dropoffId: string, forceCharter?: boolean): Order['type'] {
+  if (forceCharter) return 'HOURLY_CHARTER'
   const pickup = getLocation(pickupId)
   const dropoff = getLocation(dropoffId)
   if (pickup.isAirport) return 'AIRPORT_PICKUP'
@@ -222,17 +356,69 @@ function randomPin(): string {
   return String(Math.floor(1000 + Math.random() * 9000))
 }
 
-function buildOrderFromInput(input: BookingInput): Order {
+/** Resolves a booking's full `PassengerRequirements`, preferring the
+ * structured field and falling back to the two deprecated top-level
+ * booleans for any older call site that hasn't migrated yet. */
+function resolvePassengerRequirements(input: BookingInput): PassengerRequirements {
+  if (input.passengerRequirements) return input.passengerRequirements
+  return { ...NO_PASSENGER_REQUIREMENTS, childSeat: input.childSeat ?? false, wheelchair: input.wheelchair ?? false }
+}
+
+/** Builds a live order from a customer booking, running the full Dynamic
+ * Pricing Service (`lib/dynamicPricing.ts`) against the *current* simulated
+ * zone weather/demand + fleet availability — this is what makes a real
+ * booking's fare (as opposed to seed/ambient orders, which use neutral
+ * conditions) actually reflect the client brief's dynamic-pricing factors. */
+function buildOrderFromInput(
+  input: BookingInput,
+  context: { zoneConditions: ZoneCondition[]; pricingRules: PricingRules; vehicles: Vehicle[]; drivers: Driver[]; categoryPriceOverrides: FleetState['categoryPriceOverrides'] },
+): Order {
   const pickup = getLocation(input.pickupId)
   const dropoff = getLocation(input.dropoffId)
-  const type = classifyOrderType(input.pickupId, input.dropoffId)
+  const isCharter = !!input.charterHours && input.charterHours > 0
+  const type = classifyOrderType(input.pickupId, input.dropoffId, isCharter)
   const id = genId('ord')
   const routeToDropoff = getCachedRoute(pickup, dropoff) ?? buildRoutePath(pickup, dropoff, `${id}-leg2`)
   const flightInfo = input.flightNumber ? lookupFlight(input.flightNumber, input.scheduledTime) : null
   const isAirport = pickup.isAirport || dropoff.isAirport
   const waitingMinutes = flightInfo?.status === 'DELAYED' && pickup.isAirport ? flightInfo.delayMinutes : 0
   const durationMin = estimateDurationMin(routeToDropoff.distanceKm)
-  const fareBreakdown = computeFareBreakdown(routeToDropoff.distanceKm, durationMin, input.vehicleType, isAirport, { waitingMinutes, couponCode: input.couponCode })
+
+  const vehicleCategory = input.vehicleCategory ?? DEFAULT_CATEGORY_FOR_TYPE[input.vehicleType]
+  const passengerRequirements = resolvePassengerRequirements(input)
+  const catalogEntry = VEHICLE_CATEGORY_CATALOG[vehicleCategory]
+  const override = context.categoryPriceOverrides[vehicleCategory]
+  const pricedCategory = override ? { ...catalogEntry, ...override } : catalogEntry
+  const pickupZone = pickup.region
+  const zoneCondition = pickupZone ? context.zoneConditions.find((z) => z.region === pickupZone) : undefined
+  const availableVehiclesInZone = pickupZone
+    ? countAvailableVehicles(context.vehicles, context.drivers, pickupZone, vehicleCategory, catalogEntry.underlyingType)
+    : 999
+
+  const fareBreakdown = computeDynamicFareBreakdown({
+    category: pricedCategory,
+    distanceKm: routeToDropoff.distanceKm,
+    durationMin,
+    isAirport,
+    pickupZone,
+    scheduledTimeIso: new Date(input.scheduledTime).toISOString(),
+    waitingMinutes,
+    availableVehiclesInZone,
+    weather: zoneCondition?.weather ?? 'CLEAR',
+    demand: zoneCondition?.demand ?? 'NORMAL',
+    rules: context.pricingRules,
+    couponCode: input.couponCode ?? null,
+    charterHours: input.charterHours ?? null,
+    mountainRoute: input.mountainRoute ?? false,
+  })
+  // Coupon discount math stays in `lib/pricing.ts`'s legacy percent/fixed
+  // shape (rather than duplicating it inside the pure pricing engine) so the
+  // Marketplace/Customer App coupon UX behaves identically to before.
+  const couponDef = findCoupon(input.couponCode)
+  const discount = couponDef ? (couponDef.kind === 'PERCENT' ? Math.round(fareBreakdown.subtotal * (couponDef.value / 100)) : Math.min(fareBreakdown.subtotal, couponDef.value)) : 0
+  const roundTo = Math.max(1, context.pricingRules.roundingIncrement)
+  const total = Math.max(0, Math.round((fareBreakdown.subtotal - discount) / roundTo) * roundTo)
+  const finalFareBreakdown = { ...fareBreakdown, discount, couponCode: couponDef ? couponDef.code : null, total }
 
   const now = Date.now()
   const isDirectChannel = input.channel === 'Website' || input.channel === 'Phone / Agent' || input.channel === 'LINE@'
@@ -249,16 +435,26 @@ function buildOrderFromInput(input: BookingInput): Order {
     pickup,
     dropoff,
     vehicleType: input.vehicleType,
+    vehicleCategory,
+    passengerRequirements,
     passengers: input.passengers,
     luggage: input.luggage,
     notes: input.notes,
+    // Real bookings placed directly through this app are already written in
+    // the customer's own words at checkout, so they never need the 翻譯校對
+    // (Translation Proofreading) queue — that queue only applies to
+    // ambient/seed orders simulating inbound foreign-language OTA channels.
+    // See `lib/translation.ts`.
+    translationStatus: 'NOT_NEEDED',
+    sourceLanguage: null,
+    originalNoteText: null,
     flightNumber: input.flightNumber || null,
     flightInfo,
     driverId: null,
     vehicleId: null,
     suggestedDriverId: null,
-    priceEstimate: fareBreakdown.total,
-    fareBreakdown,
+    priceEstimate: finalFareBreakdown.total,
+    fareBreakdown: finalFareBreakdown,
     distanceKm: routeToDropoff.distanceKm,
     durationMin,
     routeToPickup: null,
@@ -292,6 +488,14 @@ function buildOrderFromInput(input: BookingInput): Order {
       : null,
     invoiceRequested: false,
     invoiceIssued: false,
+    bookingUrgency: input.bookingUrgency ?? 'STANDARD',
+    flightLandedAt: flightInfo?.status === 'LANDED' ? now : null,
+    driverInfoRevealOverride: false,
+    paymentMethod: input.paymentMethod ?? 'card',
+    lateFeeAmount: null,
+    lateFeeWaitMinutes: null,
+    waitingFeeAgreed: false,
+    waypoints: input.waypoints ?? [],
   }
 }
 
@@ -301,9 +505,13 @@ function buildOrderFromInput(input: BookingInput): Order {
  * brief without needing async store mutations for the common success path. */
 function fastForwardToConfirmed(order: Order): Order {
   const now = Date.now()
-  let next: Order = { ...order, paymentStatus: 'PAID', status: 'PAID' }
+  // Cash-on-arrival/drop-off (Airport Express's payment option) is only
+  // *authorized* now — the app never captures it; it's marked PAID once the
+  // trip actually completes and cash changes hands (see `tick()`).
+  const isCash = order.paymentMethod === 'cash'
+  let next: Order = { ...order, paymentStatus: isCash ? 'AUTHORIZED' : 'PAID', status: 'PAID' }
   next = { ...next, statusHistory: [...next.statusHistory, { id: genId('hist'), status: 'PAID', at: now + 400, actor: 'PAYMENT' }] }
-  next = appendAudit(next, 'PAYMENT', 'Payment captured', `${next.fareBreakdown.total.toLocaleString()} TWD`)
+  next = appendAudit(next, 'PAYMENT', isCash ? 'Payment method authorized (cash on arrival)' : 'Payment captured', isCash ? `${next.fareBreakdown.total.toLocaleString()} TWD due in cash` : `${next.fareBreakdown.total.toLocaleString()} TWD`)
 
   if (next.supplierStatus === 'PENDING') {
     next = { ...next, status: 'SUPPLIER_PENDING', statusHistory: [...next.statusHistory, { id: genId('hist'), status: 'SUPPLIER_PENDING', at: now + 600, actor: 'SYSTEM' }] }
@@ -316,6 +524,39 @@ function fastForwardToConfirmed(order: Order): Order {
   next = { ...next, voucherStatus: 'ISSUED' }
   next = appendAudit(next, 'SYSTEM', 'E-voucher issued', next.orderNo)
   return next
+}
+
+/** Shared by both the last-minute-unmatched and major-flight-change auto-
+ * cancel triggers: cancels an order and, if it had captured payment, opens
+ * a refund request — mirroring the manual `resolveCancellation` approval
+ * path but fired automatically by the simulation rather than a dispatcher. */
+function autoCancelWithRefund(
+  order: Order,
+  reasonDetail: string,
+  refundRequests: RefundRequest[],
+  globalAuditLog: AuditLogEntry[],
+): { order: Order; refundRequests: RefundRequest[]; globalAuditLog: AuditLogEntry[] } {
+  const needsRefund = order.paymentStatus === 'PAID' || order.paymentStatus === 'AUTHORIZED'
+  let next = appendHistory({ ...order, status: 'CANCELLED', cancellationReason: reasonDetail }, 'SYSTEM')
+  next = appendAudit(next, 'SYSTEM', 'Automatically cancelled', reasonDetail)
+
+  let nextRefunds = refundRequests
+  let nextAuditLog = globalAuditLog
+  if (needsRefund && order.paymentStatus === 'PAID') {
+    next = appendHistory({ ...next, status: 'REFUND_PENDING', paymentStatus: 'REFUND_PENDING' }, 'SYSTEM')
+    const refund: RefundRequest = {
+      id: genId('rfd'), orderId: order.id, orderNo: order.orderNo, customerName: order.customer.name,
+      amount: order.priceEstimate, reason: reasonDetail, status: 'PENDING', requestedAt: Date.now(), resolvedAt: null,
+    }
+    nextRefunds = [refund, ...nextRefunds]
+    nextAuditLog = pushGlobalAudit(nextAuditLog, 'system', `Auto-cancelled ${order.orderNo}: opened refund request`, 'Order', order.id)
+  } else if (needsRefund) {
+    // Cash bookings never captured a real payment — nothing to refund, just
+    // confirm no charge was made.
+    next = { ...next, paymentStatus: 'UNPAID' }
+  }
+
+  return { order: next, refundRequests: nextRefunds, globalAuditLog: nextAuditLog }
 }
 
 function randomAmbientInput(): BookingInput {
@@ -343,12 +584,15 @@ function randomAmbientInput(): BookingInput {
   const scheduled = new Date(Date.now() + (30 + Math.random() * 150) * 60_000)
   const name = names[Math.floor(Math.random() * names.length)]
 
+  const vehicleType = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)]
+
   return {
     channel: channels[Math.floor(Math.random() * channels.length)],
     pickupId,
     dropoffId,
     scheduledTime: scheduled.toISOString(),
-    vehicleType: vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)],
+    vehicleType,
+    vehicleCategory: DEFAULT_CATEGORY_FOR_TYPE[vehicleType],
     passengers: 1 + Math.floor(Math.random() * 5),
     luggage: Math.floor(Math.random() * 4),
     customer: { name, phone: '+1 555-0100', email: `${name.split(' ')[0].toLowerCase()}@example.com` },
@@ -357,8 +601,8 @@ function randomAmbientInput(): BookingInput {
   }
 }
 
-function buildAmbientOrder(): Order {
-  const order = buildOrderFromInput(randomAmbientInput())
+function buildAmbientOrder(context: { zoneConditions: ZoneCondition[]; pricingRules: PricingRules; vehicles: Vehicle[]; drivers: Driver[]; categoryPriceOverrides: FleetState['categoryPriceOverrides'] }): Order {
+  const order = buildOrderFromInput(randomAmbientInput(), context)
   return fastForwardToConfirmed(order)
 }
 
@@ -396,9 +640,75 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   catalogProducts: fleetOsSeed.catalogProducts,
   payouts: fleetOsSeed.payouts,
   globalAuditLog: fleetOsSeed.globalAuditLog,
+  staffAccounts: SEED_STAFF_ACCOUNTS,
+  operatingParams: DEFAULT_OPERATING_PARAMS,
+
+  accessLogs: loadStoredAccessLogs(),
+
+  chatMessages: [
+    {
+      id: 'msg-1',
+      channelId: 'dispatch-ops',
+      senderId: 'dispatcher',
+      senderName: 'Dispatch Central (調度台)',
+      senderRole: 'DISPATCHER',
+      avatarEmoji: '🎧',
+      text: '📢 今日桃園機場出境與入境高峰預估於 14:00 - 17:30，請各車隊司機留意班次調度與國道一號車況。',
+      timestamp: Date.now() - 35 * 60_000,
+    },
+    {
+      id: 'msg-2',
+      channelId: 'dispatch-ops',
+      senderId: 'drv-1',
+      senderName: 'Chih-Ming Chen (陳志明)',
+      senderRole: 'DRIVER',
+      avatarEmoji: '🧑🏻‍✈️',
+      text: '收到！已在桃機第二航廈巡迴待命，隨時可接單。',
+      timestamp: Date.now() - 25 * 60_000,
+    },
+    {
+      id: 'msg-3',
+      channelId: 'urgent-help',
+      senderId: 'drv-2',
+      senderName: 'Mei-Hui Lin (林美惠)',
+      senderRole: 'DRIVER',
+      avatarEmoji: '👩🏻‍✈️',
+      text: '⚠️ 國道一號南下 42K 有大雨積水與零星回堵，預估車程增加 15-20 分鐘，請行經此路段司機注意行車安全！',
+      timestamp: Date.now() - 15 * 60_000,
+    },
+    {
+      id: 'msg-4',
+      channelId: 'dm-dispatcher-drv-1',
+      senderId: 'dispatcher',
+      senderName: 'Dispatch Central (調度台)',
+      senderRole: 'DISPATCHER',
+      avatarEmoji: '🎧',
+      text: '志明，待會 16:30 有一筆商務 VIP 接機訂單，有預留給你喔。',
+      timestamp: Date.now() - 8 * 60_000,
+    },
+    {
+      id: 'msg-5',
+      channelId: 'dm-dispatcher-drv-1',
+      senderId: 'drv-1',
+      senderName: 'Chih-Ming Chen (陳志明)',
+      senderRole: 'DRIVER',
+      avatarEmoji: '🧑🏻‍✈️',
+      text: '了解，車輛已完成清潔消毒，待命接單。',
+      timestamp: Date.now() - 4 * 60_000,
+    },
+  ],
+
+  orderSwapRequests: [],
+
+  zoneConditions: buildInitialZoneConditions(),
+  pricingRules: DEFAULT_PRICING_RULES,
+  categoryPriceOverrides: {},
+
+  authSession: { isLoggedIn: false, method: null, displayName: null, email: null },
 
   createOrder: (input) => {
-    let order = buildOrderFromInput(input)
+    const ctx = get()
+    let order = buildOrderFromInput(input, { zoneConditions: ctx.zoneConditions, pricingRules: ctx.pricingRules, vehicles: ctx.vehicles, drivers: ctx.drivers, categoryPriceOverrides: ctx.categoryPriceOverrides })
 
     if (input.simulateFailure) {
       order = { ...order, status: 'FAILED', paymentStatus: 'FAILED' }
@@ -522,10 +832,22 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     const order = get().orders.find((o) => o.id === orderId)
     if (!order || order.status !== 'ARRIVED') return false
     if (order.pickupPin !== pin.trim()) return false
+
+    // Wanma-style late-boarding waiting fee: free for the first 15 minutes,
+    // then billed in 30-minute blocks at a per-vehicle-category cash rate —
+    // captured here (once, at the moment of pickup) so it survives onto the
+    // trip-completion receipt without being folded into the app-collected
+    // `fareBreakdown`.
+    const waitMinutes = order.waitStartedAt ? Math.round((Date.now() - order.waitStartedAt) / 60_000) : 0
+    const lateFee = waitMinutes > 0 ? computeWaitingFee(order.vehicleCategory, waitMinutes) : 0
+
     set((s) => ({
-      orders: s.orders.map((o) =>
-        o.id === orderId ? appendHistory({ ...o, status: 'PASSENGER_ONBOARD', pickedUpAt: Date.now(), legProgress: 0, waitStartedAt: null }, 'DRIVER') : o,
-      ),
+      orders: s.orders.map((o) => {
+        if (o.id !== orderId) return o
+        let next = appendHistory({ ...o, status: 'PASSENGER_ONBOARD', pickedUpAt: Date.now(), legProgress: 0, waitStartedAt: null, lateFeeAmount: lateFee, lateFeeWaitMinutes: waitMinutes }, 'DRIVER')
+        if (lateFee > 0) next = appendAudit(next, 'DRIVER', 'Late-boarding waiting fee charged (cash)', `${waitMinutes} min wait \u00b7 NT$${lateFee.toLocaleString()}`)
+        return next
+      }),
       notifications: pushNotification(s.notifications, 'SUCCESS', 'notif.passengerPickedUp.title', 'notif.passengerPickedUp.message', undefined, orderId),
     }))
     return true
@@ -708,6 +1030,473 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     }))
   },
 
+  submitTranslationReview: (orderId, editedNotesZh) => {
+    set((s) => ({
+      orders: s.orders.map((o) =>
+        o.id === orderId
+          ? appendAudit({ ...o, notes: editedNotesZh, translationStatus: 'CONFIRMED' }, 'DISPATCHER', 'Translation proofread & confirmed', editedNotesZh)
+          : o,
+      ),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'dispatcher', `Confirmed translation review for ${s.orders.find((o) => o.id === orderId)?.orderNo ?? orderId}`, 'Order', orderId),
+    }))
+  },
+
+  createManualOrder: (input) => {
+    const id = genId('ord')
+    const orderNo = nextOrderNo()
+    const pickup = getLocation(input.pickupId)
+    const dropoff = getLocation(input.dropoffId)
+    const routeToDropoff = getCachedRoute(pickup, dropoff) ?? buildRoutePath(pickup, dropoff, `${id}-leg2`)
+    const flightInfo = input.flightNumber ? lookupFlight(input.flightNumber, input.scheduledTime) : null
+    const durationMin = estimateDurationMin(routeToDropoff.distanceKm)
+    const now = Date.now()
+    const vehicleCategory = DEFAULT_CATEGORY_FOR_TYPE[input.vehicleType]
+
+    const order: Order = {
+      id,
+      orderNo,
+      channel: input.channel,
+      type: input.type,
+      status: 'CONFIRMED',
+      createdAt: now,
+      scheduledTime: input.scheduledTime,
+      customer: { name: input.customerName, phone: input.customerPhone, email: '' },
+      pickup,
+      dropoff,
+      vehicleType: input.vehicleType,
+      vehicleCategory,
+      passengerRequirements: NO_PASSENGER_REQUIREMENTS,
+      passengers: input.passengers,
+      luggage: 0,
+      notes: input.notes,
+      flightNumber: input.flightNumber || null,
+      flightInfo,
+      driverId: null,
+      vehicleId: null,
+      suggestedDriverId: null,
+      priceEstimate: input.quotedPrice,
+      fareBreakdown: {
+        baseFare: input.quotedPrice, distanceCost: 0, timeCost: 0, demandAdjustment: 0, weatherAdjustment: 0, nightSurcharge: 0,
+        holidaySurcharge: 0, airportSurcharge: 0, tollFee: 0, parkingFee: 0, waitingFee: 0, vipSurcharge: 0, stopoverSurcharge: 0, charterHours: null,
+        mountainSurcharge: 0, subtotal: input.quotedPrice, discount: 0, couponCode: null, total: input.quotedPrice,
+        demandLevel: 'NORMAL', weatherCondition: 'CLEAR', appliedSurchargePct: 0, fairnessCapApplied: false,
+        supplierPrice: Math.round(input.quotedPrice * 0.82), platformMargin: Math.round(input.quotedPrice * 0.18),
+        explanationKey: null,
+      },
+      distanceKm: routeToDropoff.distanceKm,
+      durationMin,
+      routeToPickup: null,
+      routeToDropoff,
+      legProgress: 0,
+      currentPos: null,
+      pickedUpAt: null,
+      pendingDriverId: null,
+      dispatchAttempts: [],
+      escalationStage: 0,
+      unresponsiveDriverIds: [],
+      demoForceNoResponse: false,
+      quotationVersion: 1,
+      quotedAt: now,
+      statusHistory: [
+        { id: genId('hist'), status: 'CONFIRMED', at: now, actor: 'DISPATCHER' },
+      ],
+      auditLog: [{ id: genId('aud'), at: now, actor: 'DISPATCHER', action: `Manually entered by ${input.enteredBy}`, detail: `${input.channel} \u00b7 ${input.vehicleType}` }],
+      paymentStatus: 'PAID',
+      supplierStatus: 'NOT_APPLICABLE',
+      voucherStatus: 'ISSUED',
+      pickupPin: randomPin(),
+      cancellationReason: null,
+      refundAmount: null,
+      supportTicketId: null,
+      driverRatingByCustomer: null,
+      customerRatingByDriver: null,
+      tollParkingEvidenceUploaded: false,
+      noShowReported: false,
+      waitStartedAt: null,
+      pickupInstructions: pickup.isAirport
+        ? { terminal: 'Terminal 1', gate: `${String.fromCharCode(65 + Math.floor(Math.random() * 6))}${Math.floor(Math.random() * 20) + 1}`, meetAndGreetBoard: `Zhaofeng Travel \u00b7 ${input.customerName}` }
+        : null,
+      invoiceRequested: false,
+      invoiceIssued: false,
+      bookingUrgency: 'STANDARD',
+      flightLandedAt: null,
+      driverInfoRevealOverride: false,
+      paymentMethod: 'cash',
+      lateFeeAmount: null,
+      lateFeeWaitMinutes: null,
+      waitingFeeAgreed: false,
+      waypoints: [],
+      translationStatus: 'NOT_NEEDED',
+      sourceLanguage: null,
+      originalNoteText: null,
+    }
+
+    set((s) => ({
+      orders: [order, ...s.orders],
+      notifications: pushNotification(s.notifications, 'SUCCESS', 'notif.manualOrderCreated.title', 'notif.manualOrderCreated.message', { orderNo }, order.id),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, input.enteredBy, `Manually opened order ${orderNo} (${input.channel})`, 'Order', order.id),
+    }))
+    return order
+  },
+
+  revealDriverInfoNow: (orderId) =>
+    set((s) => ({
+      orders: s.orders.map((o) => (o.id === orderId ? appendAudit({ ...o, driverInfoRevealOverride: true }, 'SYSTEM', 'Driver contact details revealed early (demo)') : o)),
+    })),
+
+  agreeToWaitForLatePassenger: (orderId) =>
+    set((s) => ({
+      orders: s.orders.map((o) => (o.id === orderId ? appendAudit({ ...o, waitingFeeAgreed: true }, 'DRIVER', 'Agreed by phone to keep waiting for a late passenger') : o)),
+    })),
+
+  // Demo-only trigger so a tester/e2e script can put an ARRIVED order past
+  // the 15-minute free grace period instantly, without waiting on real
+  // wall-clock time, to exercise the Wanma-style waiting-fee flow.
+  simulateLatePassenger: (orderId) =>
+    set((s) => ({
+      orders: s.orders.map((o) =>
+        o.id === orderId && o.status === 'ARRIVED' ? { ...o, waitStartedAt: Date.now() - (WAITING_GRACE_MINUTES + 20) * 60_000 } : o,
+      ),
+    })),
+
+  // Demo-only trigger (mirrors `toggleDemoNoResponse`) so a tester/e2e script
+  // can force the flight-status transitions that drive the last-minute
+  // auto-cancel and major-flight-change full-refund rules without waiting
+  // on the randomized `driftFlightStatus` simulation.
+  simulateFlightEvent: (orderId, kind) => {
+    set((s) => {
+      const order = s.orders.find((o) => o.id === orderId)
+      if (!order || !order.flightInfo) return {}
+      const now = Date.now()
+      if (kind === 'LANDED') {
+        return {
+          orders: s.orders.map((o) =>
+            o.id === orderId && o.flightInfo ? { ...o, flightInfo: { ...o.flightInfo, status: 'LANDED' }, flightLandedAt: now } : o,
+          ),
+        }
+      }
+      if (kind === 'DIVERTED') {
+        return {
+          orders: s.orders.map((o) => (o.id === orderId && o.flightInfo ? { ...o, flightInfo: { ...o.flightInfo, status: 'DIVERTED' } } : o)),
+        }
+      }
+      const delayMinutes = MAJOR_FLIGHT_SHIFT_MINUTES + 15
+      return {
+        orders: s.orders.map((o) =>
+          o.id === orderId && o.flightInfo
+            ? { ...o, flightInfo: { ...o.flightInfo, status: 'DELAYED', delayMinutes, estimatedTime: new Date(new Date(o.flightInfo.scheduledTime).getTime() + delayMinutes * 60_000).toISOString() } }
+            : o,
+        ),
+      }
+    })
+  },
+
+  addOrderWaypoint: (orderId, label) =>
+    set((s) => ({
+      orders: s.orders.map((o) =>
+        o.id === orderId ? appendAudit({ ...o, waypoints: [...o.waypoints, { id: genId('wp'), label }] }, 'CUSTOMER', 'Added a stop', label) : o,
+      ),
+    })),
+
+  removeOrderWaypoint: (orderId, waypointId) =>
+    set((s) => ({
+      orders: s.orders.map((o) => (o.id === orderId ? { ...o, waypoints: o.waypoints.filter((w) => w.id !== waypointId) } : o)),
+    })),
+
+  reportDriverEmergency: (orderId, incidentType, details) => {
+    set((s) => {
+      const order = s.orders.find((o) => o.id === orderId)
+      if (!order) return {}
+
+      const originalDriver = s.drivers.find((d) => d.id === order.driverId)
+      const currentPos = order.currentPos ?? (originalDriver ? { lat: originalDriver.lat, lng: originalDriver.lng, x: originalDriver.svgX, y: originalDriver.svgY } : { lat: order.pickup.lat, lng: order.pickup.lng, x: order.pickup.svgX, y: order.pickup.svgY })
+      const reportedLocation = {
+        lat: currentPos.lat,
+        lng: currentPos.lng,
+        x: currentPos.x,
+        y: currentPos.y,
+        address: `${order.pickup.name} 往 ${order.dropoff.name} 途中 (事故地點)`,
+      }
+
+      const fullIncidentDetails: IncidentDetails = {
+        note: details.note || 'Driver reported roadside emergency',
+        passengerSafe: details.passengerSafe,
+        needsAmbulance: details.needsAmbulance,
+        vehicleTowed: details.vehicleTowed,
+        reportedLocation,
+      }
+
+      const originalDriverId = order.driverId ?? undefined
+
+      let nextOrder: Order = {
+        ...order,
+        incidentReportedAt: Date.now(),
+        incidentType,
+        incidentDetails: fullIncidentDetails,
+        originalDriverId,
+        isEmergencyRescue: true,
+        emergencyStatus: 'INCIDENT_REPORTED',
+      }
+
+      nextOrder = appendAudit(
+        nextOrder,
+        'DRIVER',
+        `緊急事故回報 (${incidentType})`,
+        `司機回報事故：${fullIncidentDetails.note} · 乘客安全：${details.passengerSafe ? '是' : '需關注/就醫'} · 救護車：${details.needsAmbulance ? '需要 (119)' : '不需要'}`,
+      )
+
+      const updatedDrivers = s.drivers.map((d) =>
+        d.id === originalDriverId
+          ? {
+              ...d,
+              status: 'INCIDENT' as const,
+            }
+          : d,
+      )
+
+      const notifications = pushNotification(
+        s.notifications,
+        'ERROR',
+        'notif.emergencyIncident.title',
+        'notif.emergencyIncident.message',
+        {
+          orderNo: order.orderNo,
+          incidentType,
+          driverName: originalDriver?.name ?? 'Driver',
+          driverNameZh: originalDriver?.nameZh ?? '司機',
+        },
+        orderId,
+      )
+
+      const globalAuditLog = pushGlobalAudit(
+        s.globalAuditLog,
+        originalDriver ? `${originalDriver.name} (${originalDriver.nameZh})` : 'Driver',
+        `回報緊急事件 ${incidentType} (訂單 ${order.orderNo}) - 乘客安全: ${details.passengerSafe ? '安全' : '需協助'}`,
+        'Order',
+        order.id,
+      )
+
+      return {
+        orders: s.orders.map((o) => (o.id === orderId ? nextOrder : o)),
+        drivers: updatedDrivers,
+        notifications,
+        globalAuditLog,
+        focusOrderId: orderId,
+      }
+    })
+  },
+
+  dispatchRescueDriver: (orderId, replacementDriverId) => {
+    const s = get()
+    const order = s.orders.find((o) => o.id === orderId)
+    const replacementDriver = s.drivers.find((d) => d.id === replacementDriverId)
+    if (!order || !replacementDriver || replacementDriver.status !== 'AVAILABLE') return
+
+    const accidentPos = order.currentPos ?? {
+      lat: order.incidentDetails?.reportedLocation.lat ?? order.pickup.lat,
+      lng: order.incidentDetails?.reportedLocation.lng ?? order.pickup.lng,
+      x: order.incidentDetails?.reportedLocation.x ?? order.pickup.svgX,
+      y: order.incidentDetails?.reportedLocation.y ?? order.pickup.svgY,
+    }
+
+    const accidentLocationRef: LocationRef = {
+      id: `${order.id}-accident-spot`,
+      name: `Accident Location (${order.pickup.name} -> ${order.dropoff.name})`,
+      nameZh: `事故接駁地點 (${order.pickup.nameZh} 往 ${order.dropoff.nameZh})`,
+      address: order.incidentDetails?.reportedLocation.address ?? '即時事故救援定位點',
+      lat: accidentPos.lat,
+      lng: accidentPos.lng,
+      svgX: accidentPos.x,
+      svgY: accidentPos.y,
+      isAirport: false,
+    }
+
+    const replacementDriverLoc = driverAsLocation(replacementDriver)
+    const routeToAccident =
+      getCachedRoute(replacementDriverLoc, accidentLocationRef) ??
+      buildRoutePath(replacementDriverLoc, accidentLocationRef, `${order.id}-rescue-leg1-${replacementDriver.id}`)
+
+    const routeFromAccidentToDropoff =
+      getCachedRoute(accidentLocationRef, order.dropoff) ??
+      buildRoutePath(accidentLocationRef, order.dropoff, `${order.id}-rescue-leg2-${order.dropoff.id}`)
+
+    const attempt: DispatchAttempt = {
+      id: genId('dsp'),
+      orderId: order.id,
+      stage: 1,
+      driverId: replacementDriver.id,
+      driverName: replacementDriver.name,
+      channels: ['IN_APP', 'PHONE_CALL', 'LINE'],
+      sentAt: Date.now(),
+      respondBy: Date.now() + 15000,
+      status: 'AWAITING_RESPONSE',
+      resolvedAt: null,
+      simulateNoResponse: false,
+    }
+
+    let nextOrder: Order = {
+      ...order,
+      status: 'DRIVER_MATCHING',
+      emergencyStatus: 'RESCUE_DISPATCHED',
+      rescueDriverId: replacementDriver.id,
+      pendingDriverId: replacementDriver.id,
+      dispatchAttempts: [...order.dispatchAttempts, attempt],
+      routeToPickup: routeToAccident,
+      routeToDropoff: routeFromAccidentToDropoff,
+      legProgress: 0,
+    }
+
+    nextOrder = appendAudit(
+      nextOrder,
+      'DISPATCHER',
+      '指派緊急救援司機 (Rescue Re-dispatch)',
+      `已指派救援車輛/司機：${replacementDriver.name} (${replacementDriver.nameZh}) 前往事故地點接駁乘客`,
+    )
+
+    const updatedDrivers = s.drivers.map((d) =>
+      d.id === replacementDriver.id ? { ...d, status: 'PENDING_RESPONSE' as const } : d,
+    )
+
+    const notifications = pushNotification(
+      s.notifications,
+      'WARNING',
+      'notif.rescueDispatched.title',
+      'notif.rescueDispatched.message',
+      {
+        orderNo: order.orderNo,
+        driverName: replacementDriver.name,
+        driverNameZh: replacementDriver.nameZh,
+      },
+      orderId,
+      ['IN_APP', 'LINE', 'PHONE_CALL'],
+      replacementDriver.id,
+    )
+
+    const globalAuditLog = pushGlobalAudit(
+      s.globalAuditLog,
+      'ops.dispatcher',
+      `指派救援司機 ${replacementDriver.name} 前往支援訂單 ${order.orderNo}`,
+      'Order',
+      order.id,
+    )
+
+    set({
+      orders: s.orders.map((o) => (o.id === orderId ? nextOrder : o)),
+      drivers: updatedDrivers,
+      notifications,
+      globalAuditLog,
+    })
+
+    if (routeToAccident.source === 'SYNTHETIC') {
+      scheduleRouteHydration(order.id, 'routeToPickup', replacementDriverLoc, accidentLocationRef)
+    }
+  },
+
+  acceptRescueMission: (orderId, driverId) => {
+    const s = get()
+    const order = s.orders.find((o) => o.id === orderId)
+    const driver = s.drivers.find((d) => d.id === driverId)
+    if (!order || !driver) return
+
+    const vehicle = s.vehicles.find((v) => v.id === driver.vehicleId)
+    const lastIndex = order.dispatchAttempts.length - 1
+    const attempts = order.dispatchAttempts.map((a, i) =>
+      i === lastIndex ? { ...a, status: 'ACCEPTED' as const, resolvedAt: Date.now() } : a,
+    )
+
+    let nextOrder: Order = {
+      ...order,
+      status: 'DRIVER_EN_ROUTE',
+      emergencyStatus: 'RESCUE_EN_ROUTE',
+      driverId: driver.id,
+      vehicleId: vehicle?.id ?? null,
+      pendingDriverId: null,
+      dispatchAttempts: attempts,
+      legProgress: 0,
+    }
+
+    nextOrder = appendHistory(nextOrder, 'DRIVER')
+    nextOrder = appendAudit(
+      nextOrder,
+      'DRIVER',
+      '救援司機已接受任務 (Rescue Accepted)',
+      `${driver.name} (${driver.nameZh}) 已接單並即刻驅車前往事故現場接駁`,
+    )
+
+    const updatedDrivers = s.drivers.map((d) =>
+      d.id === driver.id ? { ...d, status: 'BUSY' as const, stats: bumpStats(d.stats, 'accepted') } : d,
+    )
+
+    const notifications = pushNotification(
+      s.notifications,
+      'SUCCESS',
+      'notif.rescueAccepted.title',
+      'notif.rescueAccepted.message',
+      {
+        orderNo: order.orderNo,
+        driverName: driver.name,
+        driverNameZh: driver.nameZh,
+      },
+      orderId,
+    )
+
+    const globalAuditLog = pushGlobalAudit(
+      s.globalAuditLog,
+      `${driver.name} (${driver.nameZh})`,
+      `接受緊急救援任務 (訂單 ${order.orderNo})`,
+      'Order',
+      order.id,
+    )
+
+    set({
+      orders: s.orders.map((o) => (o.id === orderId ? nextOrder : o)),
+      drivers: updatedDrivers,
+      notifications,
+      globalAuditLog,
+    })
+  },
+
+  resolveEmergencyIncident: (orderId) => {
+    set((s) => {
+      const order = s.orders.find((o) => o.id === orderId)
+      if (!order) return {}
+
+      let nextOrder: Order = {
+        ...order,
+        emergencyStatus: 'RESOLVED',
+      }
+      nextOrder = appendAudit(nextOrder, 'DISPATCHER', '緊急事故已結案 (Emergency Resolved)', '安全處理流程確認完畢')
+
+      const notifications = pushNotification(
+        s.notifications,
+        'SUCCESS',
+        'notif.emergencyResolved.title',
+        'notif.emergencyResolved.message',
+        { orderNo: order.orderNo },
+        orderId,
+      )
+
+      const globalAuditLog = pushGlobalAudit(
+        s.globalAuditLog,
+        'ops.safety',
+        `結案緊急事故紀錄 (訂單 ${order.orderNo})`,
+        'Order',
+        order.id,
+      )
+
+      return {
+        orders: s.orders.map((o) => (o.id === orderId ? nextOrder : o)),
+        notifications,
+        globalAuditLog,
+      }
+    })
+  },
+
+  loginWithLine: () => set({ authSession: { isLoggedIn: true, method: 'LINE' as AuthMethod, displayName: 'LINE User', email: null } }),
+  loginWithEmail: (email, displayName) =>
+    set({ authSession: { isLoggedIn: true, method: 'EMAIL' as AuthMethod, displayName: displayName ?? email.split('@')[0], email } }),
+  logout: () => set({ authSession: { isLoggedIn: false, method: null, displayName: null, email: null } }),
+
   setAutoDispatch: (v) => set({ autoDispatchEnabled: v }),
   setAmbientOrders: (v) => set({ ambientOrdersEnabled: v }),
   setFocusOrder: (id) => set({ focusOrderId: id }),
@@ -726,6 +1515,31 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   setDriverZone: (driverId, zone) => set((s) => ({ drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, currentZone: zone } : d)) })),
   setDriverAutoAccept: (driverId, v) => set((s) => ({ drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, autoAcceptEnabled: v } : d)) })),
   setDriverAirportPreference: (driverId, v) => set((s) => ({ drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, airportPreference: v } : d)) })),
+  setDriverLoginEnabled: (driverId, v) =>
+    set((s) => ({
+      drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, loginEnabled: v } : d)),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'ops.manager', `${v ? 'Enabled' : 'Disabled'} driver app login`, 'Driver', driverId),
+    })),
+
+  addStaffAccount: ({ name, email, role }) =>
+    set((s) => {
+      const account: StaffAccount = { id: genId('staff'), name, email, role, status: 'ACTIVE', createdAt: new Date().toISOString().slice(0, 10) }
+      return {
+        staffAccounts: [...s.staffAccounts, account],
+        globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'ops.manager', `Created staff account for ${name} (${role})`, 'StaffAccount', account.id),
+      }
+    }),
+  setStaffAccountStatus: (id, status) =>
+    set((s) => ({
+      staffAccounts: s.staffAccounts.map((a) => (a.id === id ? { ...a, status } : a)),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'ops.manager', `Set staff account status to ${status}`, 'StaffAccount', id),
+    })),
+
+  updateOperatingParams: (patch, actor = 'ops.manager') =>
+    set((s) => ({
+      operatingParams: { ...s.operatingParams, ...patch },
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Updated operating parameters: ${Object.keys(patch).join(', ')}`, 'OperatingParams', 'global'),
+    })),
 
   hydrateSeedRoutes: () => {
     const state = get()
@@ -754,9 +1568,15 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     // stays stable while the live demo queue still feels alive.
     const liveDemoActiveCount = s.orders.filter((o) => !o.id.startsWith('ord-bulk-') && ACTIVE_STATUS_SET.has(o.status)).length
 
+    // Simulated Dynamic Pricing Service "live feed" — occasionally nudges one
+    // zone's weather/demand by a step so `/fleet-os/pricing/dynamic` and the
+    // Customer App's fare breakdown both feel like they're backed by a real
+    // (if simulated) API rather than a frozen snapshot.
+    const zoneConditions = driftZoneConditions(s.zoneConditions)
+
     let orders = s.orders
     if (s.ambientOrdersEnabled && liveDemoActiveCount < MAX_ACTIVE_AMBIENT_ORDERS && Math.random() < AMBIENT_ORDER_CHANCE) {
-      const withSuggestion = buildAmbientOrder()
+      const withSuggestion = buildAmbientOrder({ zoneConditions, pricingRules: s.pricingRules, vehicles: s.vehicles, drivers: s.drivers, categoryPriceOverrides: s.categoryPriceOverrides })
       const suggested = { ...withSuggestion, suggestedDriverId: suggestDriver(withSuggestion, s.drivers, s.vehicles) }
       orders = [suggested, ...orders]
       notifications = pushNotification(notifications, 'INFO', 'notif.orderReceived.title', 'notif.orderReceived.message', { orderNo: suggested.orderNo, channel: suggested.channel, pickup: suggested.pickup.name, dropoff: suggested.dropoff.name }, suggested.id)
@@ -790,8 +1610,11 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       const driver = drivers.find((d) => d.id === order.pendingDriverId)
       if (!driver) return order
 
+      const isRescue = order.isEmergencyRescue && order.emergencyStatus === 'RESCUE_DISPATCHED'
+
+      // For rescue missions, let the driver UI or explicit acceptance handle it rather than background random auto-accept
       const timedOut = now >= attempt.respondBy
-      const shouldAutoAccept = !order.demoForceNoResponse && !timedOut && Math.random() < AUTO_ACCEPT_CHANCE_PER_TICK
+      const shouldAutoAccept = !isRescue && !order.demoForceNoResponse && !timedOut && Math.random() < AUTO_ACCEPT_CHANCE_PER_TICK
 
       if (shouldAutoAccept) {
         const vehicle = s.vehicles.find((v) => v.id === driver.vehicleId)
@@ -808,7 +1631,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
 
       if (!timedOut) return order
 
-      if (attempt.stage === 1) {
+      if (attempt.stage === 1 && !isRescue) {
         const resolvedAttempts = order.dispatchAttempts.map((a, i) => (i === attemptIndex ? { ...a, status: 'TIMED_OUT' as const, resolvedAt: now } : a))
         const { order: escalated, notifications: nextNotifications } = startDispatchAttempt({ ...order, dispatchAttempts: resolvedAttempts }, driver, 2, notifications, 'SYSTEM')
         notifications = nextNotifications
@@ -827,13 +1650,29 @@ export const useFleetStore = create<FleetState>((set, get) => ({
 
     orders = orders.map((order) => {
       if (order.status === 'DRIVER_EN_ROUTE' && order.routeToPickup) {
+        // If an emergency is reported and rescue has not yet arrived/dispatched, pause movement
+        if (order.incidentReportedAt && order.emergencyStatus === 'INCIDENT_REPORTED') {
+          return order
+        }
         const step = 1 / order.routeToPickup.durationTicks
         const nextProgress = order.legProgress + step
         if (nextProgress >= 1) {
-          notifications = pushNotification(notifications, 'SUCCESS', 'notif.driverArrived.title', 'notif.driverArrived.message', { orderNo: order.orderNo }, order.id)
+          const isRescueLeg = order.isEmergencyRescue && order.emergencyStatus === 'RESCUE_EN_ROUTE'
+          notifications = pushNotification(
+            notifications,
+            'SUCCESS',
+            isRescueLeg ? 'notif.rescueArrived.title' : 'notif.driverArrived.title',
+            isRescueLeg ? 'notif.rescueArrived.message' : 'notif.driverArrived.message',
+            { orderNo: order.orderNo },
+            order.id,
+          )
           const pos = { lat: order.pickup.lat, lng: order.pickup.lng, x: order.pickup.svgX, y: order.pickup.svgY }
           drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, lat: pos.lat, lng: pos.lng, svgX: pos.x, svgY: pos.y } : d))
-          return appendHistory({ ...order, status: 'ARRIVED', legProgress: 1, currentPos: pos, waitStartedAt: now }, 'SYSTEM')
+          const nextEmergencyStatus: EmergencyStatus | undefined = isRescueLeg ? 'RESCUE_ARRIVED' : order.emergencyStatus
+          return appendHistory(
+            { ...order, status: 'ARRIVED', legProgress: 1, currentPos: pos, waitStartedAt: now, emergencyStatus: nextEmergencyStatus },
+            'SYSTEM',
+          )
         }
         const pos = evaluateRoute(order.routeToPickup, nextProgress)
         drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, lat: pos.lat, lng: pos.lng, svgX: pos.x, svgY: pos.y } : d))
@@ -841,31 +1680,99 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       }
 
       if (order.status === 'PASSENGER_ONBOARD' && order.routeToDropoff) {
+        // If an emergency is reported and rescue has not yet picked up, freeze car at incident spot
+        if (order.incidentReportedAt && order.emergencyStatus === 'INCIDENT_REPORTED') {
+          return order
+        }
         const step = 1 / order.routeToDropoff.durationTicks
         const nextProgress = order.legProgress + step
         if (nextProgress >= 1) {
           notifications = pushNotification(notifications, 'SUCCESS', 'notif.tripCompleted.title', 'notif.tripCompleted.message', { orderNo: order.orderNo }, order.id)
           drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, status: 'AVAILABLE' } : d))
           const pos = { lat: order.dropoff.lat, lng: order.dropoff.lng, x: order.dropoff.svgX, y: order.dropoff.svgY }
-          return appendHistory({ ...order, status: 'COMPLETED', legProgress: 1, currentPos: pos }, 'SYSTEM')
+          return appendHistory({ ...order, status: 'COMPLETED', legProgress: 1, currentPos: pos, emergencyStatus: order.isEmergencyRescue ? 'RESOLVED' : order.emergencyStatus }, 'SYSTEM')
         }
         const pos = evaluateRoute(order.routeToDropoff, nextProgress)
         drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, lat: pos.lat, lng: pos.lng, svgX: pos.x, svgY: pos.y } : d))
         return { ...order, legProgress: nextProgress, currentPos: pos }
       }
 
-      if (order.flightInfo && ACTIVE_STATUS_SET.has(order.status) && Math.random() < 0.06) {
+      if (order.flightInfo && ACTIVE_STATUS_SET.has(order.status) && order.status !== 'PASSENGER_ONBOARD' && Math.random() < 0.06) {
         const drifted = driftFlightStatus(order.flightInfo)
         if (drifted.status !== order.flightInfo.status) {
           notifications = pushNotification(notifications, drifted.status === 'DELAYED' ? 'WARNING' : 'INFO', 'notif.flightUpdated.title', 'notif.flightUpdated.message', { flightNumber: drifted.flightNumber, status: drifted.status.replace('_', ' '), delay: drifted.status === 'DELAYED' ? ` (+${drifted.delayMinutes}m)` : '' }, order.id)
         }
-        return { ...order, flightInfo: drifted }
+        // Wanma-style flight-aware airport buffer: record the moment the
+        // flight first actually lands, which both the last-minute
+        // auto-cancel rule below and the driver-facing free-wait/fee
+        // escalation window (`lib/serviceRules.ts`) key off of.
+        const flightLandedAt = drifted.status === 'LANDED' && !order.flightLandedAt ? now : order.flightLandedAt
+        return { ...order, flightInfo: drifted, flightLandedAt }
       }
 
       return order
     })
 
-    set({ orders, drivers, notifications, tickCount: s.tickCount + 1 })
+    // ---- Airport-Express-style auto-cancel: a LAST_MINUTE, flight-based
+    // airport-pickup booking that is still unmatched (never reached
+    // DRIVER_EN_ROUTE) once the demo-compressed equivalent of the real
+    // 30-minutes-after-landing window has elapsed is cancelled for free and,
+    // if it had captured a card payment, automatically refunded. ----
+    let refundRequests = s.refundRequests
+    let globalAuditLog = s.globalAuditLog
+    orders = orders.map((order) => {
+      if (order.bookingUrgency !== 'LAST_MINUTE' || order.type !== 'AIRPORT_PICKUP') return order
+      if (!order.flightLandedAt || !['CONFIRMED', 'DRIVER_MATCHING'].includes(order.status)) return order
+      if (now - order.flightLandedAt < LAST_MINUTE_AUTO_CANCEL_DEMO_MS) return order
+
+      const result = autoCancelWithRefund(
+        order,
+        'Best-effort last-minute request auto-cancelled: no driver matched within the post-landing window (free of charge)',
+        refundRequests,
+        globalAuditLog,
+      )
+      refundRequests = result.refundRequests
+      globalAuditLog = result.globalAuditLog
+      notifications = pushNotification(notifications, 'ERROR', 'notif.lastMinuteAutoCancelled.title', 'notif.lastMinuteAutoCancelled.message', { orderNo: order.orderNo }, order.id)
+      return result.order
+    })
+
+    // ---- Wanma-style full-refund-on-major-flight-change: a diversion, or a
+    // schedule shift of `MAJOR_FLIGHT_SHIFT_MINUTES`+ from what was booked,
+    // triggers an automatic cancellation + full refund for any order that
+    // hasn't already picked the passenger up. ----
+    orders = orders.map((order) => {
+      if (!order.flightInfo || order.status === 'PASSENGER_ONBOARD' || !ACTIVE_STATUS_SET.has(order.status)) return order
+      const isDiverted = order.flightInfo.status === 'DIVERTED'
+      const isMajorDelay = order.flightInfo.status === 'DELAYED' && order.flightInfo.delayMinutes >= MAJOR_FLIGHT_SHIFT_MINUTES
+      if (!isDiverted && !isMajorDelay) return order
+
+      const reason = isDiverted
+        ? `Flight ${order.flightInfo.flightNumber} diverted to a different airport — automatically cancelled with a full refund`
+        : `Flight ${order.flightInfo.flightNumber} shifted ${order.flightInfo.delayMinutes} min from the booked schedule — automatically cancelled with a full refund`
+      const result = autoCancelWithRefund(order, reason, refundRequests, globalAuditLog)
+      refundRequests = result.refundRequests
+      globalAuditLog = result.globalAuditLog
+      if (order.driverId) drivers = drivers.map((d) => (d.id === order.driverId ? { ...d, status: 'AVAILABLE' } : d))
+      notifications = pushNotification(
+        notifications,
+        'ERROR',
+        isDiverted ? 'notif.flightDivertedCancelled.title' : 'notif.flightMajorDelayCancelled.title',
+        isDiverted ? 'notif.flightDivertedCancelled.message' : 'notif.flightMajorDelayCancelled.message',
+        { orderNo: order.orderNo, flightNumber: order.flightInfo.flightNumber },
+        order.id,
+      )
+      return result.order
+    })
+
+    // Cash-on-arrival/drop-off (Airport Express's payment option) is only
+    // ever *authorized* through the app — it becomes PAID the moment the
+    // trip actually completes and cash genuinely changes hands.
+    orders = orders.map((order) =>
+      order.status === 'COMPLETED' && order.paymentMethod === 'cash' && order.paymentStatus === 'AUTHORIZED' ? { ...order, paymentStatus: 'PAID' } : order,
+    )
+
+    set({ orders, drivers, notifications, zoneConditions, refundRequests, globalAuditLog, tickCount: s.tickCount + 1 })
   },
 
   setSupplierStatus: (id, status) =>
@@ -937,6 +1844,59 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'finance', 'Marked payout as paid', 'Payout', id),
     })),
 
+  // ---- Dynamic Pricing Service (/fleet-os/pricing/dynamic) — every rule
+  // edit is written to the same global audit log used across Fleet OS, per
+  // the client brief's "approval and audit log for every rule change." ----
+  updatePricingRules: (patch, actor = 'fleet.manager') =>
+    set((s) => {
+      const changedKeys = Object.keys(patch)
+      return {
+        pricingRules: { ...s.pricingRules, ...patch },
+        globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Updated pricing rule(s): ${changedKeys.join(', ')}`, 'PricingRules', changedKeys.join(',') || 'rules'),
+      }
+    }),
+
+  setZoneCondition: (region, patch, actor = 'fleet.manager') =>
+    set((s) => ({
+      zoneConditions: s.zoneConditions.map((z) => (z.region === region ? { ...z, ...patch, updatedAt: Date.now() } : z)),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Overrode simulated conditions for ${region} (${Object.entries(patch).map(([k, v]) => `${k}=${v}`).join(', ')})`, 'ZoneCondition', region),
+    })),
+
+  setCategoryPriceOverride: (category, patch, actor = 'fleet.manager') =>
+    set((s) => ({
+      categoryPriceOverrides: { ...s.categoryPriceOverrides, [category]: patch },
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Updated ${category} pricing: base ${patch.baseFare} / km ${patch.perKmRate} / min ${patch.perMinRate}`, 'VehicleCategory', category),
+    })),
+
+  // ---- Fleet & Vehicle Inventory backend (/fleet-os/vehicles) ----
+  setVehicleMaintenance: (vehicleId, hours, reason, actor = 'fleet.manager') =>
+    set((s) => ({
+      vehicles: s.vehicles.map((v) => (v.id === vehicleId ? { ...v, maintenanceUntil: hours === null ? null : Date.now() + hours * 3_600_000, maintenanceReason: hours === null ? null : reason } : v)),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog, actor, hours === null ? 'Cleared maintenance block' : `Blocked vehicle for maintenance (${hours}h): ${reason}`, 'Vehicle', vehicleId,
+      ),
+    })),
+
+  setVehicleServiceZone: (vehicleId, zone, actor = 'fleet.manager') =>
+    set((s) => ({
+      vehicles: s.vehicles.map((v) => (v.id === vehicleId ? { ...v, serviceZone: zone } : v)),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Reassigned service zone to ${zone}`, 'Vehicle', vehicleId),
+    })),
+
+  setVehicleCategory: (vehicleId, category, actor = 'fleet.manager') =>
+    set((s) => ({
+      vehicles: s.vehicles.map((v) => (v.id === vehicleId ? { ...v, category, luggageCapacity: VEHICLE_CATEGORY_CATALOG[category].maxLuggage } : v)),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Recategorized vehicle as ${category}`, 'Vehicle', vehicleId),
+    })),
+
+  toggleVehicleFeature: (vehicleId, feature, actor = 'fleet.manager') =>
+    set((s) => ({
+      vehicles: s.vehicles.map((v) =>
+        v.id === vehicleId ? { ...v, features: v.features.includes(feature) ? v.features.filter((f) => f !== feature) : [...v.features, feature] } : v,
+      ),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, actor, `Toggled feature ${feature}`, 'Vehicle', vehicleId),
+    })),
+
   addSavedPassenger: (customerId, passenger) =>
     set((s) => ({ customerProfiles: s.customerProfiles.map((c) => (c.id === customerId ? { ...c, savedPassengers: [...c.savedPassengers, { ...passenger, id: genId('pax') }] } : c)) })),
   removeSavedPassenger: (customerId, passengerId) =>
@@ -953,6 +1913,594 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     set((s) => ({ customerProfiles: s.customerProfiles.map((c) => (c.id === customerId ? { ...c, privacyRequests: [{ id: genId('priv'), kind, status: 'PENDING', requestedAt: Date.now() }, ...c.privacyRequests] } : c)) })),
   setConsentMarketing: (customerId, v) =>
     set((s) => ({ customerProfiles: s.customerProfiles.map((c) => (c.id === customerId ? { ...c, consentMarketing: v } : c)) })),
+
+  recordAccessAttempt: async (authMethod, status, inputIdentifier) => {
+    const entry = await createAccessLogEntry(authMethod, status, inputIdentifier)
+    set((s) => {
+      const updated = [entry, ...s.accessLogs].slice(0, 500)
+      saveStoredAccessLogs(updated)
+      return { accessLogs: updated }
+    })
+    return entry
+  },
+
+  clearAccessLogs: () => {
+    set(() => {
+      saveStoredAccessLogs([])
+      return { accessLogs: [] }
+    })
+  },
+
+  addNewDriver: (input, actor = 'fleet.admin') => {
+    const driverId = genId('drv')
+    const vehicleId = genId('veh')
+    const catalogEntry = VEHICLE_CATEGORY_CATALOG[input.vehicleCategory]
+    const physicalType = catalogEntry.category.includes('SEDAN')
+      ? 'SEDAN'
+      : catalogEntry.category.includes('SUV')
+        ? 'SUV'
+        : catalogEntry.category.includes('MINIBUS')
+          ? 'MINIBUS'
+          : catalogEntry.isVip
+            ? 'LUXURY'
+            : 'VAN'
+
+    const newVehicle: Vehicle = {
+      id: vehicleId,
+      plate: input.vehiclePlate.trim().toUpperCase(),
+      type: physicalType,
+      category: input.vehicleCategory,
+      colorHex: input.colorHex || '#22d3ee',
+      capacity: catalogEntry.maxPassengers,
+      luggageCapacity: catalogEntry.maxLuggage,
+      driverId,
+      serviceZone: input.serviceRegion,
+      features: catalogEntry.features,
+      insuranceStatus: 'VALID',
+      complianceStatus: 'OK',
+      maintenanceUntil: null,
+      maintenanceReason: null,
+    }
+
+    const newDriver: Driver = {
+      id: driverId,
+      name: input.name.trim(),
+      nameZh: input.nameZh.trim() || input.name.trim(),
+      avatarEmoji: input.avatarEmoji || '👨‍✈️',
+      colorHex: input.colorHex || '#22d3ee',
+      phone: input.phone.trim(),
+      tier: input.tier,
+      status: 'AVAILABLE',
+      rating: 5.0,
+      completedTrips: 0,
+      lat: 25.033,
+      lng: 121.5654,
+      svgX: 180,
+      svgY: 120,
+      vehicleId,
+      documents: {
+        license: {
+          number: input.licenseNumber || `DL-${Math.floor(100000 + Math.random() * 900000)}`,
+          expiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
+          status: 'VALID',
+          ocrStatus: 'VERIFIED',
+          lastUpdatedAt: new Date().toISOString(),
+        },
+        insurance: {
+          number: input.insuranceNumber || `INS-${Math.floor(100000 + Math.random() * 900000)}`,
+          expiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
+          status: 'VALID',
+          ocrStatus: 'VERIFIED',
+          lastUpdatedAt: new Date().toISOString(),
+        },
+        registration: {
+          number: `REG-${newVehicle.plate}`,
+          expiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
+          status: 'VALID',
+          ocrStatus: 'VERIFIED',
+          lastUpdatedAt: new Date().toISOString(),
+        },
+        inspection: {
+          number: `INSP-${Math.floor(10000 + Math.random() * 90000)}`,
+          expiresAt: new Date(Date.now() + 180 * 86400000).toISOString(),
+          status: 'VALID',
+          ocrStatus: 'VERIFIED',
+          lastUpdatedAt: new Date().toISOString(),
+        },
+      },
+      stats: {
+        totalAllTime: 0,
+        totalToday: 0,
+        totalWeek: 0,
+        acceptedToday: 0,
+        declinedToday: 0,
+        missedToday: 0,
+        acceptedAllTime: 0,
+        declinedAllTime: 0,
+        missedAllTime: 0,
+      },
+      shiftSchedule: buildShiftSchedule(driverId),
+      unresponsiveFlagUntil: null,
+      unresponsiveOrderNo: null,
+      workingMode: 'ANY',
+      currentZone: input.serviceRegion,
+      autoAcceptEnabled: true,
+      airportPreference: true,
+      shiftStartedAt: Date.now(),
+      loginEnabled: true,
+      serviceMinutesToday: 85,
+      breakMode: false,
+      lastBreakStartedAt: null,
+      lastInspectionPassedAt: Date.now(),
+      inspectionChecklist: { tires: true, brakes: true, lights: true, dashcam: true },
+      walletBalance: 8650,
+      instantCashoutHistory: [],
+    }
+
+    set((s) => ({
+      drivers: [newDriver, ...s.drivers],
+      vehicles: [newVehicle, ...s.vehicles],
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        actor,
+        `Added new driver ${newDriver.nameZh} (${newDriver.name}) with vehicle ${newVehicle.plate} (${newVehicle.category})`,
+        'Driver',
+        newDriver.id,
+      ),
+      notifications: pushNotification(
+        s.notifications,
+        'SUCCESS',
+        'notif.driverAdded.title',
+        'notif.driverAdded.message',
+        { driverName: newDriver.nameZh, plate: newVehicle.plate },
+      ),
+    }))
+
+    return newDriver
+  },
+
+  toggleDriverBreakMode: (driverId) =>
+    set((s) => ({
+      drivers: s.drivers.map((d) => {
+        if (d.id !== driverId) return d
+        const nextBreak = !d.breakMode
+        return {
+          ...d,
+          breakMode: nextBreak,
+          status: nextBreak ? 'BREAK' : 'AVAILABLE',
+          lastBreakStartedAt: nextBreak ? Date.now() : null,
+        }
+      }),
+    })),
+
+  submitPreTripInspection: (driverId, checklist) => {
+    const allPassed = checklist.tires && checklist.brakes && checklist.lights && checklist.dashcam
+    set((s) => ({
+      drivers: s.drivers.map((d) =>
+        d.id === driverId
+          ? {
+              ...d,
+              lastInspectionPassedAt: allPassed ? Date.now() : d.lastInspectionPassedAt,
+              inspectionChecklist: checklist,
+              status: allPassed && d.status === 'OFFLINE' ? 'AVAILABLE' : d.status,
+            }
+          : d,
+      ),
+    }))
+    return allPassed
+  },
+
+  requestInstantCashout: (driverId, amount, method) => {
+    const fee = method === 'BANK_TRANSFER' ? 15 : 0
+    const netReceived = Math.max(0, amount - fee)
+    const receipt: InstantCashoutReceipt = {
+      id: genId('cashout'),
+      timestamp: Date.now(),
+      amount,
+      method,
+      accountMask: method === 'BANK_TRANSFER' ? 'CTBC Bank (822) **** 6789' : 'LINE Pay Money (iPASS) **** 3318',
+      fee,
+      netReceived,
+      status: 'SUCCESS',
+      referenceNo: `TXN-${Math.floor(10000000 + Math.random() * 90000000)}`,
+    }
+
+    set((s) => {
+      const driver = s.drivers.find((d) => d.id === driverId)
+      const currentBalance = driver?.walletBalance ?? 12500
+      const nextBalance = Math.max(0, currentBalance - amount)
+
+      return {
+        drivers: s.drivers.map((d) =>
+          d.id === driverId
+            ? {
+                ...d,
+                walletBalance: nextBalance,
+                instantCashoutHistory: [receipt, ...(d.instantCashoutHistory ?? [])],
+              }
+            : d,
+        ),
+        notifications: pushNotification(
+          s.notifications,
+          'SUCCESS',
+          'notif.cashoutSuccess.title',
+          'notif.cashoutSuccess.message',
+          { amount: String(amount), net: String(netReceived) },
+        ),
+      }
+    })
+
+    return receipt
+  },
+
+  tipAndRateDriver: (orderId, tipAmount, ratingTags, ratingStars = 5) => {
+    set((s) => {
+      const order = s.orders.find((o) => o.id === orderId)
+      if (!order) return s
+
+      const driverId = order.driverId
+      const updatedOrders = s.orders.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              tipAmount,
+              tipTags: ratingTags,
+              driverRatingByCustomer: ratingStars,
+              fareBreakdown: {
+                ...o.fareBreakdown,
+                total: o.fareBreakdown.total + tipAmount,
+              },
+            }
+          : o,
+      )
+
+      const updatedDrivers = driverId
+        ? s.drivers.map((d) =>
+            d.id === driverId
+              ? {
+                  ...d,
+                  walletBalance: (d.walletBalance ?? 0) + tipAmount,
+                  rating: Math.min(5, (d.rating * d.completedTrips + ratingStars) / (d.completedTrips + 1 || 1)),
+                }
+              : d,
+          )
+        : s.drivers
+
+      return {
+        orders: updatedOrders,
+        drivers: updatedDrivers,
+        notifications: pushNotification(
+          s.notifications,
+          'SUCCESS',
+          'notif.tipReceived.title',
+          'notif.tipReceived.message',
+          { amount: String(tipAmount), orderNo: order.orderNo },
+          order.id,
+          undefined,
+          driverId || undefined,
+        ),
+      }
+    })
+  },
+
+  reportLostItem: (orderId, reportInput) => {
+    const report: LostItemReport = {
+      id: genId('lost'),
+      reportedAt: Date.now(),
+      ...reportInput,
+      status: 'INVESTIGATING',
+      driverAcknowledged: true,
+    }
+
+    set((s) => {
+      const order = s.orders.find((o) => o.id === orderId)
+      return {
+        orders: s.orders.map((o) =>
+          o.id === orderId
+            ? appendAudit(
+                { ...o, lostItemReport: report },
+                'CUSTOMER',
+                'Reported forgotten item in vehicle',
+                `${report.itemCategory}: ${report.itemDescription}`,
+              )
+            : o,
+        ),
+        globalAuditLog: pushGlobalAudit(
+          s.globalAuditLog,
+          'customer.portal',
+          `Lost & found report filed for order ${order?.orderNo ?? orderId}: ${report.itemCategory}`,
+          'Order',
+          orderId,
+        ),
+        notifications: pushNotification(
+          s.notifications,
+          'WARNING',
+          'notif.lostItemReported.title',
+          'notif.lostItemReported.message',
+          { item: report.itemDescription, orderNo: order?.orderNo ?? orderId },
+          orderId,
+        ),
+      }
+    })
+
+    return report
+  },
+
+  acknowledgeLostItem: (orderId, dispatcherNotes) => {
+    set((s) => ({
+      orders: s.orders.map((o) =>
+        o.id === orderId && o.lostItemReport
+          ? {
+              ...o,
+              lostItemReport: {
+                ...o.lostItemReport,
+                status: 'FOUND_SAFE',
+                dispatcherNotes: dispatcherNotes || 'Driver confirmed item secured in vehicle boot.',
+              },
+            }
+          : o,
+      ),
+    }))
+  },
+
+  // ---- Driver Shift & Working Hours Management ----
+  updateDriverShift: (driverId, hours) => {
+    set((s) => {
+      const driver = s.drivers.find((d) => d.id === driverId)
+      if (!driver) return {}
+      const updatedHours: DriverWorkingHours = {
+        shiftType: hours.shiftType || driver.workingHours?.shiftType || 'DAY',
+        shiftStart: hours.shiftStart || driver.workingHours?.shiftStart || '09:00',
+        shiftEnd: hours.shiftEnd || driver.workingHours?.shiftEnd || '18:00',
+        activeDays: hours.activeDays || driver.workingHours?.activeDays || [1, 2, 3, 4, 5, 6],
+        breakStart: hours.breakStart !== undefined ? hours.breakStart : driver.workingHours?.breakStart,
+        breakEnd: hours.breakEnd !== undefined ? hours.breakEnd : driver.workingHours?.breakEnd,
+        onShift: hours.onShift !== undefined ? hours.onShift : driver.workingHours?.onShift ?? true,
+        customLabel: hours.customLabel !== undefined ? hours.customLabel : driver.workingHours?.customLabel,
+      }
+      return {
+        drivers: s.drivers.map((d) => (d.id === driverId ? { ...d, workingHours: updatedHours } : d)),
+        globalAuditLog: pushGlobalAudit(
+          s.globalAuditLog,
+          'dispatcher',
+          `Updated driver shift schedule for ${driver.name} (${driver.nameZh}) to ${updatedHours.shiftStart}-${updatedHours.shiftEnd}`,
+          'Driver',
+          driverId,
+        ),
+      }
+    })
+  },
+
+  // ---- Real-time Team Messenger ----
+  sendChatMessage: (input) => {
+    const msg: ChatMessage = {
+      id: genId('chat'),
+      timestamp: Date.now(),
+      ...input,
+    }
+    set((s) => ({
+      chatMessages: [...s.chatMessages, msg],
+    }))
+    return msg
+  },
+
+  // ---- Driver Order Handover & Swap Exchange ----
+  createOrderSwapRequest: ({ orderId, fromDriverId, reason, reasonCustom }) => {
+    const state = get()
+    const order = state.orders.find((o) => o.id === orderId)
+    const fromDriver = state.drivers.find((d) => d.id === fromDriverId)
+    if (!order || !fromDriver) throw new Error('Order or driver not found')
+
+    const swap: OrderSwapRequest = {
+      id: genId('swap'),
+      orderId: order.id,
+      orderNo: order.orderNo,
+      fromDriverId: fromDriver.id,
+      fromDriverName: fromDriver.name,
+      fromDriverAvatar: fromDriver.avatarEmoji,
+      toDriverId: null,
+      toDriverName: null,
+      reason,
+      reasonCustom,
+      pickupName: order.pickup.name,
+      dropoffName: order.dropoff.name,
+      scheduledTime: order.scheduledTime,
+      priceEstimate: order.priceEstimate,
+      vehicleCategory: order.vehicleCategory,
+      status: 'PENDING',
+      createdAt: Date.now(),
+    }
+
+    const reasonLabelMap: Record<OrderSwapRequest['reason'], string> = {
+      FATIGUE_SHIFT_END: '工時結束 / 疲勞交接 (Fatigue / Shift ending)',
+      TRAFFIC_JAM_DELAY: '國道塞車延誤 (Traffic jam delay)',
+      MECHANICAL_ISSUE: '車輛突發狀況 (Mechanical issue)',
+      PERSONAL_URGENT: '個人緊急突發 (Personal urgent)',
+      OTHER: '其他原因 (Other)',
+    }
+    const reasonText = reasonCustom ? `${reasonLabelMap[reason]} - ${reasonCustom}` : reasonLabelMap[reason]
+
+    // Create interactive card in #order-swaps channel
+    const chatMsg: ChatMessage = {
+      id: genId('chat'),
+      channelId: 'order-swaps',
+      senderId: fromDriver.id,
+      senderName: `${fromDriver.name} (${fromDriver.nameZh})`,
+      senderRole: 'DRIVER',
+      avatarEmoji: fromDriver.avatarEmoji,
+      text: `🔄 訂單轉單/求援請求：【${order.orderNo}】${order.pickup.name} ➔ ${order.dropoff.name} (預約時間: ${new Date(order.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})，原因：${reasonText}。車資 NT$${order.priceEstimate.toLocaleString()}，請附近司機支援！`,
+      timestamp: Date.now(),
+      swapRequestId: swap.id,
+    }
+
+    set((s) => ({
+      orderSwapRequests: [swap, ...s.orderSwapRequests],
+      chatMessages: [...s.chatMessages, chatMsg],
+      notifications: pushNotification(
+        s.notifications,
+        'WARNING',
+        'notif.orderSwapRequested.title',
+        'notif.orderSwapRequested.message',
+        { orderNo: order.orderNo, driverName: fromDriver.name },
+        order.id,
+      ),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        fromDriver.name,
+        `Requested order swap for ${order.orderNo} due to ${reason}`,
+        'Order',
+        order.id,
+      ),
+    }))
+
+    return swap
+  },
+
+  acceptOrderSwap: (swapRequestId, toDriverId) => {
+    const state = get()
+    const swap = state.orderSwapRequests.find((s) => s.id === swapRequestId)
+    const toDriver = state.drivers.find((d) => d.id === toDriverId)
+    if (!swap || !toDriver || swap.status !== 'PENDING') return false
+
+    // Update swap request and auto-confirm/reassign order
+    const updatedSwap: OrderSwapRequest = {
+      ...swap,
+      toDriverId: toDriver.id,
+      toDriverName: toDriver.name,
+      status: 'ACCEPTED',
+      approvedAt: Date.now(),
+    }
+
+    const order = state.orders.find((o) => o.id === swap.orderId)
+    if (!order) return false
+
+    const vehicle = state.vehicles.find((v) => v.id === toDriver.vehicleId)
+    const driverLoc = driverAsLocation(toDriver)
+    const routeToPickup = getCachedRoute(driverLoc, order.pickup) ?? buildRoutePath(driverLoc, order.pickup, `${order.id}-leg1-${toDriver.id}`)
+
+    const nextOrder = appendAudit(
+      appendHistory(
+        {
+          ...order,
+          driverId: toDriver.id,
+          vehicleId: vehicle?.id ?? order.vehicleId,
+          routeToPickup,
+          legProgress: 0,
+        },
+        'DRIVER',
+      ),
+      'DISPATCHER',
+      `Order handover confirmed from ${swap.fromDriverName} to ${toDriver.name}`,
+    )
+
+    const chatMsg: ChatMessage = {
+      id: genId('chat'),
+      channelId: 'order-swaps',
+      senderId: toDriver.id,
+      senderName: `${toDriver.name} (${toDriver.nameZh})`,
+      senderRole: 'DRIVER',
+      avatarEmoji: toDriver.avatarEmoji,
+      text: `✅ 我已接下訂單【${swap.orderNo}】！感謝支援，立即前往載客。`,
+      timestamp: Date.now(),
+      swapRequestId: swap.id,
+    }
+
+    set((s) => ({
+      orderSwapRequests: s.orderSwapRequests.map((sw) => (sw.id === swapRequestId ? updatedSwap : sw)),
+      orders: s.orders.map((o) => (o.id === swap.orderId ? nextOrder : o)),
+      drivers: s.drivers.map((d) => {
+        if (d.id === swap.fromDriverId) return { ...d, status: 'AVAILABLE' as const }
+        if (d.id === toDriver.id) return { ...d, status: 'BUSY' as const }
+        return d
+      }),
+      chatMessages: [...s.chatMessages, chatMsg],
+      notifications: pushNotification(
+        s.notifications,
+        'SUCCESS',
+        'notif.orderSwapCompleted.title',
+        'notif.orderSwapCompleted.message',
+        { orderNo: swap.orderNo, fromDriver: swap.fromDriverName, toDriver: toDriver.name },
+        swap.orderId,
+      ),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        toDriver.name,
+        `Accepted and took over order swap for ${swap.orderNo}`,
+        'Order',
+        swap.orderId,
+      ),
+    }))
+
+    if (routeToPickup.source === 'SYNTHETIC') scheduleRouteHydration(order.id, 'routeToPickup', driverLoc, order.pickup)
+    return true
+  },
+
+  approveOrderSwap: (swapRequestId) => {
+    const state = get()
+    const swap = state.orderSwapRequests.find((s) => s.id === swapRequestId)
+    if (!swap || !swap.toDriverId) return false
+    return state.acceptOrderSwap(swapRequestId, swap.toDriverId)
+  },
+
+  cancelOrderSwap: (swapRequestId) => {
+    set((s) => ({
+      orderSwapRequests: s.orderSwapRequests.map((sw) =>
+        sw.id === swapRequestId ? { ...sw, status: 'CANCELLED' as const } : sw,
+      ),
+    }))
+  },
+
+  // ---- Force Override Manual Assignment ----
+  forceAssignOrder: (orderId, driverId) => {
+    const state = get()
+    const order = state.orders.find((o) => o.id === orderId)
+    const driver = state.drivers.find((d) => d.id === driverId)
+    if (!order || !driver) return
+
+    const vehicle = state.vehicles.find((v) => v.id === driver.vehicleId)
+    const driverLoc = driverAsLocation(driver)
+    const routeToPickup = getCachedRoute(driverLoc, order.pickup) ?? buildRoutePath(driverLoc, order.pickup, `${order.id}-leg1-${driver.id}`)
+
+    const nextOrder = appendAudit(
+      appendHistory(
+        {
+          ...order,
+          status: 'ASSIGNED',
+          driverId: driver.id,
+          vehicleId: vehicle?.id ?? null,
+          pendingDriverId: null,
+          suggestedDriverId: driver.id,
+          routeToPickup,
+          legProgress: 0,
+        },
+        'DISPATCHER',
+      ),
+      'DISPATCHER',
+      `Manual Force Assignment Override to ${driver.name} (${driver.id})`,
+    )
+
+    set((s) => ({
+      orders: s.orders.map((o) => (o.id === orderId ? nextOrder : o)),
+      drivers: s.drivers.map((d) => (d.id === driver.id ? { ...d, status: 'BUSY' as const } : d)),
+      notifications: pushNotification(
+        s.notifications,
+        'SUCCESS',
+        'notif.manualAssigned.title',
+        'notif.manualAssigned.message',
+        { driverName: driver.name, orderNo: order.orderNo },
+        order.id,
+      ),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        'dispatcher',
+        `Force manual assignment of order ${order.orderNo} to driver ${driver.name}`,
+        'Order',
+        order.id,
+      ),
+    }))
+
+    if (routeToPickup.source === 'SYNTHETIC') scheduleRouteHydration(order.id, 'routeToPickup', driverLoc, order.pickup)
+  },
 }))
 
 // Dev/demo-only escape hatch for e2e/artifact scripts that need to drive the

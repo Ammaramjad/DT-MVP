@@ -11,6 +11,7 @@ const routes = [
   '/booking',
   '/control',
   '/fleet-os',
+  '/fleet-os/multiscreen',
   '/fleet-os/suppliers',
   '/fleet-os/catalog',
   '/fleet-os/campaigns',
@@ -19,14 +20,31 @@ const routes = [
   '/fleet-os/roster',
   '/fleet-os/compliance',
   '/fleet-os/finance',
+  '/fleet-os/pricing/dynamic',
+  '/fleet-os/vehicles',
   '/fleet-os/reports',
-  '/fleet-os/admin',
+  '/fleet-os/manual-order',
+  '/fleet-os/translation-qa',
+    '/fleet-os/flights',
+    '/fleet-os/forecast',
+    '/fleet-os/invoices',
+    '/fleet-os/corporate',
+    '/fleet-os/accounts',
+    '/fleet-os/params',
+    '/fleet-os/access-logs',
+    '/fleet-os/admin',
   '/driver',
   '/customer',
 ]
 
 const browser = await chromium.launch()
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+await context.addInitScript(() => {
+  try {
+    localStorage.setItem('fleet_preview_auth_token', 'test_e2e_token_' + Date.now())
+  } catch {}
+})
+const page = await context.newPage()
 
 const errors = []
 page.on('console', (msg) => {

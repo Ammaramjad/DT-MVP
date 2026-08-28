@@ -24,18 +24,36 @@ export function RouteMap({ order, height = '100%' }: { order: Order; height?: st
   const points: [number, number][] = path ? path.points.map((p) => [p.lat, p.lng]) : []
   const current = path ? evaluateRoute(path, order.legProgress) : null
   const isMoving = order.status === 'DRIVER_EN_ROUTE' || order.status === 'PASSENGER_ONBOARD'
+  const isEmergency = order.emergencyStatus && order.emergencyStatus !== 'RESOLVED'
 
   return (
-    <div style={{ height }} className="overflow-hidden rounded-2xl">
+    <div style={{ height }} className="overflow-hidden rounded-2xl border border-white/10 bg-[#030712] shadow-2xl">
       <MapContainer center={points[0] ?? [25.06, 121.46]} zoom={12} className="h-full w-full" zoomControl={false} attributionControl={false}>
-        <TileLayer className="map-tiles-dark" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" subdomains={['a', 'b', 'c']} />
+        <TileLayer
+          className="map-tiles-dark"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          subdomains={['a', 'b', 'c']}
+        />
         {points.length > 1 && <FitToRoute points={points} />}
         {points.length > 1 && (
-          <Polyline positions={points} pathOptions={{ color: '#22d3ee', weight: 4, opacity: 0.7 }} />
+          <Polyline
+            positions={points}
+            pathOptions={{
+              color: isEmergency ? '#f43f5e' : '#06b6d4',
+              weight: 4,
+              opacity: 0.85,
+              className: isEmergency ? 'neon-route-emergency' : 'neon-route-path',
+            }}
+          />
         )}
-        <Marker position={[order.pickup.lat, order.pickup.lng]} icon={flagDivIcon('#22d3ee', 'pickup')} />
-        <Marker position={[order.dropoff.lat, order.dropoff.lng]} icon={flagDivIcon('#f472b6', 'dropoff')} />
-        {current && <Marker position={[current.lat, current.lng]} icon={vehicleDivIcon('#fbbf24', { pulse: isMoving })} />}
+        <Marker position={[order.pickup.lat, order.pickup.lng]} icon={flagDivIcon('#06b6d4', 'pickup')} />
+        <Marker position={[order.dropoff.lat, order.dropoff.lng]} icon={flagDivIcon('#f43f5e', 'dropoff')} />
+        {current && (
+          <Marker
+            position={[current.lat, current.lng]}
+            icon={vehicleDivIcon(isEmergency ? '#f43f5e' : '#f59e0b', { pulse: isMoving || !!isEmergency })}
+          />
+        )}
       </MapContainer>
     </div>
   )

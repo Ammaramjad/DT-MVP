@@ -1,21 +1,25 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { AlertOctagon, FlaskConical, Luggage, Plane, User, Users, Wand2, X, Zap } from 'lucide-react'
+import { Accessibility, AlertOctagon, Baby, Car, Clock3, Dog, FlaskConical, Luggage, Plane, PlaneLanding, User, Users, Wand2, X, Zap } from 'lucide-react'
 import type { Order } from '../../types'
 import { useFleetStore } from '../../store/useFleetStore'
-import { OrderTypeBadge, StatusBadge, FlightBadge, TierBadge, ChannelBadge } from '../ui/OrderBadges'
-import { Button } from '../ui/Button'
+import { OrderTypeBadge, StatusBadge, FlightBadge, TierBadge, ChannelBadge, UrgencyBadge } from '../ui/OrderBadges'
 import { CountdownRing } from '../ui/CountdownRing'
 import { DispatchLog } from './DispatchLog'
 import { StatusHistoryTimeline } from './StatusHistoryTimeline'
+import { ManualAssignmentModal } from '../fleetos/ManualAssignmentModal'
 import { formatTWD, formatClock } from '../../lib/format'
+import { isVehicleSubstituted } from '../../lib/selectors'
 import { useLang } from '../../i18n'
 
 export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focused: boolean; onFocus: () => void }) {
   const { t, lang } = useLang()
   const drivers = useFleetStore((s) => s.drivers)
-  const assignOrder = useFleetStore((s) => s.assignOrder)
+  const vehicles = useFleetStore((s) => s.vehicles)
   const cancelOrder = useFleetStore((s) => s.cancelOrder)
   const toggleDemoNoResponse = useFleetStore((s) => s.toggleDemoNoResponse)
+  const simulateFlightEvent = useFleetStore((s) => s.simulateFlightEvent)
+  const [showAssignModal, setShowAssignModal] = useState(false)
 
   const assignedDriver = drivers.find((d) => d.id === order.driverId)
   const suggestedDriver = drivers.find((d) => d.id === order.suggestedDriverId)
@@ -24,6 +28,7 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
   const lastUnresponsiveId = order.unresponsiveDriverIds[order.unresponsiveDriverIds.length - 1]
   const lastUnresponsiveDriver = drivers.find((d) => d.id === lastUnresponsiveId)
   const isFreshArrival = order.status === 'CONFIRMED' && Date.now() - order.createdAt < 3200
+  const substituted = isVehicleSubstituted(order, vehicles)
 
   const pickupName = lang === 'zh' ? order.pickup.nameZh : order.pickup.name
   const dropoffName = lang === 'zh' ? order.dropoff.nameZh : order.dropoff.name
@@ -65,7 +70,31 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <OrderTypeBadge type={order.type} />
+        <UrgencyBadge urgency={order.bookingUrgency} />
+        <span className="rounded-full bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-300" data-testid="order-card-vehicle-category">
+          {t(`vehicle.category.${order.vehicleCategory}`)}
+        </span>
+        {order.isEmergencyRescue && (
+          <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold text-rose-300 ring-1 ring-rose-500/40" data-testid="order-card-emergency-badge">
+            {t('common.emergencyBadge')}
+          </span>
+        )}
         {order.flightInfo && <FlightBadge status={order.flightInfo.status} />}
+        {order.passengerRequirements.childSeat && (
+          <span className="flex items-center gap-0.5 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300" title={t('driver.requirement.childSeat')}>
+            <Baby className="h-2.5 w-2.5" />
+          </span>
+        )}
+        {order.passengerRequirements.wheelchair && (
+          <span className="flex items-center gap-0.5 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300" title={t('driver.requirement.wheelchair')}>
+            <Accessibility className="h-2.5 w-2.5" />
+          </span>
+        )}
+        {order.passengerRequirements.pet && (
+          <span className="flex items-center gap-0.5 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300" title={t('driver.requirement.pet')}>
+            <Dog className="h-2.5 w-2.5" />
+          </span>
+        )}
       </div>
 
       <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-300">
@@ -93,6 +122,19 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
           <Plane className="h-3 w-3 text-cyan-300" />
           {order.flightInfo.flightNumber} · {t('booking.gate', { gate: order.flightInfo.gate })}
           {order.flightInfo.delayMinutes > 0 && <span className="text-amber-300">+{order.flightInfo.delayMinutes}m</span>}
+        </div>
+      )}
+
+      {substituted && (
+        <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-amber-400/[0.08] px-2 py-1.5 text-[11px] text-amber-300" data-testid="order-card-vehicle-substituted">
+          <Car className="h-3 w-3" /> {t('trips.vehicleSubstituted')}
+        </div>
+      )}
+
+      {order.lateFeeAmount != null && order.lateFeeAmount > 0 && (
+        <div className="mt-2 flex items-center justify-between gap-1.5 rounded-lg bg-amber-400/[0.08] px-2 py-1.5 text-[11px] text-amber-300" data-testid="order-card-waiting-fee">
+          <span className="flex items-center gap-1.5"><Clock3 className="h-3 w-3" /> {t('trips.waitingFeeCharged', { min: order.lateFeeWaitMinutes ?? 0 })}</span>
+          <span className="font-semibold">{formatTWD(order.lateFeeAmount)}</span>
         </div>
       )}
 
@@ -129,30 +171,49 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
       <StatusHistoryTimeline history={order.statusHistory} />
 
       <div className="mt-2.5 flex items-center justify-between border-t border-white/5 pt-2.5">
-        {order.status === 'CONFIRMED' && suggestedDriver ? (
+        {order.status === 'CONFIRMED' || order.status === 'DRIVER_MATCHING' ? (
           <div className="flex w-full items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-              <Wand2 className="h-3 w-3 text-purple-300" />
-              {t('control.suggested')} <span className="font-medium text-slate-200">{suggestedDriver.name}</span>
-              <TierBadge tier={suggestedDriver.tier} />
+              {suggestedDriver ? (
+                <>
+                  <Wand2 className="h-3 w-3 text-purple-300" />
+                  {t('control.suggested')} <span className="font-medium text-slate-200">{suggestedDriver.name}</span>
+                  <TierBadge tier={suggestedDriver.tier} />
+                </>
+              ) : (
+                <span className="text-slate-500">{t('control.noAvailableDriver')}</span>
+              )}
             </div>
-            <Button
-              size="sm"
-              data-testid="assign-button"
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowAssignModal(true)
+                }}
+                data-testid="open-assign-modal-btn"
+                className="flex items-center gap-1 rounded-lg border border-cyan-400/40 bg-cyan-500/15 px-2.5 py-1 text-xs font-bold text-cyan-300 hover:bg-cyan-500/25 shadow-sm transition"
+              >
+                <Zap className="h-3 w-3" />
+                <span>{lang === 'zh' ? '智慧手動指派' : 'Assign Driver'}</span>
+              </button>
+            </div>
+          </div>
+        ) : assignedDriver ? (
+          <div className="flex w-full items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+              {t('control.driverLabel')} <span className="font-medium text-slate-200">{assignedDriver.name}</span>
+              <TierBadge tier={assignedDriver.tier} />
+            </div>
+            <button
               onClick={(e) => {
                 e.stopPropagation()
-                assignOrder(order.id)
+                setShowAssignModal(true)
               }}
+              data-testid="reassign-modal-btn"
+              className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[10.5px] font-medium text-slate-300 hover:bg-white/10"
             >
-              <Zap className="h-3 w-3" /> {lastUnresponsiveDriver ? t('control.reassign') : t('control.assign')}
-            </Button>
-          </div>
-        ) : order.status === 'CONFIRMED' ? (
-          <span className="text-[11px] text-red-400">{t('control.noAvailableDriver')}</span>
-        ) : assignedDriver ? (
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-            {t('control.driverLabel')} <span className="font-medium text-slate-200">{assignedDriver.name}</span>
-            <TierBadge tier={assignedDriver.tier} />
+              {lang === 'zh' ? '更換司機' : 'Reassign'}
+            </button>
           </div>
         ) : (
           <span className="text-[11px] text-slate-500">—</span>
@@ -172,6 +233,12 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
         )}
       </div>
 
+      <ManualAssignmentModal
+        order={order}
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+      />
+
       {(order.status === 'CONFIRMED' || order.status === 'DRIVER_MATCHING') && (
         <button
           data-testid="demo-no-response-toggle"
@@ -189,6 +256,39 @@ export function OrderQueueCard({ order, focused, onFocus }: { order: Order; focu
           <FlaskConical className="h-3 w-3" />
           {order.demoForceNoResponse ? t('control.demoNoResponseOn') : t('control.demoNoResponseOff')}
         </button>
+      )}
+
+      {/* Demo triggers for the flight-aware auto-cancel/refund simulation
+          (機場快綫's post-landing auto-cancel, 萬馬接送's diversion/major-delay
+          full refund) — see `tick()` and `simulateFlightEvent` in
+          store/useFleetStore.ts. */}
+      {order.flightInfo && ['CONFIRMED', 'DRIVER_MATCHING', 'ASSIGNED', 'DRIVER_EN_ROUTE'].includes(order.status) && order.flightInfo.status !== 'LANDED' && (
+        <div className="mt-2 flex gap-1.5">
+          {order.bookingUrgency === 'LAST_MINUTE' && order.type === 'AIRPORT_PICKUP' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                simulateFlightEvent(order.id, 'LANDED')
+              }}
+              data-testid="demo-simulate-flight-landed"
+              className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-white/5 bg-white/[0.02] px-2 py-1.5 text-[10px] font-medium text-slate-500 hover:text-slate-300"
+              title="Demo: fast-forward this flight to LANDED to exercise the post-landing auto-cancel window"
+            >
+              <PlaneLanding className="h-3 w-3" /> {t('control.demoSimulateLanded')}
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              simulateFlightEvent(order.id, 'DIVERTED')
+            }}
+            data-testid="demo-simulate-flight-diverted"
+            className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-white/5 bg-white/[0.02] px-2 py-1.5 text-[10px] font-medium text-slate-500 hover:text-slate-300"
+            title="Demo: divert this flight to exercise the full-refund-on-major-change simulation"
+          >
+            <FlaskConical className="h-3 w-3" /> {t('control.demoSimulateDiverted')}
+          </button>
+        </div>
       )}
     </motion.div>
   )

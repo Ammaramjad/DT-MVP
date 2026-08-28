@@ -1,13 +1,14 @@
 import { motion } from 'framer-motion'
-import { Activity, Home, User, Wallet } from 'lucide-react'
+import { Activity, Home, MessageSquare, User, Wallet } from 'lucide-react'
 import { useLang } from '../../i18n'
 
-export type DriverTab = 'HOME' | 'EARNINGS' | 'ACTIVITY' | 'ACCOUNT'
+export type DriverTab = 'HOME' | 'EARNINGS' | 'ACTIVITY' | 'MESSENGER' | 'ACCOUNT'
 
 const TABS: { key: DriverTab; icon: typeof Home; labelKey: string }[] = [
   { key: 'HOME', icon: Home, labelKey: 'driver.tab.home' },
   { key: 'EARNINGS', icon: Wallet, labelKey: 'driver.tab.earnings' },
   { key: 'ACTIVITY', icon: Activity, labelKey: 'driver.tab.activity' },
+  { key: 'MESSENGER', icon: MessageSquare, labelKey: 'driver.tab.messenger' },
   { key: 'ACCOUNT', icon: User, labelKey: 'driver.tab.account' },
 ]
 

@@ -23,7 +23,7 @@ export function useMapHealthCheck(): MapMode {
       settled = true
       cachedMode = 'fallback'
       setMode('fallback')
-    }, 4000)
+    }, 1500)
 
     img.onload = () => {
       if (settled) return

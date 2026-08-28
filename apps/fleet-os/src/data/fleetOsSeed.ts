@@ -3,10 +3,12 @@ import type {
   CatalogProduct,
   Campaign,
   Driver,
+  OperatingParams,
   Order,
   PayoutRecord,
   RefundRequest,
   Role,
+  StaffAccount,
   Supplier,
   SupportTicket,
   SystemHealthMetric,
@@ -68,6 +70,28 @@ export const CATALOG_PRODUCTS: CatalogProduct[] = [
   { id: 'cat-hsr-intercity', name: 'HSR Station Intercity Transfer', nameZh: '高鐵站城際接送', routeLabel: 'Taoyuan HSR \u2194 Taichung HSR', vehicleType: 'SEDAN', basePrice: 2800, status: 'DRAFT', inventory: 0, region: 'TAICHUNG' },
   { id: 'cat-minibus-group', name: 'Group Tour Minibus (12-seat)', nameZh: '團體巴士（12人座）', routeLabel: 'Taipei \u2194 Anywhere', vehicleType: 'MINIBUS', basePrice: 6800, status: 'ARCHIVED', inventory: 0, region: 'TAIPEI' },
 ]
+
+/** 帳號管理 (Account Management) "客服人員" tab seed — individually-managed
+ * dispatcher/support-staff login accounts, distinct from the Admin module's
+ * role/permission matrix (`ROLES` above). */
+export const SEED_STAFF_ACCOUNTS: StaffAccount[] = [
+  { id: 'staff-1', name: 'Lin Da-Ming', email: 'daming.lin@zoufengpaiche.tw', role: 'ADMIN', status: 'ACTIVE', createdAt: iso(-380, 0).slice(0, 10) },
+  { id: 'staff-2', name: 'Wang Xiao-Mei', email: 'xiaomei.wang@zoufengpaiche.tw', role: 'SUPPORT', status: 'ACTIVE', createdAt: iso(-370, 0).slice(0, 10) },
+  { id: 'staff-3', name: 'Chen Ya-Ting', email: 'yating.chen@zoufengpaiche.tw', role: 'SUPPORT', status: 'ACTIVE', createdAt: iso(-290, 0).slice(0, 10) },
+  { id: 'staff-4', name: 'Zhang Shu-Hui', email: 'shuhui.zhang@zoufengpaiche.tw', role: 'SUPPORT', status: 'DISABLED', createdAt: iso(-190, 0).slice(0, 10) },
+]
+
+/** 營運參數 (Operating Parameters) seed — the single centralized set of
+ * scheduling/flight-board settings the reference site keeps on one screen
+ * ("全系統營運參數集中於此，設定驅動"). */
+export const DEFAULT_OPERATING_PARAMS: OperatingParams = {
+  dayShiftStartHour: 8,
+  dayShiftEndHour: 22,
+  nightShiftPublishAheadDays: 3,
+  dayShiftPublishAheadDays: 2,
+  driverPlanningWindowDays: 60,
+  flightBoardRefreshMinutes: 5,
+}
 
 export function buildFleetOsSeed(orders: Order[], drivers: Driver[]): {
   suppliers: Supplier[]
