@@ -102,7 +102,7 @@ export function DemoModeSwitcher() {
                     key={item.to}
                     to={item.to}
                     onClick={() => setOpen(false)}
-                    data-testid={`demo-link-${item.to === '/' ? 'home' : item.to.slice(1)}`}
+                    data-testid={`demo-link-${item.to === '/' ? 'home' : item.to.replace(/\//g, '-')}`}
                     className={clsx(
                       'flex items-center gap-2 rounded-xl px-2.5 py-2 text-xs font-medium transition',
                       isActive ? 'bg-cyan-400/15 text-cyan-200' : 'text-slate-300 hover:bg-white/5',

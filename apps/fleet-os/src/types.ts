@@ -1134,17 +1134,77 @@ export interface AiConciergePrompt {
   category: 'AIRPORT' | 'LUGGAGE' | 'FLIGHT' | 'SIGHTSEEING'
 }
 
+export interface AiConciergeCard {
+  title: string
+  subtitle?: string
+  badge?: string
+  items?: string[]
+}
+
 export interface AiConciergeMessage {
   id: string
   sender: 'USER' | 'AI'
   text: string
   timestamp: number
-  cards?: {
-    title: string
-    subtitle?: string
-    badge?: string
-    items?: string[]
-  }[]
+  cards?: AiConciergeCard[]
 }
+
+// ---------------------------------------------------------------------------
+// 7. Driver Reviews & CSAT Intelligence
+// ---------------------------------------------------------------------------
+export type ReviewSentiment = 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE'
+export type ReviewModerationStatus = 'PUBLISHED' | 'FLAGGED' | 'HIDDEN'
+
+export interface DriverReview {
+  id: string
+  orderId: string
+  orderNo: string
+  driverId: string
+  driverName: string
+  driverNameZh: string
+  customerName: string
+  rating: number // 1 - 5
+  tags: string[]
+  comment: string
+  createdAt: number
+  sentiment: ReviewSentiment
+  moderationStatus: ReviewModerationStatus
+  moderationNotes?: string
+  tripRoute: string
+  vehiclePlate: string
+}
+
+// ---------------------------------------------------------------------------
+// 8. Airport Commuter & Route Subscription Passes
+// ---------------------------------------------------------------------------
+export type SubscriptionTier = 'COMMUTER_BASIC' | 'EXECUTIVE_PRO' | 'VIP_ENTERPRISE_UNLIMITED'
+export type SubscriptionBillingCycle = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
+export type SubscriptionStatus = 'ACTIVE' | 'PAUSED' | 'EXPIRED' | 'CANCELLED'
+
+export interface RouteSubscription {
+  id: string
+  subscriberName: string
+  subscriberPhone: string
+  corporateAccountId?: string
+  corporateName?: string
+  tier: SubscriptionTier
+  billingCycle: SubscriptionBillingCycle
+  routeOrigin: string
+  routeOriginZh: string
+  routeDestination: string
+  routeDestinationZh: string
+  vehicleCategory: VehicleCategory
+  ridesIncludedPerMonth: number
+  ridesUsedThisPeriod: number
+  pricePerPeriod: number
+  status: SubscriptionStatus
+  startDate: string
+  renewDate: string
+  autoRenew: boolean
+  scheduledDays: number[] // 0-6
+  preferredPickupTime: string
+  discountRatePct: number
+}
+
 
 
