@@ -94,6 +94,7 @@ function AppContent() {
         <Route path="/fleet-os/subscriptions" element={<SubscriptionsPanel />} />
         <Route path="/fleet-os/lost-found" element={<LostFoundPanel />} />
         <Route path="/fleet-os/roster" element={<RosterPanel />} />
+        <Route path="/fleet-os/drivers" element={<RosterPanel />} />
         <Route path="/fleet-os/compliance" element={<CompliancePanel />} />
         <Route path="/fleet-os/finance" element={<FinancePanel />} />
         <Route path="/fleet-os/reports" element={<ReportsPanel />} />

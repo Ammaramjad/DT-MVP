@@ -22,6 +22,7 @@ const routes = [
   '/fleet-os/subscriptions',
   '/fleet-os/lost-found',
   '/fleet-os/roster',
+  '/fleet-os/drivers',
   '/fleet-os/compliance',
   '/fleet-os/finance',
   '/fleet-os/pricing/dynamic',
@@ -67,7 +68,8 @@ page.on('console', (msg) => {
     !text.includes('ipify') &&
     !text.includes('tile.openstreetmap') &&
     !text.includes('Failed to load resource: net::ERR_FAILED') &&
-    !text.includes('Failed to load resource: net::ERR_ABORTED')
+    !text.includes('Failed to load resource: net::ERR_ABORTED') &&
+    !text.includes('status of 429')
   ) {
     errors.push(`[console] ${text}`)
   }

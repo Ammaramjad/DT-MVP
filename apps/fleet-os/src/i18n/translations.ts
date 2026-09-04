@@ -584,6 +584,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     'driver.rescue.instructionsBody': 'Original vehicle encountered an incident. Proceed immediately to {pickup} to pick up waiting passenger and complete route to {dest}.',
     'driver.rescue.acceptBtn': 'Accept Emergency Rescue Mission',
 
+    'shift.MORNING': 'Morning Shift (06:00-14:00)',
+    'shift.DAY': 'Day Shift (09:00-18:00)',
+    'shift.NIGHT': 'Night Shift (18:00-03:00)',
+    'shift.CUSTOM': 'Custom Shift',
+
     'control.emergency.bannerMsg': 'Emergency SOS reported by {driver} — Passenger: {passenger} ({status}). Immediate replacement dispatch recommended.',
     'control.emergency.dispatchRescueBtn': 'Dispatch Rescue Driver',
     'control.emergency.manageRescueBtn': 'Manage Rescue Status',
@@ -2323,6 +2328,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     'driver.rescue.instructionsTitle': '事故接駁派遣指示',
     'driver.rescue.instructionsBody': '原派車輛於途中發生突發狀況，請即刻驅車前往 {pickup} 接駁等候之乘客，並接續完成前往 {dest} 之行程。',
     'driver.rescue.acceptBtn': '接受緊急救援任務',
+
+    'shift.MORNING': '早班 (06:00-14:00)',
+    'shift.DAY': '日間常規班 (09:00-18:00)',
+    'shift.NIGHT': '夜間紅眼班 (18:00-03:00)',
+    'shift.CUSTOM': '自訂彈性班',
 
     'control.emergency.bannerMsg': '司機 {driver} 發出緊急 SOS — 乘客：{passenger}（{status}）。建議立即派遣救援車輛前往接駁。',
     'control.emergency.dispatchRescueBtn': '指派救援司機',

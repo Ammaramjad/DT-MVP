@@ -47,7 +47,7 @@ export function FleetMapView({ height = '100%' }: { height?: string | number }) 
   const toggleTier = (tier: DriverTier) => setTierFilters((prev) => ({ ...prev, [tier]: !prev[tier] }))
 
   const legend = (
-    <div className="flex flex-wrap items-center gap-1.5 px-1 pb-2" data-testid="fleetmap-legend">
+    <div className="flex flex-wrap items-center gap-1.5 px-1 pb-2 shrink-0" data-testid="fleetmap-legend">
       <div className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-950/70 p-0.5 backdrop-blur-md">
         {TIER_LEGEND.map(({ tier, color }) => (
           <button
@@ -89,23 +89,23 @@ export function FleetMapView({ height = '100%' }: { height?: string | number }) 
 
   const mapEl =
     mode === 'checking' ? (
-      <div style={{ height }} className="flex items-center justify-center rounded-2xl border border-white/10 bg-[#030712]">
+      <div style={{ height: '100%' }} className="flex h-full w-full items-center justify-center rounded-2xl border border-white/10 bg-[#030712]">
         <div className="flex flex-col items-center gap-3 text-slate-400">
           <div className="h-7 w-7 animate-spin rounded-full border-2 border-cyan-400/20 border-t-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)]" />
           <span className="text-xs font-medium tracking-wide">{lang === 'zh' ? '正在載入即時賽博地圖…' : 'Loading Cyber Cartography…'}</span>
         </div>
       </div>
     ) : mode === 'leaflet' ? (
-      <FleetMap height={height} visibleDriverIds={visibleDriverIds} onDriverClick={setSelectedDriverId} />
+      <FleetMap height="100%" visibleDriverIds={visibleDriverIds} onDriverClick={setSelectedDriverId} />
     ) : (
-      <FleetMapFallback height={height} visibleDriverIds={visibleDriverIds} onDriverClick={setSelectedDriverId} />
+      <FleetMapFallback height="100%" visibleDriverIds={visibleDriverIds} onDriverClick={setSelectedDriverId} />
     )
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full w-full flex-col min-h-0" style={{ height }}>
       {legend}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2" style={selectedDriverId ? { gridTemplateColumns: '1fr 220px' } : undefined}>
-        <div className="min-h-0 flex-1 relative">{mapEl}</div>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-hidden" style={selectedDriverId ? { gridTemplateColumns: '1fr 220px' } : undefined}>
+        <div className="min-h-0 flex-1 relative h-full w-full overflow-hidden rounded-2xl">{mapEl}</div>
         {selectedDriverId && <DriverTaskPanel driverId={selectedDriverId} onClose={() => setSelectedDriverId(null)} />}
       </div>
 
