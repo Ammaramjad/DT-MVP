@@ -1008,6 +1008,89 @@ export function createSeedState(): {
     orders.push(buildBulkActiveOrder(`ord-bulk-active-${i}`, nextNo(), status, ageMinutes))
   }
 
+  // ---- Advance & Future Scheduled Orders across next 30 days ----
+  // Generates rich pre-booked airport trips for Tomorrow, Next 3 Days, Next 7 Days, Next 30 Days
+  const futureChannels: Order['channel'][] = ['KKday', 'Klook', 'Booking.com', 'Website', 'LINE@', 'ezTravel']
+  const futurePassengerNames = [
+    { name: 'Dr. Hiroshi Tanaka', phone: '+81 90-8877-6655', note: 'TSMC Global Forum key speaker, VIP pickup at Gate 4', flight: 'JL809', source: 'Corporate B2B' },
+    { name: 'Catherine Dupont', phone: '+33 6 44 55 66 77', note: 'Flight arrival TPE Terminal 2 -> Grand Hyatt Taipei', flight: 'AF188', source: 'Hotel Concierge' },
+    { name: 'David & Rachel Miller', phone: '+1 415-889-1122', note: 'Family charter with 4 large suitcases, child seat required', flight: 'UA871', source: 'Klook/KKday OTA' },
+    { name: 'Min-Jun Park', phone: '+82 10-9988-7766', note: 'Pre-booked Songshan Airport (TSA) pickup to W Hotel', flight: 'KE185', source: 'Airline Flight Pre-booking' },
+    { name: 'Dr. Wei-Cheng Lin', phone: '+886 912-345-678', note: 'Hsinchu Science Park Executive Transfer to TPE Terminal 1', flight: 'CI006', source: 'Corporate B2B' },
+    { name: 'Alexander Schmidt', phone: '+49 170-1234567', note: 'Business meeting transfer to Taipei 101 Tower', flight: 'LH796', source: 'Hotel Concierge' },
+    { name: 'Siti Rahma', phone: '+65 9123-4567', note: 'Singapore business delegation group charter (9-seater)', flight: 'SQ876', source: 'Web/App Booking' },
+    { name: 'Elena Rostov', phone: '+44 7911-123456', note: 'Airport transfer TPE -> Beitou Hot Spring Resort', flight: 'BR31', source: 'Airline Flight Pre-booking' },
+    { name: 'Kenzo Takahashi', phone: '+81 80-3344-5566', note: 'Semiconductor tech executive pickup, english driver preferred', flight: 'NH853', source: 'Corporate B2B' },
+  ]
+
+  // Generate future pre-booked orders for day offsets +1 through +28
+  for (let dayOffset = 1; dayOffset <= 28; dayOffset++) {
+    // 2 to 4 orders per future day
+    const ordersThisDay = 2 + (dayOffset % 3)
+    for (let j = 0; j < ordersThisDay; j++) {
+      const pInfo = futurePassengerNames[(dayOffset * 3 + j) % futurePassengerNames.length]
+      const futureDate = new Date()
+      futureDate.setDate(futureDate.getDate() + dayOffset)
+      futureDate.setHours(7 + ((j * 4) % 15), (j * 20) % 60, 0, 0)
+      const scheduledIso = futureDate.toISOString()
+
+      const isTpe = (dayOffset + j) % 2 === 0
+      const pickupLocId = isTpe ? 'tpe-airport' : 'tsa-airport'
+      const dropoffLocId = pickRandom(['grand-hyatt', 'w-hotel', 'taipei-101', 'ximending', 'hsinchu-hsr', 'beitou', 'jiufen'])
+      const category: VehicleCategory = (['COMFORT_SEDAN', 'SUV', 'VAN_9', 'LUXURY_VAN', 'PREMIUM_SEDAN'] as const)[(dayOffset + j) % 5]
+      const vType = CATEGORY_TO_PHYSICAL_TYPE[category]
+      const channel = futureChannels[(dayOffset + j) % futureChannels.length]
+
+      const futureOrder = buildOrderBase({
+        id: `ord-future-d${dayOffset}-${j}`,
+        orderNo: nextNo(),
+        channel,
+        pickupId: pickupLocId,
+        dropoffId: dropoffLocId,
+        vehicleType: vType,
+        vehicleCategory: category,
+        passengers: 1 + ((dayOffset + j) % 4),
+        luggage: 1 + ((dayOffset + j) % 3),
+        scheduledTime: scheduledIso,
+        customer: { name: pInfo.name, phone: pInfo.phone, email: `${pInfo.name.split(' ')[0].toLowerCase()}@example.com` },
+        flightNumber: pInfo.flight,
+        notes: `${pInfo.note} [Source: ${pInfo.source}]`,
+        passengerRequirements: { ...NO_REQUIREMENTS, childSeat: j % 3 === 0 },
+      })
+
+      futureOrder.createdAt = Date.now() - (30 + dayOffset * 60) * 60_000
+      futureOrder.status = 'CONFIRMED'
+      futureOrder.paymentStatus = 'PAID'
+      futureOrder.supplierStatus = 'CONFIRMED'
+      futureOrder.voucherStatus = 'ISSUED'
+
+      // Pre-assign some future orders (e.g., to drv-1, drv-2, drv-5) to demonstrate both assigned and unassigned future states
+      if ((dayOffset === 1 && j === 0) || (dayOffset === 2 && j === 1) || (dayOffset === 3 && j === 0)) {
+        const assignedDriverId = dayOffset === 1 ? 'drv-1' : dayOffset === 2 ? 'drv-2' : 'drv-5'
+        const assignedDriver = findDriver(assignedDriverId)
+        if (assignedDriver) {
+          futureOrder.driverId = assignedDriver.id
+          futureOrder.vehicleId = assignedDriver.vehicleId
+          futureOrder.status = 'ASSIGNED'
+          futureOrder.statusHistory.push({
+            id: genId('hist'),
+            status: 'ASSIGNED',
+            at: Date.now() - 10 * 60_000,
+            actor: 'DISPATCHER',
+          })
+          futureOrder.auditLog.push({
+            id: genId('aud'),
+            at: Date.now() - 10 * 60_000,
+            actor: 'DISPATCHER',
+            action: `Pre-assigned in advance to ${assignedDriver.name} (${assignedDriver.id})`,
+          })
+        }
+      }
+
+      orders.push(futureOrder)
+    }
+  }
+
   // ---- Bulk completed orders (~215 completed orders across all time windows) ----
   const completedBuckets: { count: number; minAge: number; maxAge: number }[] = [
     { count: 10, minAge: 5, maxAge: 175 },       // last 3h

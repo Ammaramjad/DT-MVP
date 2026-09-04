@@ -37,6 +37,8 @@ export default function DispatchBoardPanel() {
   const [driverQuery, setDriverQuery] = useState('')
   const [driverStatusFilter, setDriverStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'BUSY' | 'ON_SHIFT'>('ALL')
   const [orderCategoryFilter] = useState<string>('ALL')
+  const [timeHorizonFilter, setTimeHorizonFilter] = useState<'ALL' | 'TOMORROW' | 'NEXT_3D' | 'NEXT_7D' | 'NEXT_30D'>('ALL')
+  const [channelFilter, setChannelFilter] = useState<string>('ALL')
 
   // Drag state
   const [draggedOrder, setDraggedOrder] = useState<Order | null>(null)
@@ -66,24 +68,54 @@ export default function DispatchBoardPanel() {
 
   // 1. Filtered unassigned / pending orders for the Orders shelf
   const unassignedOrders = useMemo(() => {
+    const now = Date.now()
+    const oneDayMs = 86400000
+
     return orders
       .filter((o) => {
         const isPending = ['CONFIRMED', 'DRIVER_MATCHING'].includes(o.status)
         if (!isPending) return false
         if (orderCategoryFilter !== 'ALL' && o.vehicleCategory !== orderCategoryFilter) return false
+
+        // Channel filter
+        if (channelFilter !== 'ALL') {
+          if (channelFilter === 'AIRLINE_FLIGHT' && !o.flightNumber && !o.notes.includes('Airline')) return false
+          if (channelFilter === 'HOTEL' && !o.notes.includes('Hotel')) return false
+          if (channelFilter === 'OTA' && !['KKday', 'Klook', 'ezTravel', 'Booking.com'].includes(o.channel)) return false
+          if (channelFilter === 'CORPORATE' && !o.notes.includes('TSMC') && !o.notes.includes('Corporate') && !o.notes.includes('Science Park')) return false
+          if (channelFilter === 'DIRECT' && !['Website', 'LINE@'].includes(o.channel)) return false
+        }
+
+        // Time horizon filter
+        if (timeHorizonFilter !== 'ALL') {
+          const scheduledMs = new Date(o.scheduledTime).getTime()
+          const diffMs = scheduledMs - now
+          if (timeHorizonFilter === 'TOMORROW') {
+            if (diffMs < 0 || diffMs > oneDayMs * 2) return false
+          } else if (timeHorizonFilter === 'NEXT_3D') {
+            if (diffMs < 0 || diffMs > oneDayMs * 3) return false
+          } else if (timeHorizonFilter === 'NEXT_7D') {
+            if (diffMs < 0 || diffMs > oneDayMs * 7) return false
+          } else if (timeHorizonFilter === 'NEXT_30D') {
+            if (diffMs < 0 || diffMs > oneDayMs * 30) return false
+          }
+        }
+
         if (orderQuery.trim()) {
           const q = orderQuery.toLowerCase()
           return (
             o.orderNo.toLowerCase().includes(q) ||
             o.customer.name.toLowerCase().includes(q) ||
             o.pickup.name.toLowerCase().includes(q) ||
-            o.dropoff.name.toLowerCase().includes(q)
+            o.dropoff.name.toLowerCase().includes(q) ||
+            (o.flightNumber && o.flightNumber.toLowerCase().includes(q)) ||
+            (o.notes && o.notes.toLowerCase().includes(q))
           )
         }
         return true
       })
       .sort((a, b) => new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime())
-  }, [orders, orderCategoryFilter, orderQuery])
+  }, [orders, orderCategoryFilter, orderQuery, timeHorizonFilter, channelFilter])
 
   // 2. Filtered drivers list with active trips count
   const filteredDrivers = useMemo(() => {
@@ -229,17 +261,61 @@ export default function DispatchBoardPanel() {
               </div>
             </div>
 
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 space-y-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
                 <input
                   type="text"
                   value={orderQuery}
                   onChange={(e) => setOrderQuery(e.target.value)}
-                  placeholder={lang === 'zh' ? '搜尋訂單號、乘客或行程…' : 'Search orders, routes…'}
+                  placeholder={lang === 'zh' ? '搜尋訂單號、乘客、航班 (如 CI006)、來源…' : 'Search orders, routes, flight, source…'}
                   data-testid="dispatch-order-search-input"
                   className="w-full rounded-xl border border-white/10 bg-white/5 pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-cyan-400/50"
                 />
+              </div>
+
+              {/* Future Booking Date & Channel Horizon Quick Filters */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {/* Time Horizon Pills */}
+                <div className="flex items-center gap-1 rounded-xl bg-white/[0.04] p-1 border border-white/5 text-[10px] overflow-x-auto">
+                  {[
+                    { key: 'ALL', labelZh: '全部日期', labelEn: 'All' },
+                    { key: 'TOMORROW', labelZh: '明日預約', labelEn: 'Tomorrow' },
+                    { key: 'NEXT_3D', labelZh: '未來3天', labelEn: 'Next 3D' },
+                    { key: 'NEXT_7D', labelZh: '未來7天', labelEn: 'Next 7D' },
+                    { key: 'NEXT_30D', labelZh: '未來30天', labelEn: 'Next 30D' },
+                  ].map((h) => (
+                    <button
+                      key={h.key}
+                      type="button"
+                      onClick={() => setTimeHorizonFilter(h.key as any)}
+                      data-testid={`dispatch-horizon-filter-${h.key.toLowerCase()}`}
+                      className={clsx(
+                        'rounded-lg px-2 py-0.5 font-bold transition shrink-0',
+                        timeHorizonFilter === h.key
+                          ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400/40 shadow-sm'
+                          : 'text-slate-400 hover:text-white',
+                      )}
+                    >
+                      {lang === 'zh' ? h.labelZh : h.labelEn}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Channel Source Dropdown */}
+                <select
+                  value={channelFilter}
+                  onChange={(e) => setChannelFilter(e.target.value)}
+                  data-testid="dispatch-channel-source-filter"
+                  className="rounded-xl border border-white/10 bg-slate-900/90 px-2 py-1 text-[10.5px] text-slate-200 outline-none focus:border-cyan-400/40"
+                >
+                  <option value="ALL">{lang === 'zh' ? '全通路來源 (All Sources)' : 'All Channel Sources'}</option>
+                  <option value="AIRLINE_FLIGHT">{lang === 'zh' ? '✈️ 航空預約接送 (Airline Flight)' : 'Airline Flight Pre-booking'}</option>
+                  <option value="HOTEL">{lang === 'zh' ? '🏨 飯店禮賓接待 (Hotel Concierge)' : 'Hotel Concierge'}</option>
+                  <option value="OTA">{lang === 'zh' ? '🎫 Klook / KKday / OTA' : 'Klook/KKday OTA'}</option>
+                  <option value="CORPORATE">{lang === 'zh' ? '🏢 台積電/企業商務差旅 (B2B)' : 'TSMC/Corporate B2B'}</option>
+                  <option value="DIRECT">{lang === 'zh' ? '📱 官網/LINE@ 直客預約' : 'Web/App Booking'}</option>
+                </select>
               </div>
             </div>
           </div>
@@ -307,11 +383,19 @@ export default function DispatchBoardPanel() {
                   >
                     {/* Header */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-mono text-xs font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
                           {order.orderNo}
                         </span>
+                        <span className="rounded bg-white/10 px-1.5 py-0.5 text-[9.5px] font-semibold text-slate-300">
+                          {order.channel}
+                        </span>
                         <Badge tone="cyan">{t(`vehicle.category.${order.vehicleCategory}`)}</Badge>
+                        {order.flightNumber && (
+                          <span className="flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-[10px] text-amber-300 border border-amber-500/30">
+                            ✈ {order.flightNumber}
+                          </span>
+                        )}
                         {order.flightInfo && <FlightBadge status={order.flightInfo.status} />}
                       </div>
                       <span className="font-bold text-emerald-400 text-xs font-mono">

@@ -45,7 +45,7 @@ export default function RosterPanel() {
   const [tierFilter, setTierFilter] = useState<'ALL' | DriverTier>('ALL')
   const [shiftFilter, setShiftFilter] = useState<'ALL' | DriverWorkingShiftType>('ALL')
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | VehicleCategory>('ALL')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'BUSY' | 'OFFLINE' | 'BREAK'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'BUSY' | 'OFFLINE' | 'BREAK' | 'AIRPORT_PREF'>('ALL')
   const [page, setPage] = useState(1)
 
   const [showAddDriver, setShowAddDriver] = useState(false)
@@ -86,10 +86,15 @@ export default function RosterPanel() {
       // Category filter
       if (categoryFilter !== 'ALL' && v?.category !== categoryFilter) return false
 
-      // Status filter
+      // Status / KPI filter
       if (statusFilter !== 'ALL') {
-        if (statusFilter === 'BREAK' && !d.breakMode && d.status !== 'BREAK') return false
-        if (statusFilter !== 'BREAK' && d.status !== statusFilter) return false
+        if (statusFilter === 'BREAK') {
+          if (!d.breakMode && d.status !== 'BREAK') return false
+        } else if (statusFilter === 'AIRPORT_PREF') {
+          if (!d.airportPreference) return false
+        } else {
+          if (d.status !== statusFilter) return false
+        }
       }
 
       return true
@@ -142,13 +147,78 @@ export default function RosterPanel() {
         initialTab={profileInitialTab}
       />
 
-      {/* KPI Summary Cards */}
+      {/* KPI Summary Cards (Interactive Dynamic Filter Buttons) */}
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5" data-testid="driver-hub-kpis">
-        <StatCard icon={<Users2 className="h-4 w-4" />} label={t('fleetos.roster.totalDrivers')} value={drivers.length} tone="cyan" />
-        <StatCard icon={<Radio className="h-4 w-4" />} label={t('fleetos.roster.available')} value={available} tone="lime" />
-        <StatCard icon={<Radio className="h-4 w-4" />} label={t('fleetos.roster.busy')} value={busy} tone="amber" />
-        <StatCard icon={<Coffee className="h-4 w-4" />} label={lang === 'zh' ? '休息/中斷中' : 'Resting / Break'} value={onBreak} tone="purple" />
-        <StatCard icon={<Radio className="h-4 w-4" />} label={t('fleetos.roster.airportPref')} value={airportPref} tone="pink" />
+        <StatCard
+          icon={<Users2 className="h-4 w-4" />}
+          label={t('fleetos.roster.totalDrivers')}
+          value={drivers.length}
+          tone="cyan"
+          active={statusFilter === 'ALL'}
+          activeFilterTag={lang === 'zh' ? '顯示全部' : 'ALL DRIVERS'}
+          testId="kpi-filter-total"
+          onClick={() => {
+            setStatusFilter('ALL')
+            setTab('HUB')
+            setPage(1)
+          }}
+        />
+        <StatCard
+          icon={<Radio className="h-4 w-4" />}
+          label={t('fleetos.roster.available')}
+          value={available}
+          tone="lime"
+          active={statusFilter === 'AVAILABLE'}
+          activeFilterTag={lang === 'zh' ? '即時空車' : 'AVAILABLE ONLY'}
+          testId="kpi-filter-available"
+          onClick={() => {
+            setStatusFilter(statusFilter === 'AVAILABLE' ? 'ALL' : 'AVAILABLE')
+            setTab('HUB')
+            setPage(1)
+          }}
+        />
+        <StatCard
+          icon={<Radio className="h-4 w-4" />}
+          label={t('fleetos.roster.busy')}
+          value={busy}
+          tone="amber"
+          active={statusFilter === 'BUSY'}
+          activeFilterTag={lang === 'zh' ? '執勤中' : 'BUSY ON TRIP'}
+          testId="kpi-filter-busy"
+          onClick={() => {
+            setStatusFilter(statusFilter === 'BUSY' ? 'ALL' : 'BUSY')
+            setTab('HUB')
+            setPage(1)
+          }}
+        />
+        <StatCard
+          icon={<Coffee className="h-4 w-4" />}
+          label={lang === 'zh' ? '休息/中斷中' : 'Resting / Break'}
+          value={onBreak}
+          tone="purple"
+          active={statusFilter === 'BREAK'}
+          activeFilterTag={lang === 'zh' ? '休息中' : 'ON BREAK'}
+          testId="kpi-filter-break"
+          onClick={() => {
+            setStatusFilter(statusFilter === 'BREAK' ? 'ALL' : 'BREAK')
+            setTab('HUB')
+            setPage(1)
+          }}
+        />
+        <StatCard
+          icon={<Radio className="h-4 w-4" />}
+          label={t('fleetos.roster.airportPref')}
+          value={airportPref}
+          tone="pink"
+          active={statusFilter === 'AIRPORT_PREF'}
+          activeFilterTag={lang === 'zh' ? '機場優先' : 'AIRPORT PRIORITY'}
+          testId="kpi-filter-airport-pref"
+          onClick={() => {
+            setStatusFilter(statusFilter === 'AIRPORT_PREF' ? 'ALL' : 'AIRPORT_PREF')
+            setTab('HUB')
+            setPage(1)
+          }}
+        />
       </div>
 
       {/* Main Tabs Navigation */}
@@ -252,6 +322,7 @@ export default function RosterPanel() {
                 <option value="AVAILABLE">{lang === 'zh' ? '空車可接單 (Available)' : 'Available'}</option>
                 <option value="BUSY">{lang === 'zh' ? '行程執勤中 (Busy)' : 'On Trip (Busy)'}</option>
                 <option value="BREAK">{lang === 'zh' ? '休息中 (Break/Rest)' : 'On Break'}</option>
+                <option value="AIRPORT_PREF">{lang === 'zh' ? '機場優先模式 (Airport Priority)' : 'Airport Priority'}</option>
                 <option value="OFFLINE">{lang === 'zh' ? '離線休息 (Offline)' : 'Offline'}</option>
               </select>
 
@@ -260,10 +331,10 @@ export default function RosterPanel() {
                 <button
                   onClick={handleResetFilters}
                   data-testid="driver-hub-reset-filters-btn"
-                  className="flex items-center gap-1 rounded-xl bg-white/10 px-2.5 py-2 text-xs font-semibold text-slate-300 hover:bg-white/15 transition"
+                  className="flex items-center gap-1.5 rounded-xl bg-cyan-500/20 border border-cyan-400/40 px-2.5 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/30 transition shadow-[0_0_10px_rgba(34,211,238,0.2)]"
                 >
                   <RotateCcw className="h-3 w-3" />
-                  <span>{lang === 'zh' ? '重設' : 'Reset'}</span>
+                  <span>{lang === 'zh' ? '清除篩選 (Clear Filter)' : 'Clear Filter'}</span>
                 </button>
               )}
             </div>

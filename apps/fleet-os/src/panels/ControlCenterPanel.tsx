@@ -38,7 +38,7 @@ const CAPACITY_TABS: { key: CapacityTab; labelKey: string }[] = [
 ]
 
 export default function ControlCenterPanel() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const orders = useFleetStore((s) => s.orders)
   const drivers = useFleetStore((s) => s.drivers)
   const autoDispatchEnabled = useFleetStore((s) => s.autoDispatchEnabled)
@@ -157,13 +157,65 @@ export default function ControlCenterPanel() {
         </div>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-3 px-4 sm:grid-cols-3 sm:px-6 lg:grid-cols-6">
-        <StatCard icon={<Gauge className="h-4 w-4" />} label={t('control.kpi.activeOrders')} value={kpis.activeOrders} tone="cyan" />
-        <StatCard icon={<AlertTriangle className="h-4 w-4" />} label={t('control.kpi.unassigned')} value={kpis.unassignedOrders} tone="amber" />
-        <StatCard icon={<Users2 className="h-4 w-4" />} label={t('control.kpi.availableDrivers')} value={kpis.availableDrivers} tone="purple" />
-        <StatCard icon={<UserX className="h-4 w-4" />} label={t('control.kpi.anomalies')} value={kpis.anomalies} tone="red" />
-        <StatCard icon={<DollarSign className="h-4 w-4" />} label={t('control.kpi.revenueToday')} value={kpis.todayRevenue} prefix="NT$" tone="lime" />
-        <StatCard icon={<CalendarClock className="h-4 w-4" />} label={t('control.kpi.onLeaveToday')} value={kpis.onLeaveToday} tone="pink" />
+      <div className="mt-4 grid grid-cols-2 gap-3 px-4 sm:grid-cols-3 sm:px-6 lg:grid-cols-6" data-testid="control-center-kpi-grid">
+        <StatCard
+          icon={<Gauge className="h-4 w-4" />}
+          label={t('control.kpi.activeOrders')}
+          value={kpis.activeOrders}
+          tone="cyan"
+          active={filter === 'ACTIVE'}
+          activeFilterTag={lang === 'zh' ? '進行中' : 'ACTIVE'}
+          testId="control-kpi-active"
+          onClick={() => setFilter(filter === 'ACTIVE' ? 'ALL' : 'ACTIVE')}
+        />
+        <StatCard
+          icon={<AlertTriangle className="h-4 w-4" />}
+          label={t('control.kpi.unassigned')}
+          value={kpis.unassignedOrders}
+          tone="amber"
+          active={filter === 'NEW'}
+          activeFilterTag={lang === 'zh' ? '待指派' : 'UNASSIGNED'}
+          testId="control-kpi-unassigned"
+          onClick={() => setFilter(filter === 'NEW' ? 'ALL' : 'NEW')}
+        />
+        <StatCard
+          icon={<Users2 className="h-4 w-4" />}
+          label={t('control.kpi.availableDrivers')}
+          value={kpis.availableDrivers}
+          tone="purple"
+          active={capacityTab === 'ROSTER'}
+          activeFilterTag={lang === 'zh' ? '查看司機' : 'ROSTER'}
+          testId="control-kpi-available-drivers"
+          onClick={() => setCapacityTab(capacityTab === 'ROSTER' ? 'ANALYTICS' : 'ROSTER')}
+        />
+        <StatCard
+          icon={<UserX className="h-4 w-4" />}
+          label={t('control.kpi.anomalies')}
+          value={kpis.anomalies}
+          tone="red"
+          testId="control-kpi-anomalies"
+        />
+        <StatCard
+          icon={<DollarSign className="h-4 w-4" />}
+          label={t('control.kpi.revenueToday')}
+          value={kpis.todayRevenue}
+          prefix="NT$"
+          tone="lime"
+          active={capacityTab === 'ANALYTICS'}
+          activeFilterTag={lang === 'zh' ? '營收圖表' : 'ANALYTICS'}
+          testId="control-kpi-revenue"
+          onClick={() => setCapacityTab(capacityTab === 'ANALYTICS' ? 'FORECAST' : 'ANALYTICS')}
+        />
+        <StatCard
+          icon={<CalendarClock className="h-4 w-4" />}
+          label={t('control.kpi.onLeaveToday')}
+          value={kpis.onLeaveToday}
+          tone="pink"
+          active={capacityTab === 'SCHEDULE'}
+          activeFilterTag={lang === 'zh' ? '排班表' : 'SCHEDULE'}
+          testId="control-kpi-on-leave"
+          onClick={() => setCapacityTab(capacityTab === 'SCHEDULE' ? 'ANALYTICS' : 'SCHEDULE')}
+        />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 px-4 sm:px-6 lg:grid-cols-[1.05fr_1.35fr_0.85fr]">

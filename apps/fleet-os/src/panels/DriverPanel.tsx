@@ -215,6 +215,33 @@ export default function DriverPanel() {
               </div>
             </div>
 
+            {/* Quick Access Future Advance Trips Banner */}
+            <div
+              onClick={() => setTab('ACTIVITY')}
+              data-testid="driver-home-future-trips-banner"
+              className="group cursor-pointer rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/60 via-slate-900/90 to-blue-950/60 p-3.5 shadow-xl transition hover:border-cyan-400 hover:shadow-cyan-500/20 active:scale-[0.99]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.3)] group-hover:scale-105 transition">
+                    <Plane className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                      <span>{lang === 'zh' ? '📅 未來預約行程看板 (Advance Trips)' : '📅 Upcoming Advance Bookings'}</span>
+                    </h4>
+                    <p className="text-[10.5px] text-cyan-200/80">
+                      {lang === 'zh' ? '查看明日與未來 7 天排定機場專車接送' : 'Inspect scheduled bookings, flight numbers & earnings'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 rounded-xl bg-cyan-500/20 px-2.5 py-1 text-[11px] font-bold text-cyan-200 border border-cyan-400/30">
+                  <span>{lang === 'zh' ? '排程' : 'View'}</span>
+                  <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition" />
+                </div>
+              </div>
+            </div>
+
             {/* Fatigue & HoS Monitor */}
             <DriverFatigueWidget driver={driver} />
 
