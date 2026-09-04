@@ -45,6 +45,7 @@ import { formatClock, formatTWD, ticksToMinutesLabel } from '../lib/format'
 import { remainingDistanceKm } from '../lib/geo'
 import { computeWaitingFee, WAITING_FEE_FORFEIT_MINUTES, WAITING_GRACE_MINUTES } from '../lib/serviceRules'
 import { useLang } from '../i18n'
+import { SessionHeaderIndicator } from '../components/security/SessionHeaderIndicator'
 
 const ACTIVE_STATUSES = ['ASSIGNED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'PASSENGER_ONBOARD']
 
@@ -102,31 +103,37 @@ export default function DriverPanel() {
 
   return (
     <div className="min-h-screen bg-[#030712] bg-noise pb-28 text-white" data-testid="driver-app-shell">
-      {/* Driver Persona Quick Switcher Strip */}
+      {/* Driver Persona Quick Switcher Strip & Session */}
       <div className="border-b border-white/10 bg-slate-900/90 px-3 py-2 text-xs" data-testid="driver-persona-switcher">
-        <div className="mx-auto flex max-w-md items-center justify-between gap-2 overflow-x-auto">
-          <span className="text-[10.5px] font-bold text-slate-400 shrink-0 uppercase tracking-wider">
-            {lang === 'zh' ? '司機切換:' : 'Driver:'}
-          </span>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {drivers.slice(0, 6).map((d) => {
-              const isSelected = d.id === driver.id
-              return (
-                <button
-                  key={d.id}
-                  onClick={() => setFocusDriver(d.id)}
-                  data-testid={`switch-driver-persona-${d.id}`}
-                  className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-semibold transition border ${
-                    isSelected
-                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-[0_0_10px_rgba(34,211,238,0.3)]'
-                      : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-slate-200'
-                  }`}
-                >
-                  <span>{d.avatarEmoji}</span>
-                  <span>{lang === 'zh' ? d.nameZh : d.name.split(' ')[0]}</span>
-                </button>
-              )
-            })}
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 overflow-x-auto">
+          <div className="flex items-center gap-2">
+            <span className="text-[10.5px] font-bold text-slate-400 shrink-0 uppercase tracking-wider">
+              {lang === 'zh' ? '司機切換:' : 'Driver:'}
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {drivers.slice(0, 5).map((d) => {
+                const isSelected = d.id === driver.id
+                return (
+                  <button
+                    key={d.id}
+                    onClick={() => setFocusDriver(d.id)}
+                    data-testid={`switch-driver-persona-${d.id}`}
+                    className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-semibold transition border ${
+                      isSelected
+                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-[0_0_10px_rgba(34,211,238,0.3)]'
+                        : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-slate-200'
+                    }`}
+                  >
+                    <span>{d.avatarEmoji}</span>
+                    <span>{lang === 'zh' ? d.nameZh : d.name.split(' ')[0]}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="shrink-0">
+            <SessionHeaderIndicator compact />
           </div>
         </div>
       </div>

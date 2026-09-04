@@ -984,10 +984,46 @@ export interface AuthSession {
 }
 
 // ---------------------------------------------------------------------------
-// Visitor IP & Security Access Logs
+// Visitor IP & Security Access Logs & Login Portal Vault
 // ---------------------------------------------------------------------------
-export type AccessAuthMethod = 'PASSCODE' | 'LINE_2FA' | 'DEMO_1CLICK'
-export type AccessAttemptStatus = 'SUCCESS' | 'FAILED_INVALID_PASSCODE' | 'FAILED_INVALID_OTP'
+export type AccessAuthMethod = 'PASSCODE' | 'LINE_2FA' | 'DEMO_1CLICK' | 'STAFF_PERMANENT' | 'GUEST_ONE_TIME'
+export type AccessAttemptStatus =
+  | 'SUCCESS'
+  | 'FAILED_INVALID_PASSCODE'
+  | 'FAILED_INVALID_OTP'
+  | 'FAILED_INVALID_CREDENTIALS'
+  | 'FAILED_BURNED_TOKEN'
+
+export type GuestPassStatus = 'ACTIVE' | 'IN_USE' | 'BURNED'
+
+export interface GuestPass {
+  id: string
+  username: string
+  passcode: string
+  createdAt: number
+  status: GuestPassStatus
+  ip: string
+  usedAt?: number | null
+  burnedAt?: number | null
+  burnedReason?: string | null
+  notes?: string
+}
+
+export type UserRole = 'admin' | 'dispatcher' | 'guest' | 'vip'
+export type AuthMethodType = 'STAFF_PERMANENT' | 'GUEST_ONE_TIME' | 'LINE_2FA' | 'PASSCODE'
+
+export interface LoggedInUser {
+  username: string
+  role: UserRole
+  roleTitleEn: string
+  roleTitleZh: string
+  displayName: string
+  authMethod: AuthMethodType
+  loginAt: number
+  tokenValue: string
+  guestPassId?: string
+  guestPasscode?: string
+}
 
 export interface AccessLogEntry {
   id: string

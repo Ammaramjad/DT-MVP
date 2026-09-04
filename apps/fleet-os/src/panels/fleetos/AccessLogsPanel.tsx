@@ -27,11 +27,14 @@ import {
   Activity,
   Compass,
   Wifi,
+  Ticket,
+  Building2,
 } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { StatCard } from '../../components/ui/StatCard'
 import { Badge } from '../../components/ui/Badge'
+import { GuestPassVault } from '../../components/security/GuestPassVault'
 import { formatDateTime, formatRelative } from '../../lib/format'
 import { useLang } from '../../i18n'
 import { useLivePresence, maskIp, formatActiveDuration, formatLastPing } from '../../lib/livePresence'
@@ -195,20 +198,39 @@ export default function AccessLogsPanel() {
         </span>
       )
     }
+    let statusLabel = t('fleetos.accessLogs.status.FAILED_INVALID_PASSCODE')
+    if (status === 'FAILED_INVALID_OTP') statusLabel = t('fleetos.accessLogs.status.FAILED_INVALID_OTP')
+    if (status === 'FAILED_INVALID_CREDENTIALS') statusLabel = t('fleetos.accessLogs.status.FAILED_INVALID_CREDENTIALS')
+    if (status === 'FAILED_BURNED_TOKEN') statusLabel = t('fleetos.accessLogs.status.FAILED_BURNED_TOKEN')
+
     return (
       <span
         data-testid="access-status-failed"
         className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-rose-300 ring-1 ring-rose-500/30"
       >
         <XCircle className="h-3 w-3 text-rose-400" />
-        {status === 'FAILED_INVALID_PASSCODE'
-          ? t('fleetos.accessLogs.status.FAILED_INVALID_PASSCODE')
-          : t('fleetos.accessLogs.status.FAILED_INVALID_OTP')}
+        {statusLabel}
       </span>
     )
   }
 
   const renderAuthMethodBadge = (method: AccessAuthMethod) => {
+    if (method === 'STAFF_PERMANENT') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-lg bg-blue-400/10 px-2 py-0.5 text-[11px] font-medium text-blue-300 ring-1 ring-blue-400/20">
+          <Building2 className="h-3 w-3" />
+          {t('fleetos.accessLogs.auth.STAFF_PERMANENT')}
+        </span>
+      )
+    }
+    if (method === 'GUEST_ONE_TIME') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-lg bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-300 ring-1 ring-amber-400/20">
+          <Ticket className="h-3 w-3" />
+          {t('fleetos.accessLogs.auth.GUEST_ONE_TIME')}
+        </span>
+      )
+    }
     if (method === 'PASSCODE') {
       return (
         <span className="inline-flex items-center gap-1 rounded-lg bg-cyan-400/10 px-2 py-0.5 text-[11px] font-medium text-cyan-300 ring-1 ring-cyan-400/20">
@@ -515,6 +537,15 @@ export default function AccessLogsPanel() {
             )
           })}
         </div>
+      </motion.div>
+
+      {/* Single-Use VIP Guest Pass Vault Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-6"
+      >
+        <GuestPassVault />
       </motion.div>
 
       {/* Main Access Audit Table Section */}
