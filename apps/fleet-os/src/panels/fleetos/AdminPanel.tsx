@@ -9,18 +9,21 @@ import { AddDriverModal } from '../../components/fleetos/AddDriverModal'
 import { GuestPassVault } from '../../components/security/GuestPassVault'
 import { formatRelative } from '../../lib/format'
 import { useLang } from '../../i18n'
+import { useGatekeeper } from '../../lib/gatekeeper'
 
 type AdminTab = 'ROLES' | 'VAULT' | 'HEALTH' | 'AUDIT'
 
 export default function AdminPanel() {
   const { t, lang } = useLang()
+  const { currentUser } = useGatekeeper()
+  const isSuperAdmin = currentUser?.role === 'admin'
   const roles = useFleetStore((s) => s.roles)
   const toggleRolePermission = useFleetStore((s) => s.toggleRolePermission)
   const setRoleTwoFactor = useFleetStore((s) => s.setRoleTwoFactor)
   const systemHealth = useFleetStore((s) => s.systemHealth)
   const acknowledgeHealthAlert = useFleetStore((s) => s.acknowledgeHealthAlert)
   const globalAuditLog = useFleetStore((s) => s.globalAuditLog)
-  const [tab, setTab] = useState<AdminTab>('VAULT')
+  const [tab, setTab] = useState<AdminTab>(isSuperAdmin ? 'VAULT' : 'ROLES')
   const [showAddDriver, setShowAddDriver] = useState(false)
 
   const degraded = systemHealth.filter((h) => h.status !== 'OPERATIONAL').length
@@ -43,7 +46,9 @@ export default function AdminPanel() {
     >
       <AddDriverModal isOpen={showAddDriver} onClose={() => setShowAddDriver(false)} />
       <div className="mt-4 flex gap-1.5">
-        {(['VAULT', 'ROLES', 'HEALTH', 'AUDIT'] as const).map((k) => (
+        {(['VAULT', 'ROLES', 'HEALTH', 'AUDIT'] as const)
+          .filter((k) => k !== 'VAULT' || isSuperAdmin)
+          .map((k) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -56,7 +61,7 @@ export default function AdminPanel() {
         ))}
       </div>
 
-      {tab === 'VAULT' && (
+      {tab === 'VAULT' && isSuperAdmin && (
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-4" data-testid="admin-vault-section">
           <GuestPassVault />
         </motion.div>

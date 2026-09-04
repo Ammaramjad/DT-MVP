@@ -20,10 +20,17 @@ import type { GuestPass, GuestPassStatus } from '../../types'
 export function GuestPassVault() {
   const { t, lang } = useLang()
   const {
+    currentUser,
     guestPasses,
     generateGuestPass,
     revokeGuestPass,
   } = useGatekeeper()
+
+  const isSuperAdmin = currentUser?.role === 'admin'
+
+  if (!isSuperAdmin) {
+    return null
+  }
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | GuestPassStatus>('ALL')

@@ -37,11 +37,14 @@ import { Badge } from '../../components/ui/Badge'
 import { GuestPassVault } from '../../components/security/GuestPassVault'
 import { formatDateTime, formatRelative } from '../../lib/format'
 import { useLang } from '../../i18n'
+import { useGatekeeper } from '../../lib/gatekeeper'
 import { useLivePresence, maskIp, formatActiveDuration, formatLastPing } from '../../lib/livePresence'
 import type { AccessAttemptStatus, AccessAuthMethod } from '../../types'
 
 export default function AccessLogsPanel() {
   const { t, lang } = useLang()
+  const { currentUser } = useGatekeeper()
+  const isSuperAdmin = currentUser?.role === 'admin'
   const accessLogs = useFleetStore((s) => s.accessLogs)
   const clearAccessLogs = useFleetStore((s) => s.clearAccessLogs)
 
@@ -539,7 +542,8 @@ export default function AccessLogsPanel() {
         </div>
       </motion.div>
 
-      {/* Single-Use VIP Guest Pass Vault Section */}
+      {/* Single-Use VIP Guest Pass Vault Section (Super Admin only) */}
+      {isSuperAdmin && (
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -547,6 +551,7 @@ export default function AccessLogsPanel() {
       >
         <GuestPassVault />
       </motion.div>
+      )}
 
       {/* Main Access Audit Table Section */}
       <motion.div

@@ -12,6 +12,7 @@
     "test:e2e:schedule-matrix": "node e2e/capture-schedule-matrix-artifacts.mjs",
     "test:e2e:smoke": "node e2e/smoke.mjs",
     "test:e2e:login-auth": "node e2e/test-login-auth.mjs",
+    "test:e2e:unified-login": "node e2e/test-unified-login.mjs",
     "deploy:surge": "node scripts/deploy-surge.mjs",
     "test:e2e:redesign": "node e2e/redesign-suite.mjs",
     "test:e2e:enterprise": "node e2e/enterprise-suite.mjs",

@@ -142,14 +142,21 @@ export function loadStoredCurrentUser(): LoggedInUser | null {
   }
 }
 
+export interface LoginResult {
+  success: boolean
+  isBurned?: boolean
+  error?: string
+}
+
 export interface GatekeeperContextType {
   isLocked: boolean
   currentUser: LoggedInUser | null
   sessionRemainingMs: number
   lock: () => void
   logout: () => void
-  loginStaff: (username: string, password: string) => { success: boolean; error?: string }
-  loginGuestPass: (identifier: string, passcode?: string) => { success: boolean; isBurned?: boolean; error?: string }
+  login: (username: string, password: string) => LoginResult
+  loginStaff: (username: string, password: string) => LoginResult
+  loginGuestPass: (identifier: string, passcode?: string) => LoginResult
   unlockWithPasscode: (passcode: string) => boolean
   unlockWithLineOtp: (otp: string, identifier?: string) => boolean
   unlockDemoOneClick: () => void
@@ -324,7 +331,7 @@ export function GatekeeperProvider({ children }: { children: ReactNode }) {
       }
 
       logAccessAttempt('STAFF_PERMANENT', 'FAILED_INVALID_CREDENTIALS', u || 'unknown_staff')
-      return { success: false, error: 'Invalid staff username or password. Please verify credentials.' }
+      return { success: false, error: '⚠️ Invalid username or password. Please verify and try again.' }
     },
     [logAccessAttempt],
   )
@@ -372,7 +379,7 @@ export function GatekeeperProvider({ children }: { children: ReactNode }) {
           success: false,
           isBurned: true,
           error:
-            '⚠️ This one-time credential has already been used and expired. Please request a fresh single-use pass from the administrator.',
+            '⚠️ This one-time access pass has already been used and expired. Please contact the administrator for a new pass.',
         }
       }
 
@@ -452,10 +459,23 @@ export function GatekeeperProvider({ children }: { children: ReactNode }) {
       logAccessAttempt('GUEST_ONE_TIME', 'FAILED_INVALID_CREDENTIALS', ident || code)
       return {
         success: false,
-        error: 'Invalid single-use VIP credentials or token. Please verify and try again.',
+        error: '⚠️ Invalid username or password. Please verify and try again.',
       }
     },
     [logAccessAttempt],
+  )
+
+  // Unified login: tries permanent staff first, then one-time guest pass
+  const login = useCallback(
+    (usernameInput: string, passwordInput: string): LoginResult => {
+      const staffResult = loginStaff(usernameInput, passwordInput)
+      if (staffResult.success) return staffResult
+      const guestResult = loginGuestPass(usernameInput, passwordInput)
+      if (guestResult.success) return guestResult
+      if (guestResult.isBurned) return guestResult
+      return { success: false, error: '⚠️ Invalid username or password. Please verify and try again.' }
+    },
+    [loginStaff, loginGuestPass],
   )
 
   // 3. LINE 2FA Push verification
@@ -526,9 +546,14 @@ export function GatekeeperProvider({ children }: { children: ReactNode }) {
     unlock(token, user)
   }, [logAccessAttempt])
 
-  // Admin Vault Operations: Generate New 1-Time Guest Pass
+  // Admin Vault Operations: Generate New 1-Time Guest Pass (Super Admin only)
   const generateGuestPass = useCallback(
     (customUsername?: string, notes?: string): GuestPass => {
+      const activeUser = currentUser || loadStoredCurrentUser()
+      if (!activeUser || activeUser.role !== 'admin') {
+        throw new Error('Only Super Admin can generate one-time guest passes')
+      }
+
       const currentPasses = loadStoredGuestPasses()
       const randNum = Math.floor(1000 + Math.random() * 9000)
       const passNum = Math.floor(1000 + Math.random() * 9000)
@@ -551,11 +576,16 @@ export function GatekeeperProvider({ children }: { children: ReactNode }) {
       setGuestPasses(updated)
       return newPass
     },
-    [],
+    [currentUser],
   )
 
-  // Admin Vault Operations: Revoke / Burn Token
+  // Admin Vault Operations: Revoke / Burn Token (Super Admin only)
   const revokeGuestPass = useCallback((passIdOrToken: string, reason?: string) => {
+    const activeUser = currentUser || loadStoredCurrentUser()
+    if (!activeUser || activeUser.role !== 'admin') {
+      throw new Error('Only Super Admin can revoke one-time guest passes')
+    }
+
     const currentPasses = loadStoredGuestPasses()
     let revokedUsername = ''
     let revokedPasscode = ''
@@ -585,7 +615,7 @@ export function GatekeeperProvider({ children }: { children: ReactNode }) {
     const toBurn = [passIdOrToken, revokedUsername, revokedPasscode].filter(Boolean)
     const newBurned = Array.from(new Set([...burnedList, ...toBurn]))
     saveStoredBurnedTokens(newBurned)
-  }, [])
+  }, [currentUser])
 
   return (
     <GatekeeperContext.Provider
@@ -595,6 +625,7 @@ export function GatekeeperProvider({ children }: { children: ReactNode }) {
         sessionRemainingMs,
         lock,
         logout,
+        login,
         loginStaff,
         loginGuestPass,
         unlockWithPasscode,
