@@ -43,6 +43,9 @@ import ScreenOrdersWall from './panels/screens/ScreenOrdersWall'
 import ScreenDriversWall from './panels/screens/ScreenDriversWall'
 import ScreenNotificationsWall from './panels/screens/ScreenNotificationsWall'
 import ScreenFlightsWall from './panels/screens/ScreenFlightsWall'
+import LostFoundPanel from './panels/fleetos/LostFoundPanel'
+import ReviewsPanel from './panels/fleetos/ReviewsPanel'
+import SubscriptionsPanel from './panels/fleetos/SubscriptionsPanel'
 
 function AppContent() {
   const { isLocked } = useGatekeeper()
@@ -87,7 +90,11 @@ function AppContent() {
         <Route path="/fleet-os/campaigns" element={<CampaignsPanel />} />
         <Route path="/fleet-os/support" element={<SupportPanel />} />
         <Route path="/fleet-os/refunds" element={<RefundsPanel />} />
+        <Route path="/fleet-os/reviews" element={<ReviewsPanel />} />
+        <Route path="/fleet-os/subscriptions" element={<SubscriptionsPanel />} />
+        <Route path="/fleet-os/lost-found" element={<LostFoundPanel />} />
         <Route path="/fleet-os/roster" element={<RosterPanel />} />
+        <Route path="/fleet-os/drivers" element={<RosterPanel />} />
         <Route path="/fleet-os/compliance" element={<CompliancePanel />} />
         <Route path="/fleet-os/finance" element={<FinancePanel />} />
         <Route path="/fleet-os/reports" element={<ReportsPanel />} />

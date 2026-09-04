@@ -167,7 +167,7 @@ export default function ControlCenterPanel() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 px-4 sm:px-6 lg:grid-cols-[1.05fr_1.35fr_0.85fr]">
-        <div className="glass-panel flex max-h-[640px] flex-col rounded-2xl p-3">
+        <div className="glass-panel flex h-[520px] max-h-[520px] flex-col rounded-2xl p-3">
           <div className="mb-2 flex items-center gap-1.5 overflow-x-auto px-1 pb-1">
             {FILTERS.map((f) => (
               <button
@@ -191,24 +191,24 @@ export default function ControlCenterPanel() {
           </div>
         </div>
 
-        <div className="glass-panel flex flex-col rounded-2xl p-3">
+        <div className="glass-panel flex h-[520px] max-h-[520px] flex-col overflow-hidden rounded-2xl p-3 border border-cyan-500/20 shadow-2xl">
           <div className="mb-2 flex items-center justify-between px-1">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('control.liveFleetMap')}</p>
             <span className="text-[11px] text-slate-500">{t('control.vehiclesEnRoute', { n: drivers.filter((d) => d.status === 'BUSY').length })}</span>
           </div>
-          <div className="h-[420px] flex-1 lg:h-full">
-            <FleetMapView />
+          <div className="min-h-0 flex-1 overflow-hidden rounded-xl">
+            <FleetMapView height="100%" />
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <div className="glass-panel flex flex-1 flex-col rounded-2xl p-3">
+        <div className="flex h-[520px] max-h-[520px] flex-col gap-3">
+          <div className="glass-panel flex flex-1 flex-col overflow-hidden rounded-2xl p-3">
             <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('control.notificationFeed')}</p>
-            <div className="max-h-[300px] flex-1">
+            <div className="flex-1 overflow-y-auto">
               <NotificationFeed limit={20} />
             </div>
           </div>
-          <div className="glass-panel rounded-2xl p-3">
+          <div className="glass-panel rounded-2xl p-3 overflow-hidden">
             <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('control.docAlerts')}</p>
             <DocAlerts />
           </div>

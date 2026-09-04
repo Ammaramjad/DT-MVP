@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   BookOpen,
   ChevronRight,
+  ClipboardCheck,
   FileText,
   GraduationCap,
   LifeBuoy,
@@ -17,6 +18,7 @@ import { VehicleCard } from '../vehicles/VehicleCard'
 import { Badge } from '../ui/Badge'
 import { driverTierLabel } from '../../lib/format'
 import { formatDateTime } from '../../lib/format'
+import { DriverFatigueWidget, PreTripInspectionModal } from './DriverCockpitWidgets'
 import { useLang } from '../../i18n'
 import clsx from 'clsx'
 
@@ -43,9 +45,12 @@ export function AccountScreen({
   const [openSection, setOpenSection] = useState<string | null>(null)
   const [incidentSent, setIncidentSent] = useState(false)
   const [incidentText, setIncidentText] = useState('')
+  const [showInspectionModal, setShowInspectionModal] = useState(false)
 
   return (
     <div className="mx-auto max-w-md space-y-4 px-4 pb-6" data-testid="driver-account-screen">
+      <PreTripInspectionModal isOpen={showInspectionModal} onClose={() => setShowInspectionModal(false)} driver={driver} />
+
       <div className="glass-panel rounded-2xl p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-4xl">{driver.avatarEmoji}</div>
@@ -63,6 +68,40 @@ export function AccountScreen({
             <Phone className="h-3 w-3" /> {driver.phone}
           </span>
         </div>
+      </div>
+
+      {/* MOTC 8-Hour Continuous Driving Fatigue Gauge */}
+      <div className="space-y-1.5">
+        <p className="px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          {lang === 'zh' ? '交通部工時與疲勞管理 (MOTC HoS)' : 'MOTC Fatigue & HoS'}
+        </p>
+        <DriverFatigueWidget driver={driver} />
+      </div>
+
+      {/* Pre-Trip Safety Inspection Trigger */}
+      <div className="glass-panel rounded-2xl p-4 flex items-center justify-between border border-cyan-500/20" data-testid="driver-inspection-card">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+            <ClipboardCheck className="h-5 w-5" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-white">
+              {lang === 'zh' ? '出車前安全點檢 (Pre-Trip Checklist)' : 'Pre-Trip Safety Inspection'}
+            </h4>
+            <p className="text-[10.5px] text-slate-400">
+              {driver.lastInspectionPassedAt
+                ? (lang === 'zh' ? '今日點檢已合格通過' : 'Inspection Passed')
+                : (lang === 'zh' ? '輪胎、煞車、燈光、行車記錄器檢查' : 'Tires, Brakes, Lights & Dashcam')}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowInspectionModal(true)}
+          data-testid="start-pretrip-inspection-btn"
+          className="rounded-xl bg-cyan-500/20 px-3 py-1.5 text-xs font-bold text-cyan-200 border border-cyan-400/30 hover:bg-cyan-500/30 transition"
+        >
+          {lang === 'zh' ? '點檢' : 'Check'}
+        </button>
       </div>
 
       {vehicle && (

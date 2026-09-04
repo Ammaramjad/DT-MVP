@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2, Info, MessageCircle, XCircle } from 'lucide-react'
 import { useFleetStore } from '../../store/useFleetStore'
 import { useLang } from '../../i18n'
@@ -21,9 +22,12 @@ const KIND_CLASSES: Record<AppNotification['kind'], string> = {
 
 export function NotificationToaster() {
   const { t } = useLang()
+  const location = useLocation()
   const notifications = useFleetStore((s) => s.notifications)
   const [visible, setVisible] = useState<AppNotification[]>([])
   const seenIds = useRef<Set<string>>(new Set())
+
+  const isStandaloneApp = location.pathname.startsWith('/driver') || location.pathname.startsWith('/customer')
 
   useEffect(() => {
     const fresh = notifications.filter((n) => !seenIds.current.has(n.id)).slice(0, 3)
@@ -38,6 +42,8 @@ export function NotificationToaster() {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications])
+
+  if (isStandaloneApp) return null
 
   return (
     // Placed at bottom-right (bottom-5 right-5) so toasts NEVER collide with,

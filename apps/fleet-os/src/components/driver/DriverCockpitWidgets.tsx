@@ -301,7 +301,7 @@ export function InstantCashoutModal({
                     <Banknote className="h-4 w-4" />
                     <div>
                       <p className="text-xs font-bold">{t('driver.cashout.bankTransfer')}</p>
-                      <p className="text-[10px] text-slate-400">CTBC Bank (822) **** 6789</p>
+                      <p className="text-[10px] text-slate-400">CTBC / E.SUN Bank (822/808) **** 6789</p>
                     </div>
                   </div>
                   <span className="text-[10px] text-slate-400">NT$15 fee</span>

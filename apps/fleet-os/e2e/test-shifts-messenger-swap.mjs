@@ -39,7 +39,7 @@ async function runTestWithServer() {
     await page.waitForTimeout(1000)
 
     // Open shift edit modal for first driver
-    const editShiftBtn = page.locator('[data-testid="edit-driver-shift-btn"]').first()
+    const editShiftBtn = page.locator('[data-testid^="driver-shift-btn-"], [data-testid="edit-driver-shift-btn"]').first()
     await editShiftBtn.waitFor({ state: 'visible', timeout: 5000 })
     await editShiftBtn.click()
 
