@@ -695,12 +695,30 @@ export interface PrivacyRequest {
   requestedAt: number
 }
 
+export type PassengerTier =
+  | 'VIP_PLATINUM'
+  | 'CORP_EXECUTIVE'
+  | 'FREQUENT_FLYER'
+  | 'REGULAR'
+  | 'INTL_TOURIST'
+
 export interface CustomerProfile {
   id: string
   name: string
+  nameZh?: string
+  avatarEmoji?: string
   phone: string
   email: string
   memberSince: string
+  passengerTier?: PassengerTier
+  corporateAccountId?: string | null
+  corporateName?: string | null
+  taxIdUbn?: string | null // 統編
+  carrierBarcode?: string | null // 手機載具 /AB12+CD
+  notesAndPreferences?: string
+  isVip?: boolean
+  promoVouchersCount?: number
+  lifetimeValueTwd?: number
   historicalOrders: CustomerHistoryEntry[]
   savedPassengers: SavedPassenger[]
   paymentMethods: PaymentToken[]

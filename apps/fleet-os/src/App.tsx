@@ -46,6 +46,7 @@ import ScreenFlightsWall from './panels/screens/ScreenFlightsWall'
 import LostFoundPanel from './panels/fleetos/LostFoundPanel'
 import ReviewsPanel from './panels/fleetos/ReviewsPanel'
 import SubscriptionsPanel from './panels/fleetos/SubscriptionsPanel'
+import CustomersPanel from './panels/fleetos/CustomersPanel'
 
 function AppContent() {
   const { isLocked } = useGatekeeper()
@@ -93,6 +94,7 @@ function AppContent() {
         <Route path="/fleet-os/reviews" element={<ReviewsPanel />} />
         <Route path="/fleet-os/subscriptions" element={<SubscriptionsPanel />} />
         <Route path="/fleet-os/lost-found" element={<LostFoundPanel />} />
+        <Route path="/fleet-os/customers" element={<CustomersPanel />} />
         <Route path="/fleet-os/roster" element={<RosterPanel />} />
         <Route path="/fleet-os/drivers" element={<RosterPanel />} />
         <Route path="/fleet-os/compliance" element={<CompliancePanel />} />

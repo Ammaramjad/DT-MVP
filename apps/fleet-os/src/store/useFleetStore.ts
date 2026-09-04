@@ -266,6 +266,11 @@ interface FleetState {
   // ---- Force Override Manual Assignment ----
   forceAssignOrder: (orderId: string, driverId: string) => void
 
+  // ---- Customer CRM & Passenger Management Hub Actions ----
+  updateCustomerProfile: (customerId: string, patch: Partial<CustomerProfile>) => void
+  toggleCustomerVip: (customerId: string) => void
+  issueCustomerVoucher: (customerId: string, amountTwd: number, code: string) => void
+
   // ---- Visitor IP & Access Security Log Actions ----
   recordAccessAttempt: (authMethod: AccessAuthMethod, status: AccessAttemptStatus, inputIdentifier?: string) => Promise<AccessLogEntry>
   clearAccessLogs: () => void
@@ -1913,6 +1918,46 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     set((s) => ({ customerProfiles: s.customerProfiles.map((c) => (c.id === customerId ? { ...c, privacyRequests: [{ id: genId('priv'), kind, status: 'PENDING', requestedAt: Date.now() }, ...c.privacyRequests] } : c)) })),
   setConsentMarketing: (customerId, v) =>
     set((s) => ({ customerProfiles: s.customerProfiles.map((c) => (c.id === customerId ? { ...c, consentMarketing: v } : c)) })),
+
+  updateCustomerProfile: (customerId, patch) =>
+    set((s) => ({
+      customerProfiles: s.customerProfiles.map((c) => (c.id === customerId ? { ...c, ...patch } : c)),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'crm.manager', `Updated customer CRM profile: ${patch.name || customerId}`, 'CustomerProfile', customerId),
+    })),
+
+  toggleCustomerVip: (customerId) =>
+    set((s) => ({
+      customerProfiles: s.customerProfiles.map((c) => {
+        if (c.id !== customerId) return c
+        const isVip = !(c.isVip ?? (c.passengerTier === 'VIP_PLATINUM' || c.passengerTier === 'CORP_EXECUTIVE'))
+        return {
+          ...c,
+          isVip,
+          passengerTier: isVip ? 'VIP_PLATINUM' : 'REGULAR',
+          memberTier: isVip ? 'PLATINUM' : 'SILVER',
+        }
+      }),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'crm.manager', `Toggled VIP status for customer ${customerId}`, 'CustomerProfile', customerId),
+    })),
+
+  issueCustomerVoucher: (customerId, amountTwd, code) =>
+    set((s) => ({
+      customerProfiles: s.customerProfiles.map((c) => {
+        if (c.id !== customerId) return c
+        return {
+          ...c,
+          promoVouchersCount: (c.promoVouchersCount ?? 0) + 1,
+        }
+      }),
+      notifications: pushNotification(
+        s.notifications,
+        'SUCCESS',
+        'notif.voucherIssued.title',
+        'notif.voucherIssued.message',
+        { code, amount: amountTwd },
+      ),
+      globalAuditLog: pushGlobalAudit(s.globalAuditLog, 'crm.manager', `Issued voucher NT$${amountTwd} (${code}) to customer ${customerId}`, 'CustomerProfile', customerId),
+    })),
 
   recordAccessAttempt: async (authMethod, status, inputIdentifier) => {
     const entry = await createAccessLogEntry(authMethod, status, inputIdentifier)

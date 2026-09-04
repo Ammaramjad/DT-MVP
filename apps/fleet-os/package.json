@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build && cp dist/index.html dist/200.html",
     "lint": "oxlint",
     "preview": "vite preview",
+    "test:e2e:nav-customers-drivers": "node e2e/test-nav-customers-drivers.mjs",
     "test:e2e:smoke": "node e2e/smoke.mjs",
     "test:e2e:redesign": "node e2e/redesign-suite.mjs",
     "test:e2e:enterprise": "node e2e/enterprise-suite.mjs",
