@@ -59,7 +59,7 @@ const checkZeroLeakage = async () => {
 }
 
 try {
-  log('1. Initial visit to root route: Verify Cyber-Luxe Login Screen appears with 3 Tabs')
+  log('1. Initial visit to root route: Verify Clean 2-Tab Login Screen appears (No LINE 2FA tab, no plaintext passwords)')
   // Clear any existing localStorage
   await page.goto(BASE + '/', { waitUntil: 'networkidle' })
   await page.evaluate(() => localStorage.clear())
@@ -69,9 +69,21 @@ try {
   await page.waitForSelector('[data-testid="gatekeeper-modal"]', { timeout: 8000 })
   await page.waitForSelector('[data-testid="gatekeeper-tab-staff"]', { timeout: 5000 })
   await page.waitForSelector('[data-testid="gatekeeper-tab-guest"]', { timeout: 5000 })
-  await page.waitForSelector('[data-testid="gatekeeper-tab-line"]', { timeout: 5000 })
 
-  console.log('✓ Access Gatekeeper correctly intercepted visit and displayed 3 Auth Tabs')
+  // Ensure LINE 2FA tab is completely absent
+  const lineTabCount = await page.locator('[data-testid="gatekeeper-tab-line"]').count()
+  if (lineTabCount !== 0) {
+    throw new Error('LINE 2FA tab must be removed from the login screen!')
+  }
+
+  // Ensure input fields are empty initially (no exposed passwords)
+  const staffUserInput = await page.locator('[data-testid="gatekeeper-staff-username-input"]').inputValue()
+  const staffPassInput = await page.locator('[data-testid="gatekeeper-staff-password-input"]').inputValue()
+  if (staffPassInput !== '') {
+    throw new Error('Password field must be initially blank and not expose plaintext credentials!')
+  }
+
+  console.log('✓ Access Gatekeeper correctly displays clean 2 Auth Tabs with no exposed plaintext passwords')
   await checkZeroLeakage()
   console.log('✓ Zero-Leakage verified: No background DOM leaked')
 

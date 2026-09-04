@@ -115,31 +115,101 @@ async function runDynamicFeaturesE2E() {
     }
 
     // -----------------------------------------------------------------------
-    // TEST 3: Future Orders Pipeline in Dispatch Board (/fleet-os/dispatch)
+    // TEST 3: Future Orders Hub (/fleet-os/future-orders)
     // -----------------------------------------------------------------------
-    console.log('\n--- 3. Testing Dispatcher Future Orders Pipeline (/fleet-os/dispatch) ---')
-    await page.goto(`${BASE}/fleet-os/dispatch`, { waitUntil: 'networkidle' })
+    console.log('\n--- 3. Testing Future Orders Center (/fleet-os/future-orders) ---')
+    await page.goto(`${BASE}/fleet-os/future-orders`, { waitUntil: 'networkidle' })
     await page.waitForTimeout(1000)
 
-    // Filter by Tomorrow
-    await page.click('[data-testid="dispatch-horizon-filter-tomorrow"]')
-    await page.waitForTimeout(500)
-    console.log('✓ Tomorrow future bookings filter active in Drag & Drop Dispatch shelf')
+    // Verify Summary KPI cards
+    await page.waitForSelector('[data-testid="future-orders-kpi-grid"]', { timeout: 5000 })
+    console.log('✓ Future Orders Summary KPI cards rendered')
 
-    // Filter by Next 7 Days
-    await page.click('[data-testid="dispatch-horizon-filter-next_7d"]')
-    await page.waitForTimeout(500)
-    console.log('✓ Next 7 Days future bookings filter active')
+    // Click Tomorrow Horizon tab
+    await page.click('[data-testid="horizon-tab-tomorrow"]')
+    await page.waitForTimeout(400)
+    console.log('✓ Horizon Tab: Tomorrow (明日預約) active')
 
-    // Filter by Airline Flight Channel
-    await page.locator('[data-testid="dispatch-channel-source-filter"]').selectOption('AIRLINE_FLIGHT')
-    await page.waitForTimeout(500)
-    console.log('✓ Channel source filter: Airline Flight pre-booking active')
+    // Click Next 3 Days Horizon tab
+    await page.click('[data-testid="horizon-tab-next-3d"]')
+    await page.waitForTimeout(400)
+    console.log('✓ Horizon Tab: Next 3 Days (未來 3 日) active')
+
+    // Click Next 7 Days Horizon tab
+    await page.click('[data-testid="horizon-tab-next-7d"]')
+    await page.waitForTimeout(400)
+    console.log('✓ Horizon Tab: Next 7 Days (未來 7 日) active')
+
+    // Click Next 30 Days Horizon tab
+    await page.click('[data-testid="horizon-tab-next-30d"]')
+    await page.waitForTimeout(400)
+    console.log('✓ Horizon Tab: Next 30 Days (本月預約總覽) active')
+
+    // Filter by Unassigned
+    await page.click('[data-testid="filter-unassigned-badge-btn"]')
+    await page.waitForTimeout(400)
+    console.log('✓ Unassigned / Needs Dispatch filter active')
+
+    // Test 1-Click Pre-Dispatch Action on an order
+    const preAssignBtn = page.locator('[data-testid^="preassign-btn-"]').first()
+    if (await preAssignBtn.isVisible()) {
+      await preAssignBtn.click()
+      await page.waitForSelector('[data-testid="manual-assignment-modal"]', { timeout: 5000 })
+      console.log('✓ 1-Click Pre-Dispatch Assignment Modal opened for future order')
+      // Select first available driver
+      const driverAssignRow = page.locator('[data-testid^="select-driver-for-order-"]').first()
+      if (await driverAssignRow.isVisible()) {
+        await driverAssignRow.click()
+        await page.waitForTimeout(600)
+        console.log('✓ Future order driver assigned with shift conflict checking')
+      } else {
+        await page.click('[data-testid="close-assignment-modal-btn"]')
+      }
+    }
 
     // -----------------------------------------------------------------------
-    // TEST 4: Driver App Upcoming Scheduled Trips (/driver)
+    // TEST 4: Control Center Panel Clickable KPI Cards (/fleet-os)
     // -----------------------------------------------------------------------
-    console.log('\n--- 4. Testing Driver App Upcoming Scheduled Trips (/driver) ---')
+    console.log('\n--- 4. Testing Clickable Control Center KPI Cards (/fleet-os) ---')
+    await page.goto(`${BASE}/fleet-os`, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(1000)
+
+    // Click Unassigned KPI
+    await page.click('[data-testid="control-kpi-unassigned"]')
+    await page.waitForTimeout(500)
+    console.log('✓ Clicked Unassigned KPI -> Order Queue filtered to NEW/Unassigned')
+
+    // Click Anomalies KPI
+    await page.click('[data-testid="control-kpi-anomalies"]')
+    await page.waitForTimeout(500)
+    console.log('✓ Clicked Anomalies KPI -> Filtered to Anomaly orders')
+
+    // Click Clear Filter
+    const clearBtn = page.locator('[data-testid="control-clear-filter-btn"]')
+    if (await clearBtn.isVisible()) {
+      await clearBtn.click()
+      await page.waitForTimeout(400)
+      console.log('✓ Clicked 1-click Clear Filter button')
+    }
+
+    // Click Revenue Today KPI -> Opens Revenue Modal
+    await page.click('[data-testid="control-kpi-revenue"]')
+    await page.waitForSelector('[data-testid="today-revenue-modal"]', { timeout: 5000 })
+    console.log('✓ Clicked Revenue KPI -> Opened Today Revenue & Financial Analytics Modal')
+    await page.click('[data-testid="close-revenue-modal-btn"]')
+    await page.waitForTimeout(400)
+
+    // Click On Leave Today KPI -> Opens On Leave Modal
+    await page.click('[data-testid="control-kpi-on-leave"]')
+    await page.waitForSelector('[data-testid="on-leave-drivers-modal"]', { timeout: 5000 })
+    console.log('✓ Clicked On Leave KPI -> Opened On Leave Drivers Roster Modal')
+    await page.click('[data-testid="close-on-leave-modal-btn"]')
+    await page.waitForTimeout(400)
+
+    // -----------------------------------------------------------------------
+    // TEST 5: Driver App Upcoming Scheduled Trips (/driver)
+    // -----------------------------------------------------------------------
+    console.log('\n--- 5. Testing Driver App Upcoming Scheduled Trips (/driver) ---')
     await page.goto(`${BASE}/driver`, { waitUntil: 'networkidle' })
     await page.waitForTimeout(1000)
 

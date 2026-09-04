@@ -47,6 +47,7 @@ import LostFoundPanel from './panels/fleetos/LostFoundPanel'
 import ReviewsPanel from './panels/fleetos/ReviewsPanel'
 import SubscriptionsPanel from './panels/fleetos/SubscriptionsPanel'
 import CustomersPanel from './panels/fleetos/CustomersPanel'
+import FutureOrdersPanel from './panels/fleetos/FutureOrdersPanel'
 
 function AppContent() {
   const { isLocked } = useGatekeeper()
@@ -75,6 +76,7 @@ function AppContent() {
         <Route path="/control" element={<Navigate to="/fleet-os" replace />} />
         <Route path="/fleet-os" element={<ControlCenterPanel />} />
         <Route path="/fleet-os/dispatch" element={<DispatchBoardPanel />} />
+        <Route path="/fleet-os/future-orders" element={<FutureOrdersPanel />} />
         <Route path="/fleet-os/messenger" element={<MessengerPanel />} />
         <Route path="/fleet-os/orders" element={<ControlCenterPanel />} />
         <Route path="/fleet-os/multiscreen" element={<MultiScreenPanel />} />

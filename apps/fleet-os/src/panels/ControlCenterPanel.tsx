@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { NavLink } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, CalendarClock, Cpu, DollarSign, Gauge, Radar, ShieldAlert, Siren, UserX, Users2 } from 'lucide-react'
 import { useFleetStore } from '../store/useFleetStore'
@@ -16,9 +17,11 @@ import { FleetRosterBreakdown } from '../components/control/FleetRosterBreakdown
 import { AnalyticsDashboard } from '../components/control/AnalyticsDashboard'
 import { FleetOsNav } from '../components/fleetos/FleetOsNav'
 import { EmergencyRescueDrawer } from '../components/control/EmergencyRescueDrawer'
+import { TodayRevenueModal } from '../components/control/TodayRevenueModal'
+import { OnLeaveDriversModal } from '../components/control/OnLeaveDriversModal'
 import { useLang } from '../i18n'
 
-type FilterKey = 'ACTIVE' | 'NEW' | 'IN_PROGRESS' | 'COMPLETED' | 'ALL'
+type FilterKey = 'ACTIVE' | 'NEW' | 'IN_PROGRESS' | 'COMPLETED' | 'ALL' | 'ANOMALIES'
 
 const FILTERS: { key: FilterKey; labelKey: string }[] = [
   { key: 'ACTIVE', labelKey: 'control.filter.active' },
@@ -51,6 +54,8 @@ export default function ControlCenterPanel() {
   const [filter, setFilter] = useState<FilterKey>('ACTIVE')
   const [capacityTab, setCapacityTab] = useState<CapacityTab>('ANALYTICS')
   const [emergencyDrawerOrderId, setEmergencyDrawerOrderId] = useState<string | null>(null)
+  const [showRevenueModal, setShowRevenueModal] = useState(false)
+  const [showOnLeaveModal, setShowOnLeaveModal] = useState(false)
 
   const activeEmergencyOrders = useMemo(
     () => orders.filter((o) => o.incidentReportedAt && o.emergencyStatus !== 'RESOLVED' && !['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED'].includes(o.status)),
@@ -63,13 +68,15 @@ export default function ControlCenterPanel() {
     const sorted = [...orders].sort((a, b) => b.createdAt - a.createdAt)
     switch (filter) {
       case 'NEW':
-        return sorted.filter((o) => o.status === 'CONFIRMED')
+        return sorted.filter((o) => o.status === 'CONFIRMED' || o.status === 'DRIVER_MATCHING')
       case 'IN_PROGRESS':
         return sorted.filter((o) =>
           ['DRIVER_MATCHING', 'ASSIGNED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'PASSENGER_ONBOARD'].includes(o.status),
         )
       case 'COMPLETED':
         return sorted.filter((o) => o.status === 'COMPLETED' || o.status === 'CANCELLED' || o.status === 'REFUNDED' || o.status === 'FAILED')
+      case 'ANOMALIES':
+        return sorted.filter((o) => o.flightInfo?.status === 'DELAYED' || (o.incidentReportedAt && o.emergencyStatus !== 'RESOLVED') || o.unresponsiveDriverIds?.length > 0)
       case 'ACTIVE':
         return sorted.filter((o) => !['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED'].includes(o.status))
       default:
@@ -193,7 +200,10 @@ export default function ControlCenterPanel() {
           label={t('control.kpi.anomalies')}
           value={kpis.anomalies}
           tone="red"
+          active={filter === 'ANOMALIES'}
+          activeFilterTag={lang === 'zh' ? '異常警示' : 'ANOMALIES'}
           testId="control-kpi-anomalies"
+          onClick={() => setFilter(filter === 'ANOMALIES' ? 'ALL' : 'ANOMALIES')}
         />
         <StatCard
           icon={<DollarSign className="h-4 w-4" />}
@@ -201,20 +211,20 @@ export default function ControlCenterPanel() {
           value={kpis.todayRevenue}
           prefix="NT$"
           tone="lime"
-          active={capacityTab === 'ANALYTICS'}
-          activeFilterTag={lang === 'zh' ? '營收圖表' : 'ANALYTICS'}
+          active={showRevenueModal}
+          activeFilterTag={lang === 'zh' ? '財務報表' : 'FINANCIALS'}
           testId="control-kpi-revenue"
-          onClick={() => setCapacityTab(capacityTab === 'ANALYTICS' ? 'FORECAST' : 'ANALYTICS')}
+          onClick={() => setShowRevenueModal(true)}
         />
         <StatCard
           icon={<CalendarClock className="h-4 w-4" />}
           label={t('control.kpi.onLeaveToday')}
           value={kpis.onLeaveToday}
           tone="pink"
-          active={capacityTab === 'SCHEDULE'}
-          activeFilterTag={lang === 'zh' ? '排班表' : 'SCHEDULE'}
+          active={showOnLeaveModal}
+          activeFilterTag={lang === 'zh' ? '休假名冊' : 'ON LEAVE'}
           testId="control-kpi-on-leave"
-          onClick={() => setCapacityTab(capacityTab === 'SCHEDULE' ? 'ANALYTICS' : 'SCHEDULE')}
+          onClick={() => setShowOnLeaveModal(true)}
         />
       </div>
 
@@ -226,12 +236,30 @@ export default function ControlCenterPanel() {
                 key={f.key}
                 onClick={() => setFilter(f.key)}
                 className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-                  filter === f.key ? 'bg-cyan-400/15 text-cyan-300' : 'text-slate-400 hover:bg-white/5'
+                  filter === f.key ? 'bg-cyan-400/15 text-cyan-300 font-bold border border-cyan-400/30' : 'text-slate-400 hover:bg-white/5'
                 }`}
               >
                 {t(f.labelKey)}
               </button>
             ))}
+            {filter !== 'ALL' && (
+              <button
+                type="button"
+                onClick={() => setFilter('ALL')}
+                data-testid="control-clear-filter-btn"
+                className="shrink-0 flex items-center gap-1 rounded-lg bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10.5px] font-bold text-rose-300 hover:bg-rose-500/30 transition"
+              >
+                <span>✕ {lang === 'zh' ? '清除篩選' : 'Clear Filter'}</span>
+              </button>
+            )}
+            <NavLink
+              to="/fleet-os/future-orders"
+              data-testid="control-future-orders-quicklink"
+              className="ml-auto shrink-0 flex items-center gap-1 rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-2 py-0.5 text-[10.5px] font-bold text-cyan-300 hover:bg-cyan-500/25 transition"
+            >
+              <span>📅 {lang === 'zh' ? '預約總覽' : 'Future Hub'}</span>
+              <span>➔</span>
+            </NavLink>
           </div>
           <div className="flex-1 space-y-2 overflow-y-auto pr-1">
             <AnimatePresence initial={false}>
@@ -321,6 +349,18 @@ export default function ControlCenterPanel() {
           />
         )}
       </AnimatePresence>
+
+      {/* Today Revenue & Financial Analytics Modal */}
+      <TodayRevenueModal
+        isOpen={showRevenueModal}
+        onClose={() => setShowRevenueModal(false)}
+      />
+
+      {/* On Leave Drivers Roster Modal */}
+      <OnLeaveDriversModal
+        isOpen={showOnLeaveModal}
+        onClose={() => setShowOnLeaveModal(false)}
+      />
     </div>
   )
 }

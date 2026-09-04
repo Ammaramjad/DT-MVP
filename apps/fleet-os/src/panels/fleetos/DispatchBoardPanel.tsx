@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import type { DragEvent } from 'react'
+import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   AlertTriangle,
@@ -259,6 +260,14 @@ export default function DispatchBoardPanel() {
                   </p>
                 </div>
               </div>
+              <NavLink
+                to="/fleet-os/future-orders"
+                data-testid="link-to-future-orders-center"
+                className="flex items-center gap-1 rounded-xl bg-cyan-500/15 border border-cyan-400/30 px-2.5 py-1 text-[11px] font-bold text-cyan-300 hover:bg-cyan-500/25 transition"
+              >
+                <span>📅 {lang === 'zh' ? '預約中心' : 'Future Hub'}</span>
+                <span className="text-xs">➔</span>
+              </NavLink>
             </div>
 
             <div className="mt-3 space-y-2">

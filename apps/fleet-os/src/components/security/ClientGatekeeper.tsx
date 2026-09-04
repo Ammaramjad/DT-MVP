@@ -1,15 +1,12 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   ShieldCheck,
   Building2,
   Ticket,
-  MessageSquare,
   Lock,
   ArrowRight,
   AlertTriangle,
-  CheckCircle2,
-  Smartphone,
   Eye,
   EyeOff,
   Flame,
@@ -20,40 +17,31 @@ import { useLang } from '../../i18n'
 import { LANGS } from '../../i18n/translations'
 import { useGatekeeper } from '../../lib/gatekeeper'
 
-type GatekeeperTab = 'staff' | 'guest' | 'line'
+type GatekeeperTab = 'staff' | 'guest'
 
 export function ClientGatekeeper() {
   const { t, lang, setLang } = useLang()
   const {
     loginStaff,
     loginGuestPass,
-    unlockWithLineOtp,
   } = useGatekeeper()
 
   const [tab, setTab] = useState<GatekeeperTab>('staff')
 
   // Staff Login State
-  const [staffUsername, setStaffUsername] = useState('admin')
-  const [staffPassword, setStaffPassword] = useState('FleetAdmin2026!')
+  const [staffUsername, setStaffUsername] = useState('')
+  const [staffPassword, setStaffPassword] = useState('')
   const [showStaffPassword, setShowStaffPassword] = useState(false)
   const [staffError, setStaffError] = useState<string | null>(null)
   const [isSubmittingStaff, setIsSubmittingStaff] = useState(false)
 
   // Guest Pass Login State
-  const [guestUsername, setGuestUsername] = useState('guest_demo')
-  const [guestPasscode, setGuestPasscode] = useState('ONE-TIME-2026')
+  const [guestUsername, setGuestUsername] = useState('')
+  const [guestPasscode, setGuestPasscode] = useState('')
   const [showGuestPasscode, setShowGuestPasscode] = useState(false)
   const [guestError, setGuestError] = useState<string | null>(null)
   const [isBurnedError, setIsBurnedError] = useState(false)
   const [isSubmittingGuest, setIsSubmittingGuest] = useState(false)
-
-  // LINE 2FA simulation state
-  const [lineIdentifier, setLineIdentifier] = useState('line_vip_client')
-  const [isSendingOtp, setIsSendingOtp] = useState(false)
-  const [otpSent, setOtpSent] = useState(false)
-  const [lineOtp, setLineOtp] = useState('')
-  const [lineError, setLineError] = useState<string | null>(null)
-  const [confirmationNotice, setConfirmationNotice] = useState<string | null>(null)
 
   // Handlers
   const handleStaffSubmit = (e?: React.FormEvent) => {
@@ -101,29 +89,6 @@ export function ClientGatekeeper() {
         }
       }
     }, 250)
-  }
-
-  const handleSendLineOtp = () => {
-    if (!lineIdentifier.trim()) {
-      setLineError(t('gatekeeper.line.emptyInput'))
-      return
-    }
-    setLineError(null)
-    setIsSendingOtp(true)
-    setTimeout(() => {
-      setIsSendingOtp(false)
-      setOtpSent(true)
-      setConfirmationNotice(t('gatekeeper.line.sentConfirmation'))
-    }, 500)
-  }
-
-  const handleVerifyLineOtp = (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    setLineError(null)
-    const success = unlockWithLineOtp(lineOtp, lineIdentifier.trim() || 'line_user')
-    if (!success) {
-      setLineError(t('gatekeeper.line.invalidOtp'))
-    }
   }
 
   return (
@@ -197,8 +162,8 @@ export function ClientGatekeeper() {
           <p className="mt-1.5 text-xs leading-relaxed text-slate-400">{t('gatekeeper.subtitle')}</p>
         </div>
 
-        {/* 3 Main Auth Method Tabs */}
-        <div className="mt-5 grid grid-cols-3 rounded-2xl border border-white/10 bg-slate-950/70 p-1.5 gap-1">
+        {/* 2 Main Auth Method Tabs */}
+        <div className="mt-5 grid grid-cols-2 rounded-2xl border border-white/10 bg-slate-950/70 p-1.5 gap-1.5">
           <button
             type="button"
             onClick={() => {
@@ -206,11 +171,10 @@ export function ClientGatekeeper() {
               setStaffError(null)
               setGuestError(null)
               setIsBurnedError(false)
-              setLineError(null)
             }}
             data-testid="gatekeeper-tab-staff"
             className={clsx(
-              'flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-bold transition-all text-center',
+              'flex flex-col sm:flex-row items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-xs font-bold transition-all text-center',
               tab === 'staff'
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30'
                 : 'text-slate-400 hover:text-white hover:bg-white/5',
@@ -227,12 +191,11 @@ export function ClientGatekeeper() {
               setStaffError(null)
               setGuestError(null)
               setIsBurnedError(false)
-              setLineError(null)
             }}
             data-testid="gatekeeper-tab-guest"
             data-alias="gatekeeper-tab-passcode"
             className={clsx(
-              'flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-bold transition-all text-center',
+              'flex flex-col sm:flex-row items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-xs font-bold transition-all text-center',
               tab === 'guest'
                 ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/30'
                 : 'text-slate-400 hover:text-white hover:bg-white/5',
@@ -240,27 +203,6 @@ export function ClientGatekeeper() {
           >
             <Ticket className="h-4 w-4 shrink-0" />
             <span className="truncate">{t('gatekeeper.tab.guest')}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setTab('line')
-              setStaffError(null)
-              setGuestError(null)
-              setIsBurnedError(false)
-              setLineError(null)
-            }}
-            data-testid="gatekeeper-tab-line"
-            className={clsx(
-              'flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-bold transition-all text-center',
-              tab === 'line'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30'
-                : 'text-slate-400 hover:text-white hover:bg-white/5',
-            )}
-          >
-            <MessageSquare className="h-4 w-4 shrink-0" />
-            <span className="truncate">{t('gatekeeper.tab.line2fa')}</span>
           </button>
         </div>
 
@@ -281,33 +223,6 @@ export function ClientGatekeeper() {
               <p className="mt-1 text-[11px] text-cyan-200/80 leading-relaxed">
                 {t('gatekeeper.staff.desc')}
               </p>
-            </div>
-
-            {/* Quick Demo Pre-fill Chips */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-[10.5px] font-semibold text-slate-400">Demo Fill:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setStaffUsername('admin')
-                  setStaffPassword('FleetAdmin2026!')
-                  setStaffError(null)
-                }}
-                className="rounded-lg border border-cyan-500/30 bg-cyan-950/50 px-2.5 py-1 text-[11px] font-medium text-cyan-300 hover:bg-cyan-900/50 transition"
-              >
-                👤 {t('gatekeeper.staff.quickAdmin')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setStaffUsername('dispatcher')
-                  setStaffPassword('TaiwanDispatch2026!')
-                  setStaffError(null)
-                }}
-                className="rounded-lg border border-indigo-500/30 bg-indigo-950/50 px-2.5 py-1 text-[11px] font-medium text-indigo-300 hover:bg-indigo-900/50 transition"
-              >
-                🎧 {t('gatekeeper.staff.quickDispatcher')}
-              </button>
             </div>
 
             <div>
@@ -387,23 +302,6 @@ export function ClientGatekeeper() {
               <p className="mt-1 text-[11px] text-amber-200/80 leading-relaxed">
                 {t('gatekeeper.guest.desc')}
               </p>
-            </div>
-
-            {/* Quick Demo Pre-fill Chip */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-[10.5px] font-semibold text-slate-400">Demo Fill:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setGuestUsername('guest_demo')
-                  setGuestPasscode('ONE-TIME-2026')
-                  setGuestError(null)
-                  setIsBurnedError(false)
-                }}
-                className="rounded-lg border border-amber-500/30 bg-amber-950/50 px-2.5 py-1 text-[11px] font-medium text-amber-300 hover:bg-amber-900/50 transition"
-              >
-                🎟️ {t('gatekeeper.guest.quickDefault')}
-              </button>
             </div>
 
             <div>
@@ -489,107 +387,6 @@ export function ClientGatekeeper() {
               <ArrowRight className="h-4 w-4" />
             </button>
           </motion.form>
-        )}
-
-        {/* Tab 3 Content: LINE 2FA Instant Push */}
-        {tab === 'line' && (
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-5 space-y-4"
-            data-testid="gatekeeper-line-section"
-          >
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/30 p-3.5 text-xs text-emerald-200 shadow-inner">
-              <div className="flex items-center gap-2 font-bold text-emerald-300">
-                <Smartphone className="h-4 w-4" />
-                {t('gatekeeper.line.heading')}
-              </div>
-              <p className="mt-1 text-[11px] text-emerald-200/80 leading-relaxed">
-                {t('gatekeeper.line.desc')}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
-                {t('gatekeeper.line.inputLabel')}
-              </label>
-              <div className="mt-1.5 flex gap-2">
-                <input
-                  type="text"
-                  value={lineIdentifier}
-                  onChange={(e) => setLineIdentifier(e.target.value)}
-                  placeholder={t('gatekeeper.line.inputPlaceholder')}
-                  data-testid="gatekeeper-line-input"
-                  className="input-field !py-2.5 !text-xs text-white"
-                />
-                <button
-                  type="button"
-                  onClick={handleSendLineOtp}
-                  disabled={isSendingOtp}
-                  data-testid="gatekeeper-line-send-btn"
-                  className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:brightness-110 disabled:opacity-50"
-                >
-                  {isSendingOtp
-                    ? t('gatekeeper.line.sending')
-                    : otpSent
-                      ? t('gatekeeper.line.resend')
-                      : t('gatekeeper.line.sendOtp')}
-                </button>
-              </div>
-            </div>
-
-            {/* Calm confirmation notice without leaking OTP */}
-            <AnimatePresence>
-              {confirmationNotice && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  className="flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-950/50 p-3 text-xs font-medium text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                  data-testid="gatekeeper-line-sent-notice"
-                >
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span className="leading-snug">{confirmationNotice}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* OTP Input Form */}
-            <form onSubmit={handleVerifyLineOtp} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
-                  {t('gatekeeper.line.otpLabel')}
-                </label>
-                <input
-                  type="text"
-                  value={lineOtp}
-                  onChange={(e) => setLineOtp(e.target.value)}
-                  placeholder={t('gatekeeper.line.otpPlaceholder')}
-                  data-testid="gatekeeper-line-otp-input"
-                  className="input-field mt-1.5 !py-3 text-center !text-base font-mono font-bold tracking-widest text-white shadow-inner"
-                />
-              </div>
-
-              {lineError && (
-                <div
-                  className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-950/40 px-3.5 py-2.5 text-xs font-medium text-rose-300"
-                  data-testid="gatekeeper-line-error"
-                >
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
-                  <span>{lineError}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                data-testid="gatekeeper-line-verify-btn"
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 py-3 text-xs font-black uppercase tracking-wider text-white shadow-xl shadow-emerald-500/30 transition hover:brightness-110 active:scale-[0.98]"
-              >
-                <span>{t('gatekeeper.line.verifyButton')}</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </form>
-          </motion.div>
         )}
 
         {/* Footer Security Notice */}
