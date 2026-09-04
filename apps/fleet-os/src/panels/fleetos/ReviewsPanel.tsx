@@ -14,8 +14,8 @@ import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { Badge } from '../../components/ui/Badge'
 import { StatCard } from '../../components/ui/StatCard'
 import { formatRelative } from '../../lib/format'
-import { SEED_DRIVER_REVIEWS } from '../../data/newModulesSeed'
-import type { DriverReview, ReviewModerationStatus, ReviewSentiment } from '../../types'
+import type { ReviewModerationStatus, ReviewSentiment } from '../../types'
+import { useFleetStore } from '../../store/useFleetStore'
 import { useLang } from '../../i18n'
 import clsx from 'clsx'
 
@@ -33,7 +33,9 @@ const MODERATION_TONE: Record<ReviewModerationStatus, 'green' | 'red' | 'slate'>
 
 export default function ReviewsPanel() {
   const { lang } = useLang()
-  const [reviews, setReviews] = useState<DriverReview[]>(SEED_DRIVER_REVIEWS)
+  const reviews = useFleetStore((s) => s.driverReviews)
+  const setReviewModerationStatus = useFleetStore((s) => s.setReviewModerationStatus)
+
   const [searchQuery, setSearchQuery] = useState('')
   const [ratingFilter, setRatingFilter] = useState<number | 'ALL'>('ALL')
   const [sentimentFilter] = useState<'ALL' | ReviewSentiment>('ALL')
@@ -63,9 +65,7 @@ export default function ReviewsPanel() {
 
   const handleToggleModeration = (reviewId: string, current: ReviewModerationStatus) => {
     const next: ReviewModerationStatus = current === 'PUBLISHED' ? 'FLAGGED' : current === 'FLAGGED' ? 'HIDDEN' : 'PUBLISHED'
-    setReviews((prev) =>
-      prev.map((r) => (r.id === reviewId ? { ...r, moderationStatus: next } : r)),
-    )
+    setReviewModerationStatus(reviewId, next)
     showAlert(
       lang === 'zh'
         ? `評論 ${reviewId} 審核狀態已切換為【${next}】`

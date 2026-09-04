@@ -240,6 +240,26 @@ export interface LostItemReport {
   dispatcherNotes?: string
 }
 
+export interface LostFoundIncident {
+  id: string
+  orderId: string
+  orderNo: string
+  customerName: string
+  customerPhone: string
+  itemCategory: 'PHONE' | 'WALLET' | 'LUGGAGE' | 'KEYS' | 'DOCUMENT' | 'OTHER'
+  itemDescription: string
+  driverId: string
+  driverName: string
+  driverNameZh: string
+  vehiclePlate: string
+  route: string
+  reportedAt: number
+  status: 'REPORTED' | 'LOCATED' | 'AT_HUB' | 'DISPATCHED_RETURN' | 'RETURNED'
+  storageLocation: string
+  trackingNumber?: string
+  dispatcherNotes?: string
+}
+
 export type DriverWorkingShiftType = 'MORNING' | 'DAY' | 'NIGHT' | 'CUSTOM'
 
 export interface DriverWorkingHours {

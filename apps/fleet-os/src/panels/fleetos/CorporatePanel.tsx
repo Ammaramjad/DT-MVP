@@ -13,16 +13,20 @@ import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { formatTWD } from '../../lib/format'
-import { SEED_CORPORATE_ACCOUNTS } from '../../data/corporateSeed'
 import type { CorporateAccount } from '../../types'
+import { useFleetStore } from '../../store/useFleetStore'
 import { useLang } from '../../i18n'
 import clsx from 'clsx'
 
 export default function CorporatePanel() {
   const { t, lang } = useLang()
-  const [accounts, setAccounts] = useState<CorporateAccount[]>(SEED_CORPORATE_ACCOUNTS)
+  const accounts = useFleetStore((s) => s.corporateAccounts)
+  const createCorporateAccount = useFleetStore((s) => s.createCorporateAccount)
+  const updateCorporatePolicy = useFleetStore((s) => s.updateCorporatePolicy)
+
   const [query, setQuery] = useState('')
-  const [selectedAccount, setSelectedAccount] = useState<CorporateAccount | null>(accounts[0])
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(accounts[0]?.id || null)
+  const selectedAccount = accounts.find((a) => a.id === selectedAccountId) || accounts[0] || null
   const [showAddModal, setShowAddModal] = useState(false)
   const [actionAlert, setActionAlert] = useState<string | null>(null)
 
@@ -46,32 +50,16 @@ export default function CorporatePanel() {
 
   const handleCreateAccount = () => {
     if (!newName.trim() || !newUbn.trim()) return
-    const newAcc: CorporateAccount = {
-      id: `corp-${Date.now()}`,
-      name: newName,
-      nameZh: newName,
-      ubn: newUbn,
+    const newAcc = createCorporateAccount({
+      name: newName.trim(),
+      nameZh: newName.trim(),
+      ubn: newUbn.trim(),
       contactPerson: newContact || 'Corporate Admin',
       contactEmail: newEmail || 'admin@corp.com',
       monthlyCreditLimit: Number(newCreditLimit) || 1000000,
-      creditUsed: 0,
-      paymentTerms: 'NET_30',
-      accountManager: 'Lin Da-Ming (Key Account VIP)',
-      status: 'ACTIVE',
-      costCenters: ['GENERAL-ADMIN', 'EXECUTIVE'],
-      policies: {
-        autoApproveUnder: 3000,
-        requireApprovalForLuxury: false,
-        allowedHours: 'ALL',
-        airportOnly: false,
-      },
-      employeeCount: 50,
-      activeRidesThisMonth: 0,
-      totalSpendThisYear: 0,
-    }
+    })
 
-    setAccounts([newAcc, ...accounts])
-    setSelectedAccount(newAcc)
+    setSelectedAccountId(newAcc.id)
     setShowAddModal(false)
     setNewName('')
     setNewUbn('')
@@ -87,15 +75,7 @@ export default function CorporatePanel() {
 
   const handleUpdatePolicy = (field: 'requireApprovalForLuxury' | 'airportOnly') => {
     if (!selectedAccount) return
-    const updated = {
-      ...selectedAccount,
-      policies: {
-        ...selectedAccount.policies,
-        [field]: !selectedAccount.policies[field],
-      },
-    }
-    setSelectedAccount(updated)
-    setAccounts(accounts.map((a) => (a.id === updated.id ? updated : a)))
+    updateCorporatePolicy(selectedAccount.id, field)
     setActionAlert(
       lang === 'zh'
         ? `已更新「${selectedAccount.nameZh}」之企業差旅審批政策設定。`
@@ -243,7 +223,7 @@ export default function CorporatePanel() {
                 <button
                   key={acc.id}
                   type="button"
-                  onClick={() => setSelectedAccount(acc)}
+                  onClick={() => setSelectedAccountId(acc.id)}
                   data-testid={`corporate-account-card-${acc.id}`}
                   className={clsx(
                     'flex w-full flex-col rounded-3xl p-5 text-left transition',

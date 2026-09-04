@@ -57,9 +57,19 @@ import type {
   VehicleCategory,
   VehicleFeature,
   ZoneCondition,
+  CorporateAccount,
+  DriverReview,
+  EGuiInvoice,
+  FlightStatusKind,
+  LostFoundIncident,
+  ReviewModerationStatus,
+  RouteSubscription,
 } from '../types'
 import { createSeedState, SEED_VEHICLES } from '../data/seed'
 import { buildFleetOsSeed } from '../data/fleetOsSeed'
+import { SEED_LOST_FOUND_INCIDENTS, SEED_DRIVER_REVIEWS, SEED_ROUTE_SUBSCRIPTIONS } from '../data/newModulesSeed'
+import { SEED_EGUI_INVOICES } from '../data/invoiceSeed'
+import { SEED_CORPORATE_ACCOUNTS } from '../data/corporateSeed'
 import { AIRPORTS, getLocation, NON_AIRPORTS } from '../data/locations'
 import { buildRoutePath, evaluateRoute } from '../lib/geo'
 import { getCachedRoute, resolveDynamicRoute } from '../lib/routing'
@@ -276,6 +286,35 @@ interface FleetState {
   // ---- Visitor IP & Access Security Log Actions ----
   recordAccessAttempt: (authMethod: AccessAuthMethod, status: AccessAttemptStatus, inputIdentifier?: string) => Promise<AccessLogEntry>
   clearAccessLogs: () => void
+
+  // ---- Lost & Found Hub (/fleet-os/lost-found) ----
+  lostFoundIncidents: LostFoundIncident[]
+  createLostFoundIncident: (input: Omit<LostFoundIncident, 'id' | 'reportedAt'>) => LostFoundIncident
+  updateLostFoundStatus: (incidentId: string, nextStatus: LostFoundIncident['status'], customNote?: string) => void
+  addLostFoundNote: (incidentId: string, note: string) => void
+
+  // ---- e-Invoice Center (/fleet-os/invoices) ----
+  invoices: EGuiInvoice[]
+  voidInvoice: (invoiceId: string, reason?: string) => void
+  allowanceInvoice: (invoiceId: string, allowanceAmount?: number) => void
+
+  // ---- Corporate B2B Accounts (/fleet-os/corporate) ----
+  corporateAccounts: CorporateAccount[]
+  createCorporateAccount: (input: Partial<CorporateAccount> & { name: string; ubn: string }) => CorporateAccount
+  updateCorporatePolicy: (accountId: string, field: 'requireApprovalForLuxury' | 'airportOnly') => void
+
+  // ---- Route Subscriptions (/fleet-os/subscriptions) ----
+  routeSubscriptions: RouteSubscription[]
+  createRouteSubscription: (input: Omit<RouteSubscription, 'id' | 'startDate' | 'renewDate' | 'ridesUsedThisPeriod'>) => RouteSubscription
+  toggleSubscriptionStatus: (subscriptionId: string) => void
+
+  // ---- Driver CSAT & Reviews (/fleet-os/reviews) ----
+  driverReviews: DriverReview[]
+  setReviewModerationStatus: (reviewId: string, status: ReviewModerationStatus, notes?: string) => void
+  addDriverReview: (review: Omit<DriverReview, 'id' | 'createdAt'>) => DriverReview
+
+  // ---- Flight Radar Delay / Status Simulation (/fleet-os/flights) ----
+  simulateFlightRadarUpdate: (flightNumber: string, status: FlightStatusKind, delayMinutes?: number) => void
 }
 
 function pushNotification(
@@ -625,6 +664,62 @@ const highestSeedOrderNo = seed.orders.reduce((max, o) => {
 }, 0)
 ensureOrderNoAbove(highestSeedOrderNo)
 
+const FLEET_PERSIST_STORAGE_KEY = 'fleet_os_persisted_state_v1'
+
+interface PersistedSlice {
+  operatingParams?: OperatingParams
+  pricingRules?: PricingRules
+  chatMessages?: ChatMessage[]
+  orderSwapRequests?: OrderSwapRequest[]
+  lostFoundIncidents?: LostFoundIncident[]
+  invoices?: EGuiInvoice[]
+  corporateAccounts?: CorporateAccount[]
+  routeSubscriptions?: RouteSubscription[]
+  driverReviews?: DriverReview[]
+  campaigns?: Campaign[]
+  supportTickets?: SupportTicket[]
+  refundRequests?: RefundRequest[]
+  staffAccounts?: StaffAccount[]
+}
+
+function loadPersistedSlice(): PersistedSlice {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(FLEET_PERSIST_STORAGE_KEY)
+    if (!raw) return {}
+    return JSON.parse(raw) as PersistedSlice
+  } catch (err) {
+    console.warn('Failed to parse persisted state from localStorage', err)
+    return {}
+  }
+}
+
+function savePersistedSlice(state: FleetState) {
+  if (typeof window === 'undefined') return
+  try {
+    const slice: PersistedSlice = {
+      operatingParams: state.operatingParams,
+      pricingRules: state.pricingRules,
+      chatMessages: state.chatMessages.slice(-50),
+      orderSwapRequests: state.orderSwapRequests,
+      lostFoundIncidents: state.lostFoundIncidents,
+      invoices: state.invoices,
+      corporateAccounts: state.corporateAccounts,
+      routeSubscriptions: state.routeSubscriptions,
+      driverReviews: state.driverReviews,
+      campaigns: state.campaigns,
+      supportTickets: state.supportTickets,
+      refundRequests: state.refundRequests,
+      staffAccounts: state.staffAccounts,
+    }
+    window.localStorage.setItem(FLEET_PERSIST_STORAGE_KEY, JSON.stringify(slice))
+  } catch (err) {
+    console.warn('Failed to save persisted state to localStorage', err)
+  }
+}
+
+const persisted = loadPersistedSlice()
+
 export const useFleetStore = create<FleetState>((set, get) => ({
   orders: seed.orders,
   drivers: seed.drivers,
@@ -639,20 +734,20 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   tickCount: 0,
 
   suppliers: fleetOsSeed.suppliers,
-  campaigns: fleetOsSeed.campaigns,
-  supportTickets: fleetOsSeed.supportTickets,
-  refundRequests: fleetOsSeed.refundRequests,
+  campaigns: persisted.campaigns ?? fleetOsSeed.campaigns,
+  supportTickets: persisted.supportTickets ?? fleetOsSeed.supportTickets,
+  refundRequests: persisted.refundRequests ?? fleetOsSeed.refundRequests,
   roles: fleetOsSeed.roles,
   systemHealth: fleetOsSeed.systemHealth,
   catalogProducts: fleetOsSeed.catalogProducts,
   payouts: fleetOsSeed.payouts,
   globalAuditLog: fleetOsSeed.globalAuditLog,
-  staffAccounts: SEED_STAFF_ACCOUNTS,
-  operatingParams: DEFAULT_OPERATING_PARAMS,
+  staffAccounts: persisted.staffAccounts ?? SEED_STAFF_ACCOUNTS,
+  operatingParams: persisted.operatingParams ?? DEFAULT_OPERATING_PARAMS,
 
   accessLogs: loadStoredAccessLogs(),
 
-  chatMessages: [
+  chatMessages: persisted.chatMessages ?? [
     {
       id: 'msg-1',
       channelId: 'dispatch-ops',
@@ -705,10 +800,16 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     },
   ],
 
-  orderSwapRequests: [],
+  orderSwapRequests: persisted.orderSwapRequests ?? [],
+
+  lostFoundIncidents: persisted.lostFoundIncidents ?? SEED_LOST_FOUND_INCIDENTS,
+  invoices: persisted.invoices ?? SEED_EGUI_INVOICES,
+  corporateAccounts: persisted.corporateAccounts ?? SEED_CORPORATE_ACCOUNTS,
+  routeSubscriptions: persisted.routeSubscriptions ?? SEED_ROUTE_SUBSCRIPTIONS,
+  driverReviews: persisted.driverReviews ?? SEED_DRIVER_REVIEWS,
 
   zoneConditions: buildInitialZoneConditions(),
-  pricingRules: DEFAULT_PRICING_RULES,
+  pricingRules: persisted.pricingRules ?? DEFAULT_PRICING_RULES,
   categoryPriceOverrides: {},
 
   authSession: { isLoggedIn: false, method: null, displayName: null, email: null },
@@ -2570,7 +2671,284 @@ export const useFleetStore = create<FleetState>((set, get) => ({
 
     if (routeToPickup.source === 'SYNTHETIC') scheduleRouteHydration(order.id, 'routeToPickup', driverLoc, order.pickup)
   },
+
+  // ---- Lost & Found Hub (/fleet-os/lost-found) ----
+  createLostFoundIncident: (input) => {
+    const newIncident: LostFoundIncident = {
+      ...input,
+      id: genId('lf'),
+      reportedAt: Date.now(),
+    }
+    set((s) => ({
+      lostFoundIncidents: [newIncident, ...s.lostFoundIncidents],
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        'dispatcher',
+        `Created lost & found report ${newIncident.id} for order ${newIncident.orderNo} (${newIncident.itemCategory})`,
+        'LostItemReport',
+        newIncident.id,
+      ),
+    }))
+    return newIncident
+  },
+
+  updateLostFoundStatus: (incidentId, nextStatus, customNote) => {
+    set((s) => ({
+      lostFoundIncidents: s.lostFoundIncidents.map((item) => {
+        if (item.id !== incidentId) return item
+        const updatedNotes = customNote
+          ? `${item.dispatcherNotes ? item.dispatcherNotes + '\n' : ''}[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}] ${customNote}`
+          : item.dispatcherNotes
+        return {
+          ...item,
+          status: nextStatus,
+          dispatcherNotes: updatedNotes,
+        }
+      }),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        'dispatcher',
+        `Updated lost item status to ${nextStatus} for incident ${incidentId}`,
+        'LostItemReport',
+        incidentId,
+      ),
+    }))
+  },
+
+  addLostFoundNote: (incidentId, note) => {
+    set((s) => ({
+      lostFoundIncidents: s.lostFoundIncidents.map((item) => {
+        if (item.id !== incidentId) return item
+        const updatedNotes = `${item.dispatcherNotes ? item.dispatcherNotes + '\n' : ''}[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}] ${note}`
+        return {
+          ...item,
+          dispatcherNotes: updatedNotes,
+        }
+      }),
+    }))
+  },
+
+  // ---- e-Invoice Center (/fleet-os/invoices) ----
+  voidInvoice: (invoiceId, reason) => {
+    set((s) => ({
+      invoices: s.invoices.map((inv) =>
+        inv.id === invoiceId
+          ? {
+              ...inv,
+              status: 'VOIDED' as const,
+              voidReason: reason || 'Ops dispatcher manual invoice voiding / 發票作廢',
+              mofSyncTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+            }
+          : inv,
+      ),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        'dispatcher',
+        `Voided e-GUI invoice ${invoiceId}`,
+        'EGuiInvoice',
+        invoiceId,
+      ),
+    }))
+  },
+
+  allowanceInvoice: (invoiceId, allowanceAmount) => {
+    set((s) => ({
+      invoices: s.invoices.map((inv) =>
+        inv.id === invoiceId
+          ? {
+              ...inv,
+              status: 'ALLOWANCE' as const,
+              allowanceAmount: allowanceAmount ?? Math.round(inv.amountTotal * 0.2),
+              mofSyncTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+            }
+          : inv,
+      ),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        'dispatcher',
+        `Issued tax allowance for e-GUI invoice ${invoiceId}`,
+        'EGuiInvoice',
+        invoiceId,
+      ),
+    }))
+  },
+
+  // ---- Corporate B2B Accounts (/fleet-os/corporate) ----
+  createCorporateAccount: (input) => {
+    const newAcc: CorporateAccount = {
+      id: genId('corp'),
+      name: input.name,
+      nameZh: input.nameZh || input.name,
+      ubn: input.ubn,
+      contactPerson: input.contactPerson || 'Corporate Admin',
+      contactEmail: input.contactEmail || 'admin@corp.com',
+      monthlyCreditLimit: Number(input.monthlyCreditLimit) || 1000000,
+      creditUsed: 0,
+      paymentTerms: input.paymentTerms || 'NET_30',
+      accountManager: input.accountManager || 'Lin Da-Ming (Key Account VIP)',
+      status: 'ACTIVE',
+      costCenters: input.costCenters || ['GENERAL-ADMIN', 'EXECUTIVE'],
+      policies: input.policies || {
+        autoApproveUnder: 3000,
+        requireApprovalForLuxury: false,
+        allowedHours: 'ALL',
+        airportOnly: false,
+      },
+      employeeCount: input.employeeCount || 50,
+      activeRidesThisMonth: 0,
+      totalSpendThisYear: 0,
+    }
+    set((s) => ({
+      corporateAccounts: [newAcc, ...s.corporateAccounts],
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        'dispatcher',
+        `Created corporate account ${newAcc.nameZh} (${newAcc.ubn}) with NT$${newAcc.monthlyCreditLimit.toLocaleString()} limit`,
+        'CorporateAccount',
+        newAcc.id,
+      ),
+    }))
+    return newAcc
+  },
+
+  updateCorporatePolicy: (accountId, field) => {
+    set((s) => ({
+      corporateAccounts: s.corporateAccounts.map((a) =>
+        a.id === accountId
+          ? {
+              ...a,
+              policies: {
+                ...a.policies,
+                [field]: !a.policies[field],
+              },
+            }
+          : a,
+      ),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        'dispatcher',
+        `Toggled policy ${field} for corporate account ${accountId}`,
+        'CorporateAccount',
+        accountId,
+      ),
+    }))
+  },
+
+  // ---- Route Subscriptions (/fleet-os/subscriptions) ----
+  createRouteSubscription: (input) => {
+    const newSub: RouteSubscription = {
+      ...input,
+      id: genId('sub'),
+      ridesUsedThisPeriod: 0,
+      startDate: new Date().toISOString().slice(0, 10),
+      renewDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+    }
+    set((s) => ({
+      routeSubscriptions: [newSub, ...s.routeSubscriptions],
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        'dispatcher',
+        `Created route subscription pass ${newSub.id} for ${newSub.subscriberName}`,
+        'RouteSubscription',
+        newSub.id,
+      ),
+    }))
+    return newSub
+  },
+
+  toggleSubscriptionStatus: (subscriptionId) => {
+    set((s) => ({
+      routeSubscriptions: s.routeSubscriptions.map((sub) =>
+        sub.id === subscriptionId
+          ? {
+              ...sub,
+              status: sub.status === 'ACTIVE' ? ('PAUSED' as const) : ('ACTIVE' as const),
+            }
+          : sub,
+      ),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        'dispatcher',
+        `Toggled subscription status for ${subscriptionId}`,
+        'RouteSubscription',
+        subscriptionId,
+      ),
+    }))
+  },
+
+  // ---- Driver CSAT & Reviews (/fleet-os/reviews) ----
+  setReviewModerationStatus: (reviewId, status, notes) => {
+    set((s) => ({
+      driverReviews: s.driverReviews.map((rev) =>
+        rev.id === reviewId
+          ? {
+              ...rev,
+              moderationStatus: status,
+              moderationNotes: notes !== undefined ? notes : rev.moderationNotes,
+            }
+          : rev,
+      ),
+      globalAuditLog: pushGlobalAudit(
+        s.globalAuditLog,
+        'dispatcher',
+        `Updated review ${reviewId} moderation status to ${status}`,
+        'DriverReview',
+        reviewId,
+      ),
+    }))
+  },
+
+  addDriverReview: (review) => {
+    const newRev: DriverReview = {
+      ...review,
+      id: genId('rev'),
+      createdAt: Date.now(),
+    }
+    set((s) => ({
+      driverReviews: [newRev, ...s.driverReviews],
+    }))
+    return newRev
+  },
+
+  // ---- Flight Radar Delay / Status Simulation (/fleet-os/flights) ----
+  simulateFlightRadarUpdate: (flightNumber, status, delayMinutes) => {
+    set((s) => {
+      const now = Date.now()
+      return {
+        orders: s.orders.map((o) => {
+          if (!o.flightInfo || o.flightInfo.flightNumber !== flightNumber) return o
+          const currentFlight = o.flightInfo
+          const effectiveDelay = delayMinutes ?? (status === 'DELAYED' ? (currentFlight.delayMinutes || 45) + 15 : 0)
+          const estimatedTime = new Date(new Date(currentFlight.scheduledTime).getTime() + effectiveDelay * 60_000).toISOString()
+          return {
+            ...o,
+            flightLandedAt: status === 'LANDED' ? now : o.flightLandedAt,
+            flightInfo: {
+              ...currentFlight,
+              status,
+              delayMinutes: effectiveDelay,
+              estimatedTime,
+            },
+          }
+        }),
+        globalAuditLog: pushGlobalAudit(
+          s.globalAuditLog,
+          'dispatcher',
+          `Manual flight status simulation for flight ${flightNumber} -> ${status} (+${delayMinutes ?? 0}m)`,
+          'FlightInfo',
+          flightNumber,
+        ),
+      }
+    })
+  },
 }))
+
+// Auto-subscribe and persist state changes to localStorage
+if (typeof window !== 'undefined') {
+  useFleetStore.subscribe((state) => {
+    savePersistedSlice(state)
+  })
+}
 
 // Dev/demo-only escape hatch for e2e/artifact scripts that need to drive the
 // simulation deterministically (e.g. forcing a specific driver's incoming

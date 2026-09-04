@@ -18,7 +18,8 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { StatCard } from '../../components/ui/StatCard'
 import { formatRelative, formatDateTime } from '../../lib/format'
-import { SEED_LOST_FOUND_INCIDENTS, type LostFoundIncident } from '../../data/newModulesSeed'
+import type { LostFoundIncident } from '../../types'
+import { useFleetStore } from '../../store/useFleetStore'
 import { useLang } from '../../i18n'
 import clsx from 'clsx'
 
@@ -49,8 +50,14 @@ const CATEGORY_ICONS: Record<LostFoundIncident['itemCategory'], string> = {
 
 export default function LostFoundPanel() {
   const { lang } = useLang()
-  const [incidents, setIncidents] = useState<LostFoundIncident[]>(SEED_LOST_FOUND_INCIDENTS)
-  const [selectedIncident, setSelectedIncident] = useState<LostFoundIncident | null>(incidents[0])
+  const incidents = useFleetStore((s) => s.lostFoundIncidents)
+  const createLostFoundIncident = useFleetStore((s) => s.createLostFoundIncident)
+  const updateLostFoundStatus = useFleetStore((s) => s.updateLostFoundStatus)
+  const addLostFoundNote = useFleetStore((s) => s.addLostFoundNote)
+
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(incidents[0]?.id || null)
+  const selectedIncident = incidents.find((i) => i.id === selectedIncidentId) || incidents[0] || null
+
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | LostFoundIncident['status']>('ALL')
   const [actionAlert, setActionAlert] = useState<string | null>(null)
@@ -85,33 +92,7 @@ export default function LostFoundPanel() {
   }
 
   const handleUpdateStatus = (incidentId: string, nextStatus: LostFoundIncident['status'], customNote?: string) => {
-    setIncidents((prev) =>
-      prev.map((item) => {
-        if (item.id !== incidentId) return item
-        const updatedNotes = customNote
-          ? `${item.dispatcherNotes ? item.dispatcherNotes + '\n' : ''}[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}] ${customNote}`
-          : item.dispatcherNotes
-        return {
-          ...item,
-          status: nextStatus,
-          dispatcherNotes: updatedNotes,
-        }
-      }),
-    )
-
-    if (selectedIncident && selectedIncident.id === incidentId) {
-      setSelectedIncident((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: nextStatus,
-              dispatcherNotes: customNote
-                ? `${prev.dispatcherNotes ? prev.dispatcherNotes + '\n' : ''}[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}] ${customNote}`
-                : prev.dispatcherNotes,
-            }
-          : null,
-      )
-    }
+    updateLostFoundStatus(incidentId, nextStatus, customNote)
 
     const statusName = STATUS_LABELS[nextStatus][lang === 'zh' ? 'zh' : 'en']
     showAlert(
@@ -123,25 +104,15 @@ export default function LostFoundPanel() {
 
   const handleAddNote = () => {
     if (!selectedIncident || !noteInput.trim()) return
-    const noteText = `[${new Date().toLocaleTimeString('zh-TW', { hour12: false })} Ops Note] ${noteInput.trim()}`
-    setIncidents((prev) =>
-      prev.map((item) =>
-        item.id === selectedIncident.id
-          ? { ...item, dispatcherNotes: item.dispatcherNotes ? `${item.dispatcherNotes}\n${noteText}` : noteText }
-          : item,
-      ),
-    )
-    setSelectedIncident((prev) =>
-      prev ? { ...prev, dispatcherNotes: prev.dispatcherNotes ? `${prev.dispatcherNotes}\n${noteText}` : noteText } : null,
-    )
+    const noteText = `[Ops Note] ${noteInput.trim()}`
+    addLostFoundNote(selectedIncident.id, noteText)
     setNoteInput('')
     showAlert(lang === 'zh' ? '調度日誌紀錄已更新。' : 'Dispatcher log note added.')
   }
 
   const handleCreateReport = () => {
     if (!newCustomerName.trim() || !newItemDesc.trim()) return
-    const newInc: LostFoundIncident = {
-      id: `lf-${Date.now()}`,
+    const newInc = createLostFoundIncident({
       orderId: `ord-${Date.now()}`,
       orderNo: newOrderNo.trim() || `FP-${Math.floor(1000 + Math.random() * 9000)}`,
       customerName: newCustomerName.trim(),
@@ -153,14 +124,12 @@ export default function LostFoundPanel() {
       driverNameZh: '陳偉明',
       vehiclePlate: 'ABC-5581',
       route: 'TPE Airport → Taipei City Center',
-      reportedAt: Date.now(),
       status: 'REPORTED',
       storageLocation: 'Vehicle Boot (Under Investigation)',
       dispatcherNotes: `New lost item report filed by passenger concierge desk.`,
-    }
+    })
 
-    setIncidents([newInc, ...incidents])
-    setSelectedIncident(newInc)
+    setSelectedIncidentId(newInc.id)
     setShowCreateModal(false)
     setNewCustomerName('')
     setNewCustomerPhone('')
@@ -302,7 +271,7 @@ export default function LostFoundPanel() {
                 return (
                   <motion.div
                     key={item.id}
-                    onClick={() => setSelectedIncident(item)}
+                    onClick={() => setSelectedIncidentId(item.id)}
                     data-testid="lost-found-card"
                     className={clsx(
                       'cursor-pointer rounded-2xl p-3.5 border transition relative overflow-hidden',
