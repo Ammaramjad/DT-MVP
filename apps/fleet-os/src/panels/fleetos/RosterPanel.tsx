@@ -643,7 +643,7 @@ export default function RosterPanel() {
 
       {/* TAB 3: Schedule Matrix */}
       {tab === 'SCHEDULE' && (
-        <div className="mt-3 glass-panel rounded-2xl p-3">
+        <div className="mt-3">
           <DriverScheduleMatrix />
         </div>
       )}

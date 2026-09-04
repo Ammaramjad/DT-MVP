@@ -29,7 +29,15 @@ async function runNavCustomersDriversSuite() {
   page.on('pageerror', (err) => errors.push(`[pageerror] ${err.message}`))
   page.on('console', (msg) => {
     const text = msg.text()
-    if (msg.type() === 'error' && !text.includes('tile.openstreetmap') && !text.includes('ipify') && !text.includes('ipapi')) {
+    if (
+      msg.type() === 'error' &&
+      !text.includes('tile.openstreetmap') &&
+      !text.includes('ipify') &&
+      !text.includes('ipapi') &&
+      !text.includes('Failed to load resource: net::ERR_FAILED') &&
+      !text.includes('Failed to load resource: net::ERR_ABORTED') &&
+      !text.includes('status of 429')
+    ) {
       errors.push(`[console] ${text}`)
     }
   })

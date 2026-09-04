@@ -42,6 +42,7 @@ import type {
   RefundRequestStatus,
   Role,
   SavedPassenger,
+  ShiftDay,
   StaffAccount,
   StaffAccountStatus,
   StaffRole,
@@ -251,6 +252,7 @@ interface FleetState {
 
   // ---- Driver Shift & Working Hours Management ----
   updateDriverShift: (driverId: string, hours: Partial<DriverWorkingHours>) => void
+  updateDriverShiftScheduleDay: (driverId: string, date: string, shift: ShiftDay['shift']) => void
 
   // ---- Real-time Team Messenger ----
   chatMessages: ChatMessage[]
@@ -2309,6 +2311,28 @@ export const useFleetStore = create<FleetState>((set, get) => ({
           s.globalAuditLog,
           'dispatcher',
           `Updated driver shift schedule for ${driver.name} (${driver.nameZh}) to ${updatedHours.shiftStart}-${updatedHours.shiftEnd}`,
+          'Driver',
+          driverId,
+        ),
+      }
+    })
+  },
+
+  updateDriverShiftScheduleDay: (driverId, date, shift) => {
+    set((s) => {
+      const driver = s.drivers.find((d) => d.id === driverId)
+      if (!driver) return {}
+      const nextSchedule = driver.shiftSchedule.map((item) =>
+        item.date === date ? { ...item, shift, adjusted: true } : item,
+      )
+      return {
+        drivers: s.drivers.map((d) =>
+          d.id === driverId ? { ...d, shiftSchedule: nextSchedule } : d,
+        ),
+        globalAuditLog: pushGlobalAudit(
+          s.globalAuditLog,
+          'dispatcher',
+          `Manually adjusted ${date} shift to ${shift} for ${driver.name} (${driver.nameZh})`,
           'Driver',
           driverId,
         ),

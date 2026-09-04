@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Car,
@@ -64,12 +64,28 @@ export function DriverProfileModal({
   const [activeTab, setActiveTab] = useState<DriverModalTab>(initialTab)
   const [actionAlert, setActionAlert] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab)
+    }
+  }, [isOpen, initialTab])
+
   // Shift editing state
   const [shiftType, setShiftType] = useState<DriverWorkingShiftType>(driver?.workingHours?.shiftType || 'DAY')
   const [shiftStart, setShiftStart] = useState(driver?.workingHours?.shiftStart || '09:00')
   const [shiftEnd, setShiftEnd] = useState(driver?.workingHours?.shiftEnd || '18:00')
   const [breakStart, setBreakStart] = useState(driver?.workingHours?.breakStart || '12:30')
   const [breakEnd, setBreakEnd] = useState(driver?.workingHours?.breakEnd || '13:30')
+
+  useEffect(() => {
+    if (driver?.workingHours) {
+      setShiftType(driver.workingHours.shiftType || 'DAY')
+      setShiftStart(driver.workingHours.shiftStart || '09:00')
+      setShiftEnd(driver.workingHours.shiftEnd || '18:00')
+      setBreakStart(driver.workingHours.breakStart || '12:30')
+      setBreakEnd(driver.workingHours.breakEnd || '13:30')
+    }
+  }, [driver])
 
   if (!isOpen || !driver) return null
 
