@@ -28,15 +28,41 @@ export function GuestPassVault() {
 
   const isSuperAdmin = currentUser?.role === 'admin'
 
-  if (!isSuperAdmin) {
-    return null
-  }
-
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | GuestPassStatus>('ALL')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  const activeCount = useMemo(
+    () => guestPasses.filter((p) => p.status === 'ACTIVE').length,
+    [guestPasses],
+  )
+  const inUseCount = useMemo(
+    () => guestPasses.filter((p) => p.status === 'IN_USE').length,
+    [guestPasses],
+  )
+  const burnedCount = useMemo(
+    () => guestPasses.filter((p) => p.status === 'BURNED').length,
+    [guestPasses],
+  )
+  const filteredPasses = useMemo(() => {
+    return guestPasses.filter((p) => {
+      if (statusFilter !== 'ALL' && p.status !== statusFilter) return false
+      if (!searchQuery.trim()) return true
+      const q = searchQuery.toLowerCase().trim()
+      return (
+        p.username.toLowerCase().includes(q) ||
+        p.passcode.toLowerCase().includes(q) ||
+        (p.notes && p.notes.toLowerCase().includes(q)) ||
+        p.ip.toLowerCase().includes(q)
+      )
+    })
+  }, [guestPasses, statusFilter, searchQuery])
+
+  if (!isSuperAdmin) {
+    return null
+  }
 
   // Quick toast banner helper
   const showToast = (msg: string) => {
@@ -72,33 +98,6 @@ export function GuestPassVault() {
 
   // KPI calculations
   const totalCount = guestPasses.length
-  const activeCount = useMemo(
-    () => guestPasses.filter((p) => p.status === 'ACTIVE').length,
-    [guestPasses],
-  )
-  const inUseCount = useMemo(
-    () => guestPasses.filter((p) => p.status === 'IN_USE').length,
-    [guestPasses],
-  )
-  const burnedCount = useMemo(
-    () => guestPasses.filter((p) => p.status === 'BURNED').length,
-    [guestPasses],
-  )
-
-  // Filtered passes
-  const filteredPasses = useMemo(() => {
-    return guestPasses.filter((p) => {
-      if (statusFilter !== 'ALL' && p.status !== statusFilter) return false
-      if (!searchQuery.trim()) return true
-      const q = searchQuery.toLowerCase().trim()
-      return (
-        p.username.toLowerCase().includes(q) ||
-        p.passcode.toLowerCase().includes(q) ||
-        (p.notes && p.notes.toLowerCase().includes(q)) ||
-        p.ip.toLowerCase().includes(q)
-      )
-    })
-  }, [guestPasses, statusFilter, searchQuery])
 
   const renderStatusBadge = (status: GuestPassStatus) => {
     if (status === 'ACTIVE') {
