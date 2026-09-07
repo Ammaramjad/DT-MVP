@@ -36,6 +36,24 @@ docker-compose.yml      Local full stack
 
 ---
 
+## Fleet OS live demo (GitHub Pages)
+
+**URL:** https://ammaramjad.github.io/DT-MVP/  
+**Login:** `admin` / `FleetAdmin2026!`
+
+The Fleet OS prototype (`apps/fleet-os`) is built for GitHub Pages at `/DT-MVP/`. After merging `.github/workflows/deploy-fleet-os-pages.yml`, the repo owner must enable Pages once:
+
+1. **Settings → Pages → Build and deployment → Source:** choose **GitHub Actions** (recommended — workflow auto-enables Pages on first deploy), **or** **Deploy from a branch** → branch `gh-pages` / folder `/ (root)`.
+2. Push to any `cursor/**` branch that touches `apps/fleet-os/**` to trigger a deploy, or run the workflow manually from **Actions → Deploy fleet-os to GitHub Pages → Run workflow**.
+
+Manual deploy from this repo (populates/updates the `gh-pages` branch):
+
+```bash
+cd apps/fleet-os && npm ci && npm run deploy:gh-pages
+```
+
+---
+
 ## Quick Start
 
 ### 1) Environment
