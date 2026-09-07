@@ -3,7 +3,7 @@ name: Deploy fleet-os to GitHub Pages
 on:
   push:
     branches:
-      - cursor/fleet-dispatch-demo-prototype-8c37
+      - cursor/**
     paths:
       - 'apps/fleet-os/**'
       - '.github/workflows/deploy-fleet-os-pages.yml'
