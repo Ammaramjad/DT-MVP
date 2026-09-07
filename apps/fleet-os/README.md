@@ -1,5 +1,10 @@
 # 走瘋派車 Zhaofeng Travel — Fleet OS Live Prototype
 
+**Live demo:** https://fleetos-live-8c37.surge.sh  
+**Login:** `admin` / `FleetAdmin2026!` (gatekeeper overlay on first visit)
+
+> **Note:** `fleet-dispatch-demo-8c37.surge.sh` resolves to Surge's JFK edge (`159.203.159.100`) and may time out from some networks (Windows/Safari). Use the live demo URL above instead — it routes to the SFO edge (`138.197.235.123`). Backup: https://zoufun-fleet-8c37.surge.sh
+
 A polished, fully client-side **demo prototype** of the Zhaofeng Travel (走瘋派車) Taiwan airport-transfer, city-ride,
 and private-charter platform, built around a central **Fleet OS**. There is no real backend, no payments, and no
 live third-party APIs — every "live" data point (orders, drivers, GPS positions, flight status, notifications,

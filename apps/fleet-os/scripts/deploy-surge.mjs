@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-export function deployToSurge(distDir = '/workspace/apps/fleet-os/dist', domain = 'fleet-dispatch-demo-8c37.surge.sh') {
+export function deployToSurge(distDir = '/workspace/apps/fleet-os/dist', domain = 'fleetos-live-8c37.surge.sh') {
   let token = process.env.SURGE_TOKEN
 
   const netrcPath = join(process.env.HOME || '/home/ubuntu', '.netrc')
