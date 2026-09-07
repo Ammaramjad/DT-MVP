@@ -210,7 +210,7 @@ export function SplitFareModal({
   if (!isOpen) return null
 
   const splitAmount = Math.ceil(order.priceEstimate / coPassengerCount)
-  const shareUrl = `https://dt-mvp-fleet-dispatch-8c37.surge.sh/pay-split?order=${order.orderNo}&share=${splitAmount}`
+  const shareUrl = `https://fleet-dispatch-demo-8c37.surge.sh/pay-split?order=${order.orderNo}&share=${splitAmount}`
 
   const handleCopy = () => {
     navigator.clipboard.writeText(shareUrl)

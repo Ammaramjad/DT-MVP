@@ -34,7 +34,7 @@ async function captureArtifacts() {
     console.log('Capturing driver shift schedule in Fleet OS...')
     await page.goto(`${BASE}/fleet-os/roster`, { waitUntil: 'networkidle' })
     await page.waitForTimeout(1000)
-    const editShiftBtn = page.locator('[data-testid="edit-driver-shift-btn"]').first()
+    const editShiftBtn = page.locator('[data-testid^="driver-shift-btn-"], [data-testid="edit-driver-shift-btn"]').first()
     await editShiftBtn.click()
     await page.waitForSelector('[data-testid="driver-shift-modal"]', { state: 'visible' })
     await page.waitForTimeout(600)

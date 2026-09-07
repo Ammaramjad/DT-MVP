@@ -17,8 +17,8 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { StatCard } from '../../components/ui/StatCard'
 import { formatTWD } from '../../lib/format'
-import { SEED_ROUTE_SUBSCRIPTIONS } from '../../data/newModulesSeed'
-import type { RouteSubscription, SubscriptionStatus, SubscriptionTier } from '../../types'
+import type { SubscriptionStatus, SubscriptionTier } from '../../types'
+import { useFleetStore } from '../../store/useFleetStore'
 import { useLang } from '../../i18n'
 import clsx from 'clsx'
 
@@ -40,8 +40,13 @@ const DAY_NAMES_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function SubscriptionsPanel() {
   const { lang } = useLang()
-  const [subscriptions, setSubscriptions] = useState<RouteSubscription[]>(SEED_ROUTE_SUBSCRIPTIONS)
-  const [selectedSub, setSelectedSub] = useState<RouteSubscription | null>(subscriptions[0])
+  const subscriptions = useFleetStore((s) => s.routeSubscriptions)
+  const createRouteSubscription = useFleetStore((s) => s.createRouteSubscription)
+  const toggleSubscriptionStatus = useFleetStore((s) => s.toggleSubscriptionStatus)
+
+  const [selectedSubId, setSelectedSubId] = useState<string | null>(subscriptions[0]?.id || null)
+  const selectedSub = subscriptions.find((s) => s.id === selectedSubId) || subscriptions[0] || null
+
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | SubscriptionStatus>('ALL')
   const [actionAlert, setActionAlert] = useState<string | null>(null)
@@ -79,13 +84,8 @@ export default function SubscriptionsPanel() {
   }
 
   const handleToggleStatus = (subId: string, currentStatus: SubscriptionStatus) => {
+    toggleSubscriptionStatus(subId)
     const nextStatus: SubscriptionStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE'
-    setSubscriptions((prev) =>
-      prev.map((s) => (s.id === subId ? { ...s, status: nextStatus } : s)),
-    )
-    if (selectedSub && selectedSub.id === subId) {
-      setSelectedSub((prev) => (prev ? { ...prev, status: nextStatus } : null))
-    }
     showAlert(
       lang === 'zh'
         ? `訂閱通行證 ${subId} 狀態已切換為【${nextStatus}】`
@@ -95,8 +95,7 @@ export default function SubscriptionsPanel() {
 
   const handleCreateSubscription = () => {
     if (!newSubscriberName.trim() || !newOrigin.trim() || !newDestination.trim()) return
-    const newSub: RouteSubscription = {
-      id: `sub-${Date.now()}`,
+    const newSub = createRouteSubscription({
       subscriberName: newSubscriberName.trim(),
       subscriberPhone: newPhone.trim() || '+886 900-123-456',
       corporateName: newCorpName.trim() || undefined,
@@ -108,19 +107,15 @@ export default function SubscriptionsPanel() {
       routeDestinationZh: newDestination.trim(),
       vehicleCategory: 'PREMIUM_SEDAN',
       ridesIncludedPerMonth: newTier === 'VIP_ENTERPRISE_UNLIMITED' ? 30 : newTier === 'EXECUTIVE_PRO' ? 16 : 12,
-      ridesUsedThisPeriod: 0,
       pricePerPeriod: Number(newPrice) || 19800,
       status: 'ACTIVE',
-      startDate: new Date().toISOString().slice(0, 10),
-      renewDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
       autoRenew: true,
       scheduledDays: [1, 2, 3, 4, 5],
       preferredPickupTime: '07:30',
       discountRatePct: 15,
-    }
+    })
 
-    setSubscriptions([newSub, ...subscriptions])
-    setSelectedSub(newSub)
+    setSelectedSubId(newSub.id)
     setShowCreateModal(false)
     setNewSubscriberName('')
     setNewPhone('')
@@ -267,7 +262,7 @@ export default function SubscriptionsPanel() {
                 return (
                   <motion.div
                     key={sub.id}
-                    onClick={() => setSelectedSub(sub)}
+                    onClick={() => setSelectedSubId(sub.id)}
                     data-testid="subscription-card"
                     className={clsx(
                       'cursor-pointer rounded-2xl p-4 border transition relative overflow-hidden',

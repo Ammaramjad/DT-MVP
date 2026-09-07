@@ -10,6 +10,10 @@ export function StatCard({
   prefix = '',
   decimals = 0,
   tone = 'cyan',
+  active = false,
+  onClick,
+  activeFilterTag,
+  testId,
 }: {
   icon: ReactNode
   label: string
@@ -18,6 +22,10 @@ export function StatCard({
   prefix?: string
   decimals?: number
   tone?: 'cyan' | 'purple' | 'amber' | 'lime' | 'red' | 'pink'
+  active?: boolean
+  onClick?: () => void
+  activeFilterTag?: string
+  testId?: string
 }) {
   const toneClasses: Record<string, string> = {
     cyan: 'text-cyan-300 bg-cyan-400/15 border border-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.2)]',
@@ -51,10 +59,31 @@ export function StatCard({
   return (
     <motion.div
       layout
-      className="glass-panel-glow rounded-3xl p-4.5 transition hover:border-white/20"
-      animate={{ boxShadow: flash ? `0 0 0 1.5px ${glowColor[tone]}, 0 0 28px ${glowColor[tone]}` : '0 20px 40px -15px rgba(0,0,0,0.6)' }}
-      transition={{ duration: 0.5 }}
+      onClick={onClick}
+      data-testid={testId}
+      whileHover={onClick ? { scale: 1.02 } : undefined}
+      whileTap={onClick ? { scale: 0.98 } : undefined}
+      className={`glass-panel-glow relative rounded-3xl p-4.5 transition ${
+        onClick ? 'cursor-pointer select-none' : ''
+      } ${
+        active
+          ? 'border-cyan-400 bg-cyan-950/40 shadow-[0_0_24px_rgba(34,211,238,0.35)] ring-2 ring-cyan-400/80'
+          : 'hover:border-white/20'
+      }`}
+      animate={{
+        boxShadow: active
+          ? `0 0 0 2px ${glowColor[tone]}, 0 0 24px ${glowColor[tone]}`
+          : flash
+          ? `0 0 0 1.5px ${glowColor[tone]}, 0 0 28px ${glowColor[tone]}`
+          : '0 20px 40px -15px rgba(0,0,0,0.6)',
+      }}
+      transition={{ duration: 0.3 }}
     >
+      {active && (
+        <span className="absolute -top-2.5 right-4 rounded-full bg-cyan-400 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-950 shadow-md">
+          {activeFilterTag || 'FILTER ACTIVE'}
+        </span>
+      )}
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
         <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${toneClasses[tone]}`}>{icon}</span>

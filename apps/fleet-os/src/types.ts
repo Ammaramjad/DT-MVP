@@ -240,6 +240,26 @@ export interface LostItemReport {
   dispatcherNotes?: string
 }
 
+export interface LostFoundIncident {
+  id: string
+  orderId: string
+  orderNo: string
+  customerName: string
+  customerPhone: string
+  itemCategory: 'PHONE' | 'WALLET' | 'LUGGAGE' | 'KEYS' | 'DOCUMENT' | 'OTHER'
+  itemDescription: string
+  driverId: string
+  driverName: string
+  driverNameZh: string
+  vehiclePlate: string
+  route: string
+  reportedAt: number
+  status: 'REPORTED' | 'LOCATED' | 'AT_HUB' | 'DISPATCHED_RETURN' | 'RETURNED'
+  storageLocation: string
+  trackingNumber?: string
+  dispatcherNotes?: string
+}
+
 export type DriverWorkingShiftType = 'MORNING' | 'DAY' | 'NIGHT' | 'CUSTOM'
 
 export interface DriverWorkingHours {
@@ -695,12 +715,30 @@ export interface PrivacyRequest {
   requestedAt: number
 }
 
+export type PassengerTier =
+  | 'VIP_PLATINUM'
+  | 'CORP_EXECUTIVE'
+  | 'FREQUENT_FLYER'
+  | 'REGULAR'
+  | 'INTL_TOURIST'
+
 export interface CustomerProfile {
   id: string
   name: string
+  nameZh?: string
+  avatarEmoji?: string
   phone: string
   email: string
   memberSince: string
+  passengerTier?: PassengerTier
+  corporateAccountId?: string | null
+  corporateName?: string | null
+  taxIdUbn?: string | null // 統編
+  carrierBarcode?: string | null // 手機載具 /AB12+CD
+  notesAndPreferences?: string
+  isVip?: boolean
+  promoVouchersCount?: number
+  lifetimeValueTwd?: number
   historicalOrders: CustomerHistoryEntry[]
   savedPassengers: SavedPassenger[]
   paymentMethods: PaymentToken[]
@@ -946,10 +984,46 @@ export interface AuthSession {
 }
 
 // ---------------------------------------------------------------------------
-// Visitor IP & Security Access Logs
+// Visitor IP & Security Access Logs & Login Portal Vault
 // ---------------------------------------------------------------------------
-export type AccessAuthMethod = 'PASSCODE' | 'LINE_2FA' | 'DEMO_1CLICK'
-export type AccessAttemptStatus = 'SUCCESS' | 'FAILED_INVALID_PASSCODE' | 'FAILED_INVALID_OTP'
+export type AccessAuthMethod = 'PASSCODE' | 'LINE_2FA' | 'DEMO_1CLICK' | 'STAFF_PERMANENT' | 'GUEST_ONE_TIME'
+export type AccessAttemptStatus =
+  | 'SUCCESS'
+  | 'FAILED_INVALID_PASSCODE'
+  | 'FAILED_INVALID_OTP'
+  | 'FAILED_INVALID_CREDENTIALS'
+  | 'FAILED_BURNED_TOKEN'
+
+export type GuestPassStatus = 'ACTIVE' | 'IN_USE' | 'BURNED'
+
+export interface GuestPass {
+  id: string
+  username: string
+  passcode: string
+  createdAt: number
+  status: GuestPassStatus
+  ip: string
+  usedAt?: number | null
+  burnedAt?: number | null
+  burnedReason?: string | null
+  notes?: string
+}
+
+export type UserRole = 'admin' | 'dispatcher' | 'guest' | 'vip'
+export type AuthMethodType = 'STAFF_PERMANENT' | 'GUEST_ONE_TIME' | 'LINE_2FA' | 'PASSCODE'
+
+export interface LoggedInUser {
+  username: string
+  role: UserRole
+  roleTitleEn: string
+  roleTitleZh: string
+  displayName: string
+  authMethod: AuthMethodType
+  loginAt: number
+  tokenValue: string
+  guestPassId?: string
+  guestPasscode?: string
+}
 
 export interface AccessLogEntry {
   id: string

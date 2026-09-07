@@ -27,6 +27,7 @@ import { computeKpis } from '../lib/selectors'
 import { StatCounter } from '../components/ui/StatCounter'
 import { useDemoTourStore } from '../lib/demoTour'
 import { useLang } from '../i18n'
+import { SessionHeaderIndicator } from '../components/security/SessionHeaderIndicator'
 
 const PHASE1_KEYS = [
   'landing.module.crossPlatform',
@@ -82,6 +83,7 @@ export default function LandingPanel() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <SessionHeaderIndicator />
             <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.2)]">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
               {t('landing.badgeLive')}

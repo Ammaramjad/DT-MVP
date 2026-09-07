@@ -432,9 +432,20 @@ function buildCustomerProfiles(): CustomerProfile[] {
     {
       id: 'cust-isabelle',
       name: 'Isabelle Laurent',
+      nameZh: '伊莎貝爾 · 羅蘭',
+      avatarEmoji: '👩🏼',
       phone: '+33 6 12 34 56 78',
       email: 'isabelle.l@example.com',
       memberSince: iso(-170, 9),
+      passengerTier: 'INTL_TOURIST',
+      corporateAccountId: null,
+      corporateName: null,
+      taxIdUbn: null,
+      carrierBarcode: null,
+      notesAndPreferences: 'Prefers quiet ride, English speaking driver, needs child seat for airport arrival.',
+      isVip: false,
+      promoVouchersCount: 2,
+      lifetimeValueTwd: 18450,
       historicalOrders: historyFor([
         { pickupId: 'tpe-airport', dropoffId: 'grand-hyatt', daysAgo: 168, type: 'AIRPORT_PICKUP', price: 1450 },
         { pickupId: 'grand-hyatt', dropoffId: 'jiufen', daysAgo: 150, type: 'TOUR_CHARTER', price: 3800 },
@@ -456,9 +467,20 @@ function buildCustomerProfiles(): CustomerProfile[] {
     {
       id: 'cust-haruto',
       name: 'Haruto Sasaki',
+      nameZh: '佐佐木 陽斗',
+      avatarEmoji: '👨🏻',
       phone: '+81 90-1234-5678',
       email: 'haruto.s@example.com',
       memberSince: iso(-58, 9),
+      passengerTier: 'FREQUENT_FLYER',
+      corporateAccountId: null,
+      corporateName: null,
+      taxIdUbn: null,
+      carrierBarcode: '/HS-8821',
+      notesAndPreferences: 'Japanese speaking driver preferred, early morning departure punctuality.',
+      isVip: false,
+      promoVouchersCount: 1,
+      lifetimeValueTwd: 3200,
       historicalOrders: historyFor([
         { pickupId: 'tpe-airport', dropoffId: 'taipei-101', daysAgo: 56, type: 'AIRPORT_PICKUP', price: 1600 },
         { pickupId: 'taipei-101', dropoffId: 'tpe-airport', daysAgo: 52, type: 'AIRPORT_DROPOFF', price: 1600 },
@@ -474,9 +496,20 @@ function buildCustomerProfiles(): CustomerProfile[] {
     {
       id: 'cust-marcus',
       name: 'Marcus Webb',
+      nameZh: '馬可斯 · 韋伯 (TSMC VIP)',
+      avatarEmoji: '🤵🏻',
       phone: '+44 7700 900123',
       email: 'marcus.webb@example.com',
       memberSince: iso(-320, 9),
+      passengerTier: 'VIP_PLATINUM',
+      corporateAccountId: 'corp-tsmc',
+      corporateName: 'Taiwan Semiconductor Manufacturing Co. (TSMC)',
+      taxIdUbn: '23307688',
+      carrierBarcode: '/MW-7700',
+      notesAndPreferences: 'VIP client, silent ride preferred. High-end Luxury Sedan/Van required.',
+      isVip: true,
+      promoVouchersCount: 5,
+      lifetimeValueTwd: 86400,
       historicalOrders: historyFor([
         { pickupId: 'tpe-airport', dropoffId: 'grand-hyatt', daysAgo: 300, type: 'AIRPORT_PICKUP', price: 2200 },
         { pickupId: 'grand-hyatt', dropoffId: 'tpe-airport', daysAgo: 296, type: 'AIRPORT_DROPOFF', price: 2200 },
@@ -499,9 +532,20 @@ function buildCustomerProfiles(): CustomerProfile[] {
     {
       id: 'cust-sofia',
       name: 'Sofia Alvarez',
+      nameZh: '索菲亞 · 阿爾瓦雷斯',
+      avatarEmoji: '👩🏽',
       phone: '+34 611 22 33 44',
       email: 'sofia.a@example.com',
       memberSince: iso(-20, 9),
+      passengerTier: 'REGULAR',
+      corporateAccountId: null,
+      corporateName: null,
+      taxIdUbn: null,
+      carrierBarcode: null,
+      notesAndPreferences: 'No smoking vehicle, prefers credit card payments.',
+      isVip: false,
+      promoVouchersCount: 0,
+      lifetimeValueTwd: 1600,
       historicalOrders: historyFor([{ pickupId: 'tpe-airport', dropoffId: 'taipei-101', daysAgo: 18, type: 'AIRPORT_PICKUP', price: 1600 }]),
       savedPassengers: [],
       paymentMethods: [],
@@ -509,6 +553,99 @@ function buildCustomerProfiles(): CustomerProfile[] {
       privacyRequests: [],
       memberTier: 'SILVER',
       memberPoints: 60,
+      consentMarketing: true,
+    },
+    {
+      id: 'cust-grace',
+      name: 'Grace Park',
+      nameZh: '朴恩智 (MediaTek Corp)',
+      avatarEmoji: '👩🏻‍💼',
+      phone: '+82 10-2233-4455',
+      email: 'grace.p@example.com',
+      memberSince: iso(-140, 9),
+      passengerTier: 'CORP_EXECUTIVE',
+      corporateAccountId: 'corp-mediatek',
+      corporateName: 'MediaTek Inc. (聯發科)',
+      taxIdUbn: '84149961',
+      carrierBarcode: '/GP-8210',
+      notesAndPreferences: 'Corporate B2B traveler, requires e-Invoice with Tax ID 84149961, prefers prompt airport pickup with meet & greet board.',
+      isVip: true,
+      promoVouchersCount: 3,
+      lifetimeValueTwd: 45200,
+      historicalOrders: historyFor([
+        { pickupId: 'tpe-airport', dropoffId: 'w-hotel', daysAgo: 110, type: 'AIRPORT_PICKUP', price: 2100 },
+        { pickupId: 'w-hotel', dropoffId: 'neihu-business', daysAgo: 108, type: 'TOUR_CHARTER', price: 1800 },
+        { pickupId: 'neihu-business', dropoffId: 'tsa-airport', daysAgo: 105, type: 'AIRPORT_DROPOFF', price: 1200 },
+        { pickupId: 'tpe-airport', dropoffId: 'grand-hyatt', daysAgo: 45, type: 'AIRPORT_PICKUP', price: 2200 },
+      ]),
+      savedPassengers: [],
+      paymentMethods: [{ id: genId('pm'), brand: 'Visa', last4: '8892', expiry: '05/28', isDefault: true }],
+      notificationPreference: { email: true, line: true, sms: true },
+      privacyRequests: [],
+      memberTier: 'PLATINUM',
+      memberPoints: 8900,
+      consentMarketing: true,
+    },
+    {
+      id: 'cust-david-chang',
+      name: 'David Chang',
+      nameZh: '張家豪 (TSMC Procurement)',
+      avatarEmoji: '👨🏻‍💼',
+      phone: '+886 912 345 678',
+      email: 'travel-procurement@tsmc.com',
+      memberSince: iso(-280, 9),
+      passengerTier: 'CORP_EXECUTIVE',
+      corporateAccountId: 'corp-tsmc',
+      corporateName: 'Taiwan Semiconductor Manufacturing Co. (TSMC)',
+      taxIdUbn: '23307688',
+      carrierBarcode: '/TSMC-01',
+      notesAndPreferences: 'TSMC corporate monthly billing, direct Hsinchu Science Park ↔ Taoyuan Airport VIP transfers.',
+      isVip: true,
+      promoVouchersCount: 4,
+      lifetimeValueTwd: 112000,
+      historicalOrders: historyFor([
+        { pickupId: 'hsinchu-science-park', dropoffId: 'tpe-airport', daysAgo: 260, type: 'AIRPORT_DROPOFF', price: 2400 },
+        { pickupId: 'tpe-airport', dropoffId: 'hsinchu-science-park', daysAgo: 255, type: 'AIRPORT_PICKUP', price: 2400 },
+        { pickupId: 'hsinchu-science-park', dropoffId: 'tpe-airport', daysAgo: 180, type: 'AIRPORT_DROPOFF', price: 2400 },
+        { pickupId: 'tpe-airport', dropoffId: 'hsinchu-science-park', daysAgo: 175, type: 'AIRPORT_PICKUP', price: 2400 },
+        { pickupId: 'hsinchu-science-park', dropoffId: 'tpe-airport', daysAgo: 30, type: 'AIRPORT_DROPOFF', price: 2400 },
+      ]),
+      savedPassengers: [],
+      paymentMethods: [{ id: genId('pm'), brand: 'Visa', last4: '1109', expiry: '09/27', isDefault: true }],
+      notificationPreference: { email: true, line: true, sms: false },
+      privacyRequests: [],
+      memberTier: 'PLATINUM',
+      memberPoints: 21500,
+      consentMarketing: true,
+    },
+    {
+      id: 'cust-emily-chen',
+      name: 'Emily Chen',
+      nameZh: '陳雅婷 (Cathay VP)',
+      avatarEmoji: '👩🏻‍💼',
+      phone: '+886 934 567 890',
+      email: 'executive-travel@cathayholdings.com.tw',
+      memberSince: iso(-210, 9),
+      passengerTier: 'CORP_EXECUTIVE',
+      corporateAccountId: 'corp-cathay',
+      corporateName: 'Cathay Financial Holding Co. (國泰金控)',
+      taxIdUbn: '70774619',
+      carrierBarcode: '/CFH-99',
+      notesAndPreferences: 'Cathay executive business trips, requires punctual Mercedes/Tesla luxury vehicle.',
+      isVip: true,
+      promoVouchersCount: 2,
+      lifetimeValueTwd: 64000,
+      historicalOrders: historyFor([
+        { pickupId: 'taipei-101', dropoffId: 'tpe-airport', daysAgo: 190, type: 'AIRPORT_DROPOFF', price: 2000 },
+        { pickupId: 'tpe-airport', dropoffId: 'taipei-101', daysAgo: 185, type: 'AIRPORT_PICKUP', price: 2000 },
+        { pickupId: 'taipei-101', dropoffId: 'tsa-airport', daysAgo: 60, type: 'AIRPORT_DROPOFF', price: 1100 },
+      ]),
+      savedPassengers: [],
+      paymentMethods: [{ id: genId('pm'), brand: 'Mastercard', last4: '4432', expiry: '11/28', isDefault: true }],
+      notificationPreference: { email: true, line: true, sms: true },
+      privacyRequests: [],
+      memberTier: 'PLATINUM',
+      memberPoints: 14200,
       consentMarketing: true,
     },
   ]
@@ -869,6 +1006,89 @@ export function createSeedState(): {
     const status = bulkActiveStatuses[i % bulkActiveStatuses.length]
     const ageMinutes = Math.random() * 180
     orders.push(buildBulkActiveOrder(`ord-bulk-active-${i}`, nextNo(), status, ageMinutes))
+  }
+
+  // ---- Advance & Future Scheduled Orders across next 30 days ----
+  // Generates rich pre-booked airport trips for Tomorrow, Next 3 Days, Next 7 Days, Next 30 Days
+  const futureChannels: Order['channel'][] = ['KKday', 'Klook', 'Booking.com', 'Website', 'LINE@', 'ezTravel']
+  const futurePassengerNames = [
+    { name: 'Dr. Hiroshi Tanaka', phone: '+81 90-8877-6655', note: 'TSMC Global Forum key speaker, VIP pickup at Gate 4', flight: 'JL809', source: 'Corporate B2B' },
+    { name: 'Catherine Dupont', phone: '+33 6 44 55 66 77', note: 'Flight arrival TPE Terminal 2 -> Grand Hyatt Taipei', flight: 'AF188', source: 'Hotel Concierge' },
+    { name: 'David & Rachel Miller', phone: '+1 415-889-1122', note: 'Family charter with 4 large suitcases, child seat required', flight: 'UA871', source: 'Klook/KKday OTA' },
+    { name: 'Min-Jun Park', phone: '+82 10-9988-7766', note: 'Pre-booked Songshan Airport (TSA) pickup to W Hotel', flight: 'KE185', source: 'Airline Flight Pre-booking' },
+    { name: 'Dr. Wei-Cheng Lin', phone: '+886 912-345-678', note: 'Hsinchu Science Park Executive Transfer to TPE Terminal 1', flight: 'CI006', source: 'Corporate B2B' },
+    { name: 'Alexander Schmidt', phone: '+49 170-1234567', note: 'Business meeting transfer to Taipei 101 Tower', flight: 'LH796', source: 'Hotel Concierge' },
+    { name: 'Siti Rahma', phone: '+65 9123-4567', note: 'Singapore business delegation group charter (9-seater)', flight: 'SQ876', source: 'Web/App Booking' },
+    { name: 'Elena Rostov', phone: '+44 7911-123456', note: 'Airport transfer TPE -> Beitou Hot Spring Resort', flight: 'BR31', source: 'Airline Flight Pre-booking' },
+    { name: 'Kenzo Takahashi', phone: '+81 80-3344-5566', note: 'Semiconductor tech executive pickup, english driver preferred', flight: 'NH853', source: 'Corporate B2B' },
+  ]
+
+  // Generate future pre-booked orders for day offsets +1 through +28
+  for (let dayOffset = 1; dayOffset <= 28; dayOffset++) {
+    // 2 to 4 orders per future day
+    const ordersThisDay = 2 + (dayOffset % 3)
+    for (let j = 0; j < ordersThisDay; j++) {
+      const pInfo = futurePassengerNames[(dayOffset * 3 + j) % futurePassengerNames.length]
+      const futureDate = new Date()
+      futureDate.setDate(futureDate.getDate() + dayOffset)
+      futureDate.setHours(7 + ((j * 4) % 15), (j * 20) % 60, 0, 0)
+      const scheduledIso = futureDate.toISOString()
+
+      const isTpe = (dayOffset + j) % 2 === 0
+      const pickupLocId = isTpe ? 'tpe-airport' : 'tsa-airport'
+      const dropoffLocId = pickRandom(['grand-hyatt', 'w-hotel', 'taipei-101', 'ximending', 'hsinchu-hsr', 'beitou', 'jiufen'])
+      const category: VehicleCategory = (['COMFORT_SEDAN', 'SUV', 'VAN_9', 'LUXURY_VAN', 'PREMIUM_SEDAN'] as const)[(dayOffset + j) % 5]
+      const vType = CATEGORY_TO_PHYSICAL_TYPE[category]
+      const channel = futureChannels[(dayOffset + j) % futureChannels.length]
+
+      const futureOrder = buildOrderBase({
+        id: `ord-future-d${dayOffset}-${j}`,
+        orderNo: nextNo(),
+        channel,
+        pickupId: pickupLocId,
+        dropoffId: dropoffLocId,
+        vehicleType: vType,
+        vehicleCategory: category,
+        passengers: 1 + ((dayOffset + j) % 4),
+        luggage: 1 + ((dayOffset + j) % 3),
+        scheduledTime: scheduledIso,
+        customer: { name: pInfo.name, phone: pInfo.phone, email: `${pInfo.name.split(' ')[0].toLowerCase()}@example.com` },
+        flightNumber: pInfo.flight,
+        notes: `${pInfo.note} [Source: ${pInfo.source}]`,
+        passengerRequirements: { ...NO_REQUIREMENTS, childSeat: j % 3 === 0 },
+      })
+
+      futureOrder.createdAt = Date.now() - (30 + dayOffset * 60) * 60_000
+      futureOrder.status = 'CONFIRMED'
+      futureOrder.paymentStatus = 'PAID'
+      futureOrder.supplierStatus = 'CONFIRMED'
+      futureOrder.voucherStatus = 'ISSUED'
+
+      // Pre-assign some future orders (e.g., to drv-1, drv-2, drv-5) to demonstrate both assigned and unassigned future states
+      if ((dayOffset === 1 && j === 0) || (dayOffset === 2 && j === 1) || (dayOffset === 3 && j === 0)) {
+        const assignedDriverId = dayOffset === 1 ? 'drv-1' : dayOffset === 2 ? 'drv-2' : 'drv-5'
+        const assignedDriver = findDriver(assignedDriverId)
+        if (assignedDriver) {
+          futureOrder.driverId = assignedDriver.id
+          futureOrder.vehicleId = assignedDriver.vehicleId
+          futureOrder.status = 'ASSIGNED'
+          futureOrder.statusHistory.push({
+            id: genId('hist'),
+            status: 'ASSIGNED',
+            at: Date.now() - 10 * 60_000,
+            actor: 'DISPATCHER',
+          })
+          futureOrder.auditLog.push({
+            id: genId('aud'),
+            at: Date.now() - 10 * 60_000,
+            actor: 'DISPATCHER',
+            action: `Pre-assigned in advance to ${assignedDriver.name} (${assignedDriver.id})`,
+          })
+        }
+      }
+
+      orders.push(futureOrder)
+    }
   }
 
   // ---- Bulk completed orders (~215 completed orders across all time windows) ----

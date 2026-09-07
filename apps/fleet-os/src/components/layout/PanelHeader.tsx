@@ -6,6 +6,7 @@ import clsx from 'clsx'
 import { useLang } from '../../i18n'
 import { useFleetStore } from '../../store/useFleetStore'
 import { TeamMessenger } from '../fleetos/TeamMessenger'
+import { SessionHeaderIndicator } from '../security/SessionHeaderIndicator'
 
 export function PanelHeader({
   title,
@@ -83,6 +84,7 @@ export function PanelHeader({
             </span>
             {t('common.liveSynced')}
           </motion.div>
+          <SessionHeaderIndicator />
           {right}
         </div>
       </div>

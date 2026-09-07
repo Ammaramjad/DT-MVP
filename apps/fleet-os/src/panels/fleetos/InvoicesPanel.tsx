@@ -15,19 +15,23 @@ import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { formatTWD } from '../../lib/format'
-import { SEED_EGUI_INVOICES } from '../../data/invoiceSeed'
 import { TaiwanInvoiceModal } from '../../components/invoices/TaiwanInvoiceModal'
 import type { EGuiInvoice, EGuiStatus, EGuiType } from '../../types'
+import { useFleetStore } from '../../store/useFleetStore'
 import { useLang } from '../../i18n'
 import clsx from 'clsx'
 
 export default function InvoicesPanel() {
   const { t, lang } = useLang()
-  const [invoices, setInvoices] = useState<EGuiInvoice[]>(SEED_EGUI_INVOICES)
+  const invoices = useFleetStore((s) => s.invoices)
+  const voidInvoice = useFleetStore((s) => s.voidInvoice)
+  const allowanceInvoice = useFleetStore((s) => s.allowanceInvoice)
+
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<EGuiType | 'ALL'>('ALL')
   const [statusFilter, setStatusFilter] = useState<EGuiStatus | 'ALL'>('ALL')
-  const [selectedInvoice, setSelectedInvoice] = useState<EGuiInvoice | null>(null)
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
+  const selectedInvoice = invoices.find((i) => i.id === selectedInvoiceId) || null
   const [actionAlert, setActionAlert] = useState<string | null>(null)
 
   const filteredInvoices = invoices.filter((inv) => {
@@ -45,18 +49,7 @@ export default function InvoicesPanel() {
   })
 
   const handleVoidInvoice = (inv: EGuiInvoice) => {
-    setInvoices((prev) =>
-      prev.map((i) =>
-        i.id === inv.id
-          ? {
-              ...i,
-              status: 'VOIDED',
-              voidReason: 'Ops dispatcher simulated invoice voiding / 發票作廢',
-              mofSyncTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
-            }
-          : i,
-      ),
-    )
+    voidInvoice(inv.id)
     setActionAlert(
       lang === 'zh'
         ? `發票 ${inv.invoiceNo} 已成功作廢！財政部電子發票整合服務平台已同步完成。`
@@ -66,18 +59,7 @@ export default function InvoicesPanel() {
   }
 
   const handleAllowanceInvoice = (inv: EGuiInvoice) => {
-    setInvoices((prev) =>
-      prev.map((i) =>
-        i.id === inv.id
-          ? {
-              ...i,
-              status: 'ALLOWANCE',
-              allowanceAmount: Math.round(i.amountTotal * 0.2),
-              mofSyncTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
-            }
-          : i,
-      ),
-    )
+    allowanceInvoice(inv.id)
     setActionAlert(
       lang === 'zh'
         ? `發票 ${inv.invoiceNo} 折讓單已開立！折讓金額 NT$${Math.round(inv.amountTotal * 0.2)}。`
@@ -314,7 +296,7 @@ export default function InvoicesPanel() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => setSelectedInvoice(inv)}
+                            onClick={() => setSelectedInvoiceId(inv.id)}
                             data-testid={`view-invoice-modal-btn-${inv.id}`}
                             className="flex items-center gap-1 rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition"
                             title={lang === 'zh' ? '檢視電子發票證明聯' : 'View e-GUI Invoice'}
@@ -359,7 +341,7 @@ export default function InvoicesPanel() {
 
       {/* Authentic Taiwan Electronic Invoice Modal */}
       {selectedInvoice && (
-        <TaiwanInvoiceModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
+        <TaiwanInvoiceModal invoice={selectedInvoice} onClose={() => setSelectedInvoiceId(null)} />
       )}
     </FleetOsPage>
   )

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { fetchClientGeo, parseDeviceInfo } from './geoTracker'
+import { safeGetItem, safeLocalStorage, safeSessionStorage, safeSetItem } from './safeStorage'
 
 export const LIVE_PRESENCE_STORAGE_KEY = 'fleet_live_presence_sessions'
 export const LIVE_PRESENCE_CHANNEL_NAME = 'fleet_live_presence_channel'
@@ -146,11 +147,15 @@ export function getSurfaceInfo(pathname: string): { key: string; name: string } 
  */
 export function getOrCreateSessionId(): string {
   if (typeof window === 'undefined') return 'presence_session_server'
+  const storage = safeSessionStorage()
+  if (!storage) {
+    return `presence_session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  }
   try {
-    let id = sessionStorage.getItem(SESSION_STORAGE_KEY)
+    let id = safeGetItem(storage, SESSION_STORAGE_KEY)
     if (!id) {
       id = `presence_session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-      sessionStorage.setItem(SESSION_STORAGE_KEY, id)
+      safeSetItem(storage, SESSION_STORAGE_KEY, id)
     }
     return id
   } catch {
@@ -229,11 +234,13 @@ export function getFreshDemoPeers(now: number = Date.now()): LivePresenceSession
  */
 export function loadStoredLiveSessions(): LivePresenceSession[] {
   if (typeof window === 'undefined') return []
+  const storage = safeLocalStorage()
+  if (!storage) return getFreshDemoPeers()
   try {
-    const raw = localStorage.getItem(LIVE_PRESENCE_STORAGE_KEY)
+    const raw = safeGetItem(storage, LIVE_PRESENCE_STORAGE_KEY)
     if (!raw) {
       const initial = getFreshDemoPeers()
-      localStorage.setItem(LIVE_PRESENCE_STORAGE_KEY, JSON.stringify(initial))
+      safeSetItem(storage, LIVE_PRESENCE_STORAGE_KEY, JSON.stringify(initial))
       return initial
     }
     const parsed = JSON.parse(raw)
@@ -241,7 +248,7 @@ export function loadStoredLiveSessions(): LivePresenceSession[] {
       return parsed
     }
     const initial = getFreshDemoPeers()
-    localStorage.setItem(LIVE_PRESENCE_STORAGE_KEY, JSON.stringify(initial))
+    safeSetItem(storage, LIVE_PRESENCE_STORAGE_KEY, JSON.stringify(initial))
     return initial
   } catch {
     return getFreshDemoPeers()
@@ -252,12 +259,9 @@ export function loadStoredLiveSessions(): LivePresenceSession[] {
  * Save stored sessions to localStorage
  */
 export function saveStoredLiveSessions(sessions: LivePresenceSession[]): void {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(LIVE_PRESENCE_STORAGE_KEY, JSON.stringify(sessions))
-  } catch {
-    // ignore
-  }
+  const storage = safeLocalStorage()
+  if (!storage) return
+  safeSetItem(storage, LIVE_PRESENCE_STORAGE_KEY, JSON.stringify(sessions))
 }
 
 /**

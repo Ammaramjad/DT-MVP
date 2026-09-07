@@ -21,6 +21,7 @@ const routes = [
   '/fleet-os/reviews',
   '/fleet-os/subscriptions',
   '/fleet-os/lost-found',
+  '/fleet-os/customers',
   '/fleet-os/roster',
   '/fleet-os/drivers',
   '/fleet-os/compliance',

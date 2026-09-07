@@ -4,6 +4,7 @@ import {
   ArrowLeftRight,
   BadgeDollarSign,
   Building2,
+  CalendarClock,
   Car,
   ChevronDown,
   ClipboardEdit,
@@ -90,6 +91,15 @@ export const NAV_GROUPS: NavGroup[] = [
         badgeKey: 'unassigned',
         descriptionEn: 'Visual timeline, order drag & drop, schedule conflict detection',
         descriptionZh: '即時視覺化時間軸、司機/訂單雙向拖曳、時程衝突防呆',
+      },
+      {
+        to: '/fleet-os/future-orders',
+        labelKey: 'fleetos.nav.futureOrders',
+        labelEn: 'Future Scheduled Orders Hub',
+        labelZh: '未來預約訂單中心',
+        icon: CalendarClock,
+        descriptionEn: 'Tomorrow / 3D / 7D / 30D pre-dispatch, airport flights & OTA pre-bookings',
+        descriptionZh: '明日/未來3日/7日/30日預約總覽、航班與飯店訂單預先指派',
       },
       {
         to: '/fleet-os/messenger',
@@ -179,6 +189,24 @@ export const NAV_GROUPS: NavGroup[] = [
     accentBorder: 'border-emerald-500/40',
     accentBg: 'bg-emerald-500/10 text-emerald-300',
     items: [
+      {
+        to: '/fleet-os/future-orders',
+        labelKey: 'fleetos.nav.futureOrders',
+        labelEn: 'Future Scheduled Orders Hub',
+        labelZh: '未來預約訂單中心',
+        icon: CalendarClock,
+        descriptionEn: 'Tomorrow / 3D / 7D / 30D pre-dispatch, airport flights & OTA pre-bookings',
+        descriptionZh: '明日/未來3日/7日/30日預約總覽、航班與飯店訂單預先指派',
+      },
+      {
+        to: '/fleet-os/customers',
+        labelKey: 'fleetos.nav.customers',
+        labelEn: 'Customer CRM & Passenger Hub',
+        labelZh: '客戶 CRM 與乘客總覽',
+        icon: Users2,
+        descriptionEn: 'Passenger profiles, VIP tiers, corporate accounts, LTV & vouchers',
+        descriptionZh: '乘客會員總覽、VIP等級、企業統編、LTV產值與發送乘車券',
+      },
       {
         to: '/fleet-os/manual-order',
         labelKey: 'fleetos.nav.manualOrder',
@@ -396,6 +424,30 @@ export function FleetOsNav() {
   const [activeGroupDropdown, setActiveGroupDropdown] = useState<string | null>(null)
   const paletteInputRef = useRef<HTMLInputElement | null>(null)
 
+  // Determine active group matching location.pathname
+  const pathActiveGroup = useMemo(() => {
+    for (const group of NAV_GROUPS) {
+      for (const item of group.items) {
+        if (item.end ? location.pathname === item.to : location.pathname.startsWith(item.to)) {
+          return group
+        }
+      }
+    }
+    return NAV_GROUPS[0]
+  }, [location.pathname])
+
+  // Internal selected group state: defaults to pathActiveGroup and updates immediately when user clicks any group pill
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(pathActiveGroup.id)
+
+  // Keep selectedGroupId in sync when location.pathname changes
+  useEffect(() => {
+    setSelectedGroupId(pathActiveGroup.id)
+  }, [pathActiveGroup.id])
+
+  const currentActiveGroup = useMemo(() => {
+    return NAV_GROUPS.find((g) => g.id === selectedGroupId) || pathActiveGroup
+  }, [selectedGroupId, pathActiveGroup])
+
   // Keyboard shortcut listener for Cmd+K / Ctrl+K
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -447,18 +499,6 @@ export function FleetOsNav() {
     })
   }, [allNavItems, paletteQuery])
 
-  // Determine current active group based on location.pathname
-  const currentActiveGroup = useMemo(() => {
-    for (const group of NAV_GROUPS) {
-      for (const item of group.items) {
-        if (item.end ? location.pathname === item.to : location.pathname.startsWith(item.to)) {
-          return group
-        }
-      }
-    }
-    return NAV_GROUPS[0]
-  }, [location.pathname])
-
   return (
     <>
       <nav
@@ -477,6 +517,11 @@ export function FleetOsNav() {
                   <button
                     type="button"
                     onClick={() => {
+                      setSelectedGroupId(g.id)
+                      const firstItem = g.items[0]
+                      if (firstItem && !g.items.some((it) => (it.end ? location.pathname === it.to : location.pathname.startsWith(it.to)))) {
+                        navigate(firstItem.to)
+                      }
                       if (activeGroupDropdown === g.id) {
                         setActiveGroupDropdown(null)
                       } else {

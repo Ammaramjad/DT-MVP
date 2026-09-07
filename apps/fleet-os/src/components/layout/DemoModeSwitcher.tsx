@@ -7,6 +7,7 @@ import { useLang } from '../../i18n'
 import { LANGS } from '../../i18n/translations'
 import { useGatekeeper } from '../../lib/gatekeeper'
 import { useDemoTourStore } from '../../lib/demoTour'
+import { SessionHeaderIndicator } from '../security/SessionHeaderIndicator'
 
 const APPS = [
   { to: '/', labelKey: 'nav.home', icon: HomeIcon },
@@ -87,6 +88,11 @@ export function DemoModeSwitcher() {
                   </div>
                   <span className="rounded bg-cyan-400/20 px-1 py-0.5 text-[9px] font-mono text-cyan-300">6 STEPS</span>
                 </button>
+              </div>
+
+              {/* Active Session info & Logout in Switcher */}
+              <div className="mb-1 border-b border-white/10 pb-1.5 px-1">
+                <SessionHeaderIndicator compact />
               </div>
 
               <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('demo.switcherHint')}</p>

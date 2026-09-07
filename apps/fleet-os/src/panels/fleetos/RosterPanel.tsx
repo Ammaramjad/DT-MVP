@@ -23,6 +23,7 @@ import { TierBadge, StatusBadge } from '../../components/ui/OrderBadges'
 import { AddDriverModal } from '../../components/fleetos/AddDriverModal'
 import { DriverShiftModal } from '../../components/fleetos/DriverShiftModal'
 import { ManualAssignmentModal } from '../../components/fleetos/ManualAssignmentModal'
+import { DriverProfileModal, type DriverModalTab } from '../../components/fleetos/DriverProfileModal'
 import type { Driver, DriverTier, DriverWorkingMode, DriverWorkingShiftType, VehicleCategory } from '../../types'
 import { useLang } from '../../i18n'
 
@@ -44,12 +45,14 @@ export default function RosterPanel() {
   const [tierFilter, setTierFilter] = useState<'ALL' | DriverTier>('ALL')
   const [shiftFilter, setShiftFilter] = useState<'ALL' | DriverWorkingShiftType>('ALL')
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | VehicleCategory>('ALL')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'BUSY' | 'OFFLINE' | 'BREAK'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'BUSY' | 'OFFLINE' | 'BREAK' | 'AIRPORT_PREF'>('ALL')
   const [page, setPage] = useState(1)
 
   const [showAddDriver, setShowAddDriver] = useState(false)
   const [editingShiftDriver, setEditingShiftDriver] = useState<Driver | null>(null)
   const [assigningDriver, setAssigningDriver] = useState<Driver | null>(null)
+  const [selectedProfileDriver, setSelectedProfileDriver] = useState<Driver | null>(null)
+  const [profileInitialTab, setProfileInitialTab] = useState<DriverModalTab>('OVERVIEW')
 
   const available = drivers.filter((d) => d.status === 'AVAILABLE').length
   const busy = drivers.filter((d) => d.status === 'BUSY').length
@@ -83,10 +86,15 @@ export default function RosterPanel() {
       // Category filter
       if (categoryFilter !== 'ALL' && v?.category !== categoryFilter) return false
 
-      // Status filter
+      // Status / KPI filter
       if (statusFilter !== 'ALL') {
-        if (statusFilter === 'BREAK' && !d.breakMode && d.status !== 'BREAK') return false
-        if (statusFilter !== 'BREAK' && d.status !== statusFilter) return false
+        if (statusFilter === 'BREAK') {
+          if (!d.breakMode && d.status !== 'BREAK') return false
+        } else if (statusFilter === 'AIRPORT_PREF') {
+          if (!d.airportPreference) return false
+        } else {
+          if (d.status !== statusFilter) return false
+        }
       }
 
       return true
@@ -131,14 +139,86 @@ export default function RosterPanel() {
       <AddDriverModal isOpen={showAddDriver} onClose={() => setShowAddDriver(false)} />
       <DriverShiftModal driver={editingShiftDriver} isOpen={!!editingShiftDriver} onClose={() => setEditingShiftDriver(null)} />
       <ManualAssignmentModal driver={assigningDriver} isOpen={!!assigningDriver} onClose={() => setAssigningDriver(null)} />
+      <DriverProfileModal
+        driver={selectedProfileDriver}
+        vehicle={selectedProfileDriver ? vehicles.find((v) => v.id === selectedProfileDriver.vehicleId) : null}
+        isOpen={!!selectedProfileDriver}
+        onClose={() => setSelectedProfileDriver(null)}
+        initialTab={profileInitialTab}
+      />
 
-      {/* KPI Summary Cards */}
+      {/* KPI Summary Cards (Interactive Dynamic Filter Buttons) */}
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5" data-testid="driver-hub-kpis">
-        <StatCard icon={<Users2 className="h-4 w-4" />} label={t('fleetos.roster.totalDrivers')} value={drivers.length} tone="cyan" />
-        <StatCard icon={<Radio className="h-4 w-4" />} label={t('fleetos.roster.available')} value={available} tone="lime" />
-        <StatCard icon={<Radio className="h-4 w-4" />} label={t('fleetos.roster.busy')} value={busy} tone="amber" />
-        <StatCard icon={<Coffee className="h-4 w-4" />} label={lang === 'zh' ? '休息/中斷中' : 'Resting / Break'} value={onBreak} tone="purple" />
-        <StatCard icon={<Radio className="h-4 w-4" />} label={t('fleetos.roster.airportPref')} value={airportPref} tone="pink" />
+        <StatCard
+          icon={<Users2 className="h-4 w-4" />}
+          label={t('fleetos.roster.totalDrivers')}
+          value={drivers.length}
+          tone="cyan"
+          active={statusFilter === 'ALL'}
+          activeFilterTag={lang === 'zh' ? '顯示全部' : 'ALL DRIVERS'}
+          testId="kpi-filter-total"
+          onClick={() => {
+            setStatusFilter('ALL')
+            setTab('HUB')
+            setPage(1)
+          }}
+        />
+        <StatCard
+          icon={<Radio className="h-4 w-4" />}
+          label={t('fleetos.roster.available')}
+          value={available}
+          tone="lime"
+          active={statusFilter === 'AVAILABLE'}
+          activeFilterTag={lang === 'zh' ? '即時空車' : 'AVAILABLE ONLY'}
+          testId="kpi-filter-available"
+          onClick={() => {
+            setStatusFilter(statusFilter === 'AVAILABLE' ? 'ALL' : 'AVAILABLE')
+            setTab('HUB')
+            setPage(1)
+          }}
+        />
+        <StatCard
+          icon={<Radio className="h-4 w-4" />}
+          label={t('fleetos.roster.busy')}
+          value={busy}
+          tone="amber"
+          active={statusFilter === 'BUSY'}
+          activeFilterTag={lang === 'zh' ? '執勤中' : 'BUSY ON TRIP'}
+          testId="kpi-filter-busy"
+          onClick={() => {
+            setStatusFilter(statusFilter === 'BUSY' ? 'ALL' : 'BUSY')
+            setTab('HUB')
+            setPage(1)
+          }}
+        />
+        <StatCard
+          icon={<Coffee className="h-4 w-4" />}
+          label={lang === 'zh' ? '休息/中斷中' : 'Resting / Break'}
+          value={onBreak}
+          tone="purple"
+          active={statusFilter === 'BREAK'}
+          activeFilterTag={lang === 'zh' ? '休息中' : 'ON BREAK'}
+          testId="kpi-filter-break"
+          onClick={() => {
+            setStatusFilter(statusFilter === 'BREAK' ? 'ALL' : 'BREAK')
+            setTab('HUB')
+            setPage(1)
+          }}
+        />
+        <StatCard
+          icon={<Radio className="h-4 w-4" />}
+          label={t('fleetos.roster.airportPref')}
+          value={airportPref}
+          tone="pink"
+          active={statusFilter === 'AIRPORT_PREF'}
+          activeFilterTag={lang === 'zh' ? '機場優先' : 'AIRPORT PRIORITY'}
+          testId="kpi-filter-airport-pref"
+          onClick={() => {
+            setStatusFilter(statusFilter === 'AIRPORT_PREF' ? 'ALL' : 'AIRPORT_PREF')
+            setTab('HUB')
+            setPage(1)
+          }}
+        />
       </div>
 
       {/* Main Tabs Navigation */}
@@ -242,6 +322,7 @@ export default function RosterPanel() {
                 <option value="AVAILABLE">{lang === 'zh' ? '空車可接單 (Available)' : 'Available'}</option>
                 <option value="BUSY">{lang === 'zh' ? '行程執勤中 (Busy)' : 'On Trip (Busy)'}</option>
                 <option value="BREAK">{lang === 'zh' ? '休息中 (Break/Rest)' : 'On Break'}</option>
+                <option value="AIRPORT_PREF">{lang === 'zh' ? '機場優先模式 (Airport Priority)' : 'Airport Priority'}</option>
                 <option value="OFFLINE">{lang === 'zh' ? '離線休息 (Offline)' : 'Offline'}</option>
               </select>
 
@@ -250,10 +331,10 @@ export default function RosterPanel() {
                 <button
                   onClick={handleResetFilters}
                   data-testid="driver-hub-reset-filters-btn"
-                  className="flex items-center gap-1 rounded-xl bg-white/10 px-2.5 py-2 text-xs font-semibold text-slate-300 hover:bg-white/15 transition"
+                  className="flex items-center gap-1.5 rounded-xl bg-cyan-500/20 border border-cyan-400/40 px-2.5 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/30 transition shadow-[0_0_10px_rgba(34,211,238,0.2)]"
                 >
                   <RotateCcw className="h-3 w-3" />
-                  <span>{lang === 'zh' ? '重設' : 'Reset'}</span>
+                  <span>{lang === 'zh' ? '清除篩選 (Clear Filter)' : 'Clear Filter'}</span>
                 </button>
               )}
             </div>
@@ -319,13 +400,20 @@ export default function RosterPanel() {
                       <tr key={d.id} className="hover:bg-white/[0.02] transition" data-testid={`driver-row-${d.id}`}>
                         {/* Driver Info */}
                         <td className="px-3.5 py-3">
-                          <div className="flex items-center gap-2.5">
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/5 text-lg border border-white/10">
+                          <div
+                            className="flex items-center gap-2.5 cursor-pointer group/drv"
+                            onClick={() => {
+                              setSelectedProfileDriver(d)
+                              setProfileInitialTab('OVERVIEW')
+                            }}
+                            data-testid={`driver-profile-trigger-${d.id}`}
+                          >
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/5 text-lg border border-white/10 group-hover/drv:border-cyan-400/50 group-hover/drv:scale-105 transition">
                               {d.avatarEmoji}
                             </span>
                             <div>
                               <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-white">{lang === 'zh' ? d.nameZh : d.name}</span>
+                                <span className="font-bold text-white group-hover/drv:text-cyan-300 transition">{lang === 'zh' ? d.nameZh : d.name}</span>
                                 <span className="text-[10px] text-slate-500 font-mono">({d.id})</span>
                               </div>
                               <div className="flex items-center gap-1 mt-0.5">
@@ -376,8 +464,14 @@ export default function RosterPanel() {
                         {/* Vehicle */}
                         <td className="px-3 py-3">
                           {vehicle ? (
-                            <div>
-                              <p className="font-mono font-bold text-cyan-300">{vehicle.plate}</p>
+                            <div
+                              className="cursor-pointer group/veh"
+                              onClick={() => {
+                                setSelectedProfileDriver(d)
+                                setProfileInitialTab('OVERVIEW')
+                              }}
+                            >
+                              <p className="font-mono font-bold text-cyan-300 group-hover/veh:underline">{vehicle.plate}</p>
                               <p className="text-[10.5px] text-slate-400">
                                 {t(`vehicle.category.${vehicle.category}`)} · {vehicle.capacity}座
                               </p>
@@ -390,9 +484,15 @@ export default function RosterPanel() {
                         {/* Active Order */}
                         <td className="px-3 py-3">
                           {activeOrder ? (
-                            <div className="space-y-0.5">
+                            <div
+                              className="space-y-0.5 cursor-pointer group/ord"
+                              onClick={() => {
+                                setSelectedProfileDriver(d)
+                                setProfileInitialTab('DISPATCH')
+                              }}
+                            >
                               <div className="flex items-center gap-1.5">
-                                <span className="font-mono font-bold text-white text-[11px]">{activeOrder.orderNo}</span>
+                                <span className="font-mono font-bold text-white text-[11px] group-hover/ord:text-amber-300 transition">{activeOrder.orderNo}</span>
                                 <StatusBadge status={activeOrder.status} />
                               </div>
                               <p className="text-[10.5px] text-slate-400 truncate max-w-[140px]">
@@ -407,8 +507,14 @@ export default function RosterPanel() {
 
                         {/* Shift Hours */}
                         <td className="px-3 py-3">
-                          <div className="space-y-0.5">
-                            <span className="inline-flex items-center gap-1 rounded bg-slate-900 px-2 py-0.5 font-mono text-[10.5px] text-cyan-300 border border-slate-800">
+                          <div
+                            className="space-y-0.5 cursor-pointer group/sft"
+                            onClick={() => {
+                              setSelectedProfileDriver(d)
+                              setProfileInitialTab('SHIFT')
+                            }}
+                          >
+                            <span className="inline-flex items-center gap-1 rounded bg-slate-900 px-2 py-0.5 font-mono text-[10.5px] text-cyan-300 border border-slate-800 group-hover/sft:border-cyan-400/40 transition">
                               <Clock className="h-2.5 w-2.5" />
                               {d.workingHours ? `${d.workingHours.shiftStart}-${d.workingHours.shiftEnd}` : '09:00-18:00'}
                             </span>
@@ -420,7 +526,13 @@ export default function RosterPanel() {
 
                         {/* HoS Driving Fatigue Gauge */}
                         <td className="px-3 py-3">
-                          <div className="space-y-1 min-w-[110px]">
+                          <div
+                            className="space-y-1 min-w-[110px] cursor-pointer group/hos"
+                            onClick={() => {
+                              setSelectedProfileDriver(d)
+                              setProfileInitialTab('SAFETY_HOS')
+                            }}
+                          >
                             <div className="flex items-center justify-between text-[10px]">
                               <span className="text-slate-400 font-mono">{serviceMins}m / 420m</span>
                               <span
@@ -537,9 +649,15 @@ export default function RosterPanel() {
             <div className="space-y-1.5">
               {filteredDrivers.map((d) => (
                 <div key={d.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.02] p-2.5" data-testid="driver-working-mode-row">
-                  <div className="flex items-center gap-2 truncate">
+                  <div
+                    className="flex items-center gap-2 truncate cursor-pointer group/mode"
+                    onClick={() => {
+                      setSelectedProfileDriver(d)
+                      setProfileInitialTab('OVERVIEW')
+                    }}
+                  >
                     <span className="text-base">{d.avatarEmoji}</span>
-                    <span className="truncate text-xs font-medium text-slate-200">{lang === 'zh' ? d.nameZh : d.name}</span>
+                    <span className="truncate text-xs font-medium text-slate-200 group-hover/mode:text-cyan-300 transition">{lang === 'zh' ? d.nameZh : d.name}</span>
                     <Badge tone={d.status === 'AVAILABLE' ? 'green' : d.status === 'BUSY' ? 'amber' : 'slate'}>{t(`driverStatus.${d.status}`)}</Badge>
                     {d.workingHours && (
                       <span className="hidden sm:inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-cyan-300 border border-slate-700">

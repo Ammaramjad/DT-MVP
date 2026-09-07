@@ -6,20 +6,24 @@ import { FleetOsPage } from '../../components/fleetos/FleetOsPage'
 import { StatCard } from '../../components/ui/StatCard'
 import { Badge } from '../../components/ui/Badge'
 import { AddDriverModal } from '../../components/fleetos/AddDriverModal'
+import { GuestPassVault } from '../../components/security/GuestPassVault'
 import { formatRelative } from '../../lib/format'
 import { useLang } from '../../i18n'
+import { useGatekeeper } from '../../lib/gatekeeper'
 
-type AdminTab = 'ROLES' | 'HEALTH' | 'AUDIT'
+type AdminTab = 'ROLES' | 'VAULT' | 'HEALTH' | 'AUDIT'
 
 export default function AdminPanel() {
   const { t, lang } = useLang()
+  const { currentUser } = useGatekeeper()
+  const isSuperAdmin = currentUser?.role === 'admin'
   const roles = useFleetStore((s) => s.roles)
   const toggleRolePermission = useFleetStore((s) => s.toggleRolePermission)
   const setRoleTwoFactor = useFleetStore((s) => s.setRoleTwoFactor)
   const systemHealth = useFleetStore((s) => s.systemHealth)
   const acknowledgeHealthAlert = useFleetStore((s) => s.acknowledgeHealthAlert)
   const globalAuditLog = useFleetStore((s) => s.globalAuditLog)
-  const [tab, setTab] = useState<AdminTab>('ROLES')
+  const [tab, setTab] = useState<AdminTab>(isSuperAdmin ? 'VAULT' : 'ROLES')
   const [showAddDriver, setShowAddDriver] = useState(false)
 
   const degraded = systemHealth.filter((h) => h.status !== 'OPERATIONAL').length
@@ -42,17 +46,26 @@ export default function AdminPanel() {
     >
       <AddDriverModal isOpen={showAddDriver} onClose={() => setShowAddDriver(false)} />
       <div className="mt-4 flex gap-1.5">
-        {(['ROLES', 'HEALTH', 'AUDIT'] as const).map((k) => (
+        {(['VAULT', 'ROLES', 'HEALTH', 'AUDIT'] as const)
+          .filter((k) => k !== 'VAULT' || isSuperAdmin)
+          .map((k) => (
           <button
             key={k}
             onClick={() => setTab(k)}
             data-testid={`admin-tab-${k}`}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${tab === k ? 'bg-cyan-400/15 text-cyan-300' : 'text-slate-400 hover:bg-white/5'}`}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${tab === k ? 'bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/30' : 'text-slate-400 hover:bg-white/5'}`}
           >
+            {k === 'VAULT' && '🎟️ '}
             {t(`fleetos.admin.tab.${k}`)}
           </button>
         ))}
       </div>
+
+      {tab === 'VAULT' && isSuperAdmin && (
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-4" data-testid="admin-vault-section">
+          <GuestPassVault />
+        </motion.div>
+      )}
 
       {tab === 'ROLES' && (
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="admin-roles-grid">

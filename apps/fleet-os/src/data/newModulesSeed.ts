@@ -1,24 +1,6 @@
-import type { DriverReview, RouteSubscription } from '../types'
+import type { DriverReview, LostFoundIncident, RouteSubscription } from '../types'
 
-export interface LostFoundIncident {
-  id: string
-  orderId: string
-  orderNo: string
-  customerName: string
-  customerPhone: string
-  itemCategory: 'PHONE' | 'WALLET' | 'LUGGAGE' | 'KEYS' | 'DOCUMENT' | 'OTHER'
-  itemDescription: string
-  driverId: string
-  driverName: string
-  driverNameZh: string
-  vehiclePlate: string
-  route: string
-  reportedAt: number
-  status: 'REPORTED' | 'LOCATED' | 'AT_HUB' | 'DISPATCHED_RETURN' | 'RETURNED'
-  storageLocation: string
-  trackingNumber?: string
-  dispatcherNotes?: string
-}
+export type { LostFoundIncident }
 
 export const SEED_LOST_FOUND_INCIDENTS: LostFoundIncident[] = [
   {

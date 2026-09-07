@@ -8,6 +8,7 @@ import { TripsScreen } from '../components/customer/TripsScreen'
 import { SafetyScreen } from '../components/customer/SafetyScreen'
 import { AccountScreen } from '../components/customer/AccountScreen'
 import { CustomerAiConciergeDrawer } from '../components/customer/CustomerAiConciergeDrawer'
+import { SessionHeaderIndicator } from '../components/security/SessionHeaderIndicator'
 import { useLang } from '../i18n'
 
 const ACTIVE_STATUSES = ['CONFIRMED', 'DRIVER_MATCHING', 'ASSIGNED', 'DRIVER_EN_ROUTE', 'ARRIVED', 'PASSENGER_ONBOARD']
@@ -54,7 +55,7 @@ export default function CustomerAppPanel() {
     <div className="min-h-screen bg-[#030712] bg-noise pb-28 text-white" data-testid="customer-app-shell">
       {/* Sleek Obsidian Glass Customer App Header */}
       <div className="sticky top-0 z-[700] border-b border-white/10 bg-slate-950/80 px-4 py-3.5 backdrop-blur-2xl shadow-xl" data-testid="customer-app-header">
-        <div className="mx-auto flex max-w-md items-center justify-between">
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/25">
               <Car className="h-4.5 w-4.5" />
@@ -64,9 +65,12 @@ export default function CustomerAppPanel() {
               <p className="text-[10px] font-semibold text-cyan-300">{t('nav.customer')} · VIP Portal</p>
             </div>
           </div>
-          <span className="flex items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-950/40 px-2.5 py-0.5 text-[10.5px] font-bold text-cyan-300">
-            <Sparkles className="h-3 w-3" /> Live
-          </span>
+          <div className="flex items-center gap-2">
+            <SessionHeaderIndicator compact />
+            <span className="hidden sm:flex items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-950/40 px-2.5 py-0.5 text-[10.5px] font-bold text-cyan-300">
+              <Sparkles className="h-3 w-3" /> Live
+            </span>
+          </div>
         </div>
       </div>
 

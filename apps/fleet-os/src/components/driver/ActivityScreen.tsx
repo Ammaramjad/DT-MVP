@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   AlertTriangle,
+  Calendar,
   Clock,
   Eye,
   ListChecks,
@@ -10,6 +11,8 @@ import {
   Plane,
   Route,
   Search,
+  Sparkles,
+  User,
   X,
 } from 'lucide-react'
 import type { Driver, Order } from '../../types'
@@ -20,16 +23,44 @@ import { RouteMapView } from '../map/RouteMapView'
 import { useLang } from '../../i18n'
 
 /** Full, searchable job history & schedule for the signed-in driver — the Driver
- * App's "Activity" tab, listing today's assigned airport bookings, flight delay alerts,
- * route previews, and Shift timings (Morning/Day/Night/Custom). */
+ * App's "Activity" tab, listing upcoming scheduled trips (Today, Tomorrow, Next 7 Days),
+ * assigned airport bookings, flight delay alerts, route previews, and Shift timings. */
 export function ActivityScreen({ driver, orders }: { driver: Driver; orders: Order[] }) {
   const { t, lang } = useLang()
   const createSupportTicket = useFleetStore((s) => s.createSupportTicket)
   const [query, setQuery] = useState('')
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set())
   const [previewOrder, setPreviewOrder] = useState<Order | null>(null)
+  const [upcomingTab, setUpcomingTab] = useState<'TODAY' | 'TOMORROW' | 'NEXT_7D'>('TODAY')
 
   const jobs = useMemo(() => orders.filter((o) => o.driverId === driver.id).sort((a, b) => b.createdAt - a.createdAt), [orders, driver.id])
+
+  // Upcoming scheduled trips partitioned by Horizon
+  const upcomingJobs = useMemo(() => {
+    const now = new Date()
+    const todayStr = now.toISOString().slice(0, 10)
+
+    const tomorrow = new Date(now)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10)
+
+    const next7DaysEnd = new Date(now)
+    next7DaysEnd.setDate(next7DaysEnd.getDate() + 7)
+
+    const driverAssignedOrders = orders.filter((o) => o.driverId === driver.id && !['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED'].includes(o.status))
+
+    if (upcomingTab === 'TODAY') {
+      return driverAssignedOrders.filter((o) => o.scheduledTime.slice(0, 10) === todayStr)
+    } else if (upcomingTab === 'TOMORROW') {
+      return driverAssignedOrders.filter((o) => o.scheduledTime.slice(0, 10) === tomorrowStr)
+    } else {
+      // NEXT_7D
+      return driverAssignedOrders.filter((o) => {
+        const d = new Date(o.scheduledTime)
+        return d > tomorrow && d <= next7DaysEnd
+      })
+    }
+  }, [orders, driver.id, upcomingTab])
 
   const assignedAirportBookings = useMemo(() => {
     return jobs.filter((j) => j.type === 'AIRPORT_PICKUP' || j.type === 'AIRPORT_DROPOFF' || !!j.flightInfo)
@@ -115,6 +146,134 @@ export function ActivityScreen({ driver, orders }: { driver: Driver; orders: Ord
               {t(`fleetos.roster.mode.${driver.workingMode}`)}
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* NEW: Upcoming Scheduled Trips (未來預約行程) with tabs (Today, Tomorrow, Next 7 Days) */}
+      <div className="glass-panel-glow rounded-3xl p-4 border border-cyan-400/30 shadow-2xl" data-testid="driver-upcoming-trips-section">
+        <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
+              <Calendar className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                {lang === 'zh' ? '未來預約行程 (Advance Trips)' : 'Upcoming Scheduled Trips'}
+              </h3>
+              <p className="text-[10px] text-slate-400">
+                {lang === 'zh' ? '提前掌握已確認接送、航班號與接機航廈' : 'Confirmed bookings, flights & gates'}
+              </p>
+            </div>
+          </div>
+          <span className="flex items-center gap-1 rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-mono font-bold text-cyan-300 border border-cyan-400/40">
+            <Sparkles className="h-2.5 w-2.5" />
+            <span>{upcomingJobs.length} {lang === 'zh' ? '趟已排' : 'trips'}</span>
+          </span>
+        </div>
+
+        {/* Horizon Tabs (Today, Tomorrow, Next 7 Days) */}
+        <div className="flex items-center gap-1 rounded-2xl bg-slate-950/80 p-1 border border-white/10 mb-3" data-testid="driver-upcoming-tabs">
+          {[
+            { key: 'TODAY', labelZh: '本日行程', labelEn: 'Today' },
+            { key: 'TOMORROW', labelZh: '明日預約', labelEn: 'Tomorrow' },
+            { key: 'NEXT_7D', labelZh: '未來7天', labelEn: 'Next 7 Days' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setUpcomingTab(tab.key as any)}
+              data-testid={`driver-upcoming-tab-${tab.key.toLowerCase()}`}
+              className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition ${
+                upcomingTab === tab.key
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {lang === 'zh' ? tab.labelZh : tab.labelEn}
+            </button>
+          ))}
+        </div>
+
+        {/* Upcoming Trips List */}
+        <div className="space-y-2.5">
+          {upcomingJobs.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-500">
+              <Calendar className="h-6 w-6 mx-auto mb-1.5 text-slate-600 opacity-60" />
+              <p className="font-bold text-slate-400">{lang === 'zh' ? '此時段尚無排定預約行程' : 'No upcoming bookings in this window.'}</p>
+              <p className="text-[10.5px] mt-0.5 text-slate-500">{lang === 'zh' ? '中心調度完成後將自動推播至此' : 'Dispatch pre-assignments will appear here.'}</p>
+            </div>
+          ) : (
+            upcomingJobs.map((trip) => (
+              <div
+                key={trip.id}
+                className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 shadow-md space-y-2 hover:border-cyan-400/40 transition"
+                data-testid={`driver-upcoming-trip-card-${trip.id}`}
+              >
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
+                      {trip.orderNo}
+                    </span>
+                    <OrderTypeBadge type={trip.type} />
+                  </div>
+                  <span className="font-mono text-xs font-bold text-emerald-400">
+                    預估 {formatTWD(trip.priceEstimate)}
+                  </span>
+                </div>
+
+                {/* Pickup Time & Route */}
+                <div className="space-y-1 text-xs">
+                  <div className="flex items-center justify-between text-[11px] text-slate-300">
+                    <span className="flex items-center gap-1 font-mono text-cyan-200">
+                      <Clock className="h-3 w-3 text-cyan-400" />
+                      {formatDateTime(trip.scheduledTime, lang)}
+                    </span>
+                    <span className="text-slate-400 text-[10.5px]">{trip.channel}</span>
+                  </div>
+
+                  <div className="flex items-start gap-1.5 text-slate-200 font-medium">
+                    <MapPin className="h-3.5 w-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                    <span className="truncate">{lang === 'zh' ? trip.pickup.nameZh : trip.pickup.name}</span>
+                    <span className="text-slate-500 shrink-0">➔</span>
+                    <span className="truncate">{lang === 'zh' ? trip.dropoff.nameZh : trip.dropoff.name}</span>
+                  </div>
+                </div>
+
+                {/* Flight & Gate Details */}
+                {trip.flightNumber && (
+                  <div className="flex items-center justify-between rounded-xl bg-cyan-950/40 border border-cyan-500/20 p-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Plane className="h-3.5 w-3.5 text-cyan-400" />
+                      <span className="font-mono font-bold text-white">{trip.flightNumber}</span>
+                      {trip.flightInfo && (
+                        <span className="text-[10.5px] text-slate-300">
+                          {t('booking.gate', { gate: trip.flightInfo.gate })}
+                        </span>
+                      )}
+                    </div>
+                    {trip.flightInfo && <FlightBadge status={trip.flightInfo.status} />}
+                  </div>
+                )}
+
+                {/* Passenger & Notes */}
+                <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-white/5 pt-1.5">
+                  <span className="flex items-center gap-1">
+                    <User className="h-3 w-3 text-slate-500" />
+                    <span className="text-slate-200 font-medium">{trip.customer.name}</span>
+                    <span className="font-mono text-[10px]">({trip.customer.phone})</span>
+                  </span>
+
+                  <button
+                    onClick={() => setPreviewOrder(trip)}
+                    className="flex items-center gap-1 text-[10.5px] font-bold text-cyan-300 hover:underline"
+                  >
+                    <Eye className="h-3 w-3" />
+                    <span>{lang === 'zh' ? '預覽路線' : 'Preview'}</span>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

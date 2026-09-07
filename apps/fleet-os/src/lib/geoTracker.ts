@@ -1,5 +1,6 @@
 import type { AccessLogEntry, AccessAuthMethod, AccessAttemptStatus } from '../types'
 import { SEED_ACCESS_LOGS } from '../data/accessLogsSeed'
+import { safeGetItem, safeLocalStorage, safeSetItem } from './safeStorage'
 
 export const ACCESS_LOGS_STORAGE_KEY = 'fleet_access_logs'
 
@@ -191,11 +192,12 @@ export async function fetchClientGeo(): Promise<ClientGeoInfo> {
  */
 export function loadStoredAccessLogs(): AccessLogEntry[] {
   if (typeof window === 'undefined') return SEED_ACCESS_LOGS
+  const storage = safeLocalStorage()
+  if (!storage) return SEED_ACCESS_LOGS
   try {
-    const raw = localStorage.getItem(ACCESS_LOGS_STORAGE_KEY)
+    const raw = safeGetItem(storage, ACCESS_LOGS_STORAGE_KEY)
     if (!raw) {
-      // Store seed logs in localStorage for consistency
-      localStorage.setItem(ACCESS_LOGS_STORAGE_KEY, JSON.stringify(SEED_ACCESS_LOGS))
+      safeSetItem(storage, ACCESS_LOGS_STORAGE_KEY, JSON.stringify(SEED_ACCESS_LOGS))
       return SEED_ACCESS_LOGS
     }
     const parsed = JSON.parse(raw)
@@ -212,12 +214,9 @@ export function loadStoredAccessLogs(): AccessLogEntry[] {
  * Persist access logs array to localStorage
  */
 export function saveStoredAccessLogs(logs: AccessLogEntry[]): void {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(ACCESS_LOGS_STORAGE_KEY, JSON.stringify(logs.slice(0, 500)))
-  } catch {
-    // ignore
-  }
+  const storage = safeLocalStorage()
+  if (!storage) return
+  safeSetItem(storage, ACCESS_LOGS_STORAGE_KEY, JSON.stringify(logs.slice(0, 500)))
 }
 
 /**
