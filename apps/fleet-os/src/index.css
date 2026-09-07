@@ -63,8 +63,15 @@
   box-sizing: border-box;
 }
 
+html {
+  min-height: 100%;
+  min-height: -webkit-fill-available;
+}
+
 html, body, #root {
-  height: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
 }
 
 body {
@@ -74,6 +81,18 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+#root.app-root,
+.gatekeeper-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 ::-webkit-scrollbar {

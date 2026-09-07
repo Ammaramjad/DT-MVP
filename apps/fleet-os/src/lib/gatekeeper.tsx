@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { createAccessLogEntry, saveStoredAccessLogs, loadStoredAccessLogs } from './geoTracker'
+import { safeGetItem, safeLocalStorage, safeRemoveItem, safeSetItem } from './safeStorage'
 import type { AccessAuthMethod, AccessAttemptStatus, GuestPass, LoggedInUser } from '../types'
 
 export const AUTH_STORAGE_KEY = 'fleet_preview_auth_token'
@@ -69,10 +70,12 @@ const INITIAL_BURNED_TOKENS = ['guest_vip_1002', 'pass-1002', 'PASS-1002']
 
 export function loadStoredGuestPasses(): GuestPass[] {
   if (typeof window === 'undefined') return INITIAL_GUEST_PASSES
+  const storage = safeLocalStorage()
+  if (!storage) return INITIAL_GUEST_PASSES
   try {
-    const raw = localStorage.getItem(GUEST_PASSES_STORAGE_KEY)
+    const raw = safeGetItem(storage, GUEST_PASSES_STORAGE_KEY)
     if (!raw) {
-      localStorage.setItem(GUEST_PASSES_STORAGE_KEY, JSON.stringify(INITIAL_GUEST_PASSES))
+      safeSetItem(storage, GUEST_PASSES_STORAGE_KEY, JSON.stringify(INITIAL_GUEST_PASSES))
       return INITIAL_GUEST_PASSES
     }
     const parsed = JSON.parse(raw)
@@ -83,20 +86,19 @@ export function loadStoredGuestPasses(): GuestPass[] {
 }
 
 export function saveStoredGuestPasses(passes: GuestPass[]): void {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(GUEST_PASSES_STORAGE_KEY, JSON.stringify(passes))
-  } catch {
-    // ignore
-  }
+  const storage = safeLocalStorage()
+  if (!storage) return
+  safeSetItem(storage, GUEST_PASSES_STORAGE_KEY, JSON.stringify(passes))
 }
 
 export function loadStoredBurnedTokens(): string[] {
   if (typeof window === 'undefined') return INITIAL_BURNED_TOKENS
+  const storage = safeLocalStorage()
+  if (!storage) return INITIAL_BURNED_TOKENS
   try {
-    const raw = localStorage.getItem(USED_TOKENS_STORAGE_KEY)
+    const raw = safeGetItem(storage, USED_TOKENS_STORAGE_KEY)
     if (!raw) {
-      localStorage.setItem(USED_TOKENS_STORAGE_KEY, JSON.stringify(INITIAL_BURNED_TOKENS))
+      safeSetItem(storage, USED_TOKENS_STORAGE_KEY, JSON.stringify(INITIAL_BURNED_TOKENS))
       return INITIAL_BURNED_TOKENS
     }
     const parsed = JSON.parse(raw)
@@ -107,22 +109,21 @@ export function loadStoredBurnedTokens(): string[] {
 }
 
 export function saveStoredBurnedTokens(tokens: string[]): void {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(USED_TOKENS_STORAGE_KEY, JSON.stringify(tokens))
-  } catch {
-    // ignore
-  }
+  const storage = safeLocalStorage()
+  if (!storage) return
+  safeSetItem(storage, USED_TOKENS_STORAGE_KEY, JSON.stringify(tokens))
 }
 
 export function loadStoredCurrentUser(): LoggedInUser | null {
   if (typeof window === 'undefined') return null
+  const storage = safeLocalStorage()
+  if (!storage) return null
   try {
-    const raw = localStorage.getItem(USER_STORAGE_KEY)
+    const raw = safeGetItem(storage, USER_STORAGE_KEY)
     if (raw) {
       return JSON.parse(raw) as LoggedInUser
     }
-    const token = localStorage.getItem(AUTH_STORAGE_KEY)
+    const token = safeGetItem(storage, AUTH_STORAGE_KEY)
     if (token) {
       // Fallback synthesizer if only token existed
       return {
@@ -173,11 +174,13 @@ const GatekeeperContext = createContext<GatekeeperContextType | null>(null)
 export function GatekeeperProvider({ children }: { children: ReactNode }) {
   const [isLocked, setIsLocked] = useState<boolean>(() => {
     try {
-      if (typeof window === 'undefined') return false
-      const token = localStorage.getItem(AUTH_STORAGE_KEY)
+      if (typeof window === 'undefined') return true
+      const storage = safeLocalStorage()
+      if (!storage) return true
+      const token = safeGetItem(storage, AUTH_STORAGE_KEY)
       return !token
     } catch {
-      return false
+      return true
     }
   })
 
@@ -241,12 +244,11 @@ export function GatekeeperProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const unlock = (tokenValue: string, user: LoggedInUser) => {
-    try {
-      localStorage.setItem(AUTH_STORAGE_KEY, tokenValue)
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user))
-      localStorage.setItem(SESSION_START_KEY, String(user.loginAt))
-    } catch {
-      // ignore
+    const storage = safeLocalStorage()
+    if (storage) {
+      safeSetItem(storage, AUTH_STORAGE_KEY, tokenValue)
+      safeSetItem(storage, USER_STORAGE_KEY, JSON.stringify(user))
+      safeSetItem(storage, SESSION_START_KEY, String(user.loginAt))
     }
     setCurrentUser(user)
     setIsLocked(false)
@@ -290,12 +292,11 @@ export function GatekeeperProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    try {
-      localStorage.removeItem(AUTH_STORAGE_KEY)
-      localStorage.removeItem(USER_STORAGE_KEY)
-      localStorage.removeItem(SESSION_START_KEY)
-    } catch {
-      // ignore
+    const storage = safeLocalStorage()
+    if (storage) {
+      safeRemoveItem(storage, AUTH_STORAGE_KEY)
+      safeRemoveItem(storage, USER_STORAGE_KEY)
+      safeRemoveItem(storage, SESSION_START_KEY)
     }
     setCurrentUser(null)
     setIsLocked(true)

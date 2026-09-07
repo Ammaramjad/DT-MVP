@@ -81,6 +81,7 @@ import { suggestDriver } from '../lib/dispatch'
 import { buildCapacityForecast, buildShiftSchedule } from '../lib/capacity'
 import { DEFAULT_OPERATING_PARAMS, SEED_STAFF_ACCOUNTS } from '../data/fleetOsSeed'
 import { loadStoredAccessLogs, saveStoredAccessLogs, createAccessLogEntry } from '../lib/geoTracker'
+import { safeGetItem, safeLocalStorage, safeSetItem } from '../lib/safeStorage'
 import {
   computeWaitingFee,
   LAST_MINUTE_AUTO_CANCEL_DEMO_MS,
@@ -684,8 +685,10 @@ interface PersistedSlice {
 
 function loadPersistedSlice(): PersistedSlice {
   if (typeof window === 'undefined') return {}
+  const storage = safeLocalStorage()
+  if (!storage) return {}
   try {
-    const raw = window.localStorage.getItem(FLEET_PERSIST_STORAGE_KEY)
+    const raw = safeGetItem(storage, FLEET_PERSIST_STORAGE_KEY)
     if (!raw) return {}
     return JSON.parse(raw) as PersistedSlice
   } catch (err) {
@@ -695,7 +698,8 @@ function loadPersistedSlice(): PersistedSlice {
 }
 
 function savePersistedSlice(state: FleetState) {
-  if (typeof window === 'undefined') return
+  const storage = safeLocalStorage()
+  if (!storage) return
   try {
     const slice: PersistedSlice = {
       operatingParams: state.operatingParams,
@@ -712,7 +716,7 @@ function savePersistedSlice(state: FleetState) {
       refundRequests: state.refundRequests,
       staffAccounts: state.staffAccounts,
     }
-    window.localStorage.setItem(FLEET_PERSIST_STORAGE_KEY, JSON.stringify(slice))
+    safeSetItem(storage, FLEET_PERSIST_STORAGE_KEY, JSON.stringify(slice))
   } catch (err) {
     console.warn('Failed to save persisted state to localStorage', err)
   }

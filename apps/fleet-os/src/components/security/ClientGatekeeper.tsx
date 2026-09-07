@@ -44,8 +44,9 @@ export function ClientGatekeeper() {
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex min-h-screen w-screen flex-col items-center justify-center overflow-y-auto bg-[#030712] p-4 sm:p-6"
+      className="gatekeeper-shell fixed inset-0 z-[1000] flex min-h-[100dvh] min-h-[100vh] min-h-[-webkit-fill-available] w-full max-w-[100vw] flex-col items-center justify-center overflow-x-hidden overflow-y-auto bg-[#030712] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:p-6"
       data-testid="client-gatekeeper-overlay"
+      style={{ WebkitOverflowScrolling: 'touch' }}
     >
       <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-[550px] w-[700px] rounded-full bg-gradient-to-br from-cyan-500/25 via-purple-600/20 to-transparent blur-3xl animate-pulse-slow" />
       <div className="pointer-events-none absolute -bottom-40 right-10 h-[450px] w-[550px] rounded-full bg-gradient-to-tl from-emerald-500/20 via-blue-600/15 to-transparent blur-3xl" />

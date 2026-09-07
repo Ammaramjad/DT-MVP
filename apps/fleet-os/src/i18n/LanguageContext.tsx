@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { safeGetItem, safeLocalStorage, safeSetItem } from '../lib/safeStorage'
 import { translate, type Lang } from './translations'
 
 const STORAGE_KEY = 'fleet-dispatch-lang'
@@ -14,8 +15,14 @@ const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 function readStoredLang(): Lang {
   if (typeof window === 'undefined') return 'en'
-  const stored = window.localStorage.getItem(STORAGE_KEY)
-  return stored === 'zh' || stored === 'en' ? stored : 'en'
+  try {
+    const storage = safeLocalStorage()
+    if (!storage) return 'en'
+    const stored = safeGetItem(storage, STORAGE_KEY)
+    return stored === 'zh' || stored === 'en' ? stored : 'en'
+  } catch {
+    return 'en'
+  }
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
@@ -27,10 +34,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLang = (next: Lang) => {
     setLangState(next)
-    try {
-      window.localStorage.setItem(STORAGE_KEY, next)
-    } catch {
-      // localStorage unavailable (e.g. private mode) — language just won't persist.
+    const storage = safeLocalStorage()
+    if (storage) {
+      safeSetItem(storage, STORAGE_KEY, next)
     }
   }
 
