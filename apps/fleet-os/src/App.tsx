@@ -35,7 +35,7 @@ export default function App() {
   return (
     <LanguageProvider>
       <GatekeeperProvider>
-        <BrowserRouter>
+        <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
           <AppRouter />
         </BrowserRouter>
       </GatekeeperProvider>

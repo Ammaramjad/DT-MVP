@@ -1,0 +1,60 @@
+name: Deploy fleet-os to GitHub Pages
+
+on:
+  push:
+    branches:
+      - cursor/fleet-dispatch-demo-prototype-8c37
+    paths:
+      - 'apps/fleet-os/**'
+      - '.github/workflows/deploy-fleet-os-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: fleet-os-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/fleet-os/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/fleet-os
+        run: npm ci
+
+      - name: Build for GitHub Pages
+        working-directory: apps/fleet-os
+        env:
+          VITE_BASE_PATH: /DT-MVP/
+        run: npm run build
+
+      - name: Prepare SPA fallback
+        working-directory: apps/fleet-os/dist
+        run: |
+          touch .nojekyll
+          cp index.html 404.html
+          rm -f CNAME
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/fleet-os/dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

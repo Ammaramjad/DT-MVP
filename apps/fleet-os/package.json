@@ -15,6 +15,7 @@
     "test:e2e:unified-login": "node e2e/test-unified-login.mjs",
     "test:e2e:unauth-login": "node e2e/test-unauth-login.mjs",
     "deploy:surge": "node scripts/deploy-surge.mjs",
+    "deploy:gh-pages": "node scripts/deploy-gh-pages.mjs",
     "test:e2e:redesign": "node e2e/redesign-suite.mjs",
     "test:e2e:enterprise": "node e2e/enterprise-suite.mjs",
     "test:e2e:gatekeeper": "node e2e/gatekeeper-auth.mjs",

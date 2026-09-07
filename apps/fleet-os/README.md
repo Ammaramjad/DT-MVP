@@ -1,6 +1,7 @@
 # 走瘋派車 Zhaofeng Travel — Fleet OS Live Prototype
 
-**Live demo:** https://fleet-dispatch-demo-8c37.surge.sh  
+**Live demo (primary):** https://ammaramjad.github.io/DT-MVP/  
+**Alternate (Surge — may time out on some ISPs/regions):** https://fleet-dispatch-demo-8c37.surge.sh  
 **Login:** `admin` / `FleetAdmin2026!` (gatekeeper overlay on first visit)
 
 A polished, fully client-side **demo prototype** of the Zhaofeng Travel (走瘋派車) Taiwan airport-transfer, city-ride,
