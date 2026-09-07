@@ -3192,7 +3192,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'fleetos.admin.tab.ROLES': '角色與權限',
     'fleetos.admin.tab.HEALTH': '系統健康狀態',
     'fleetos.admin.tab.AUDIT': '隱私／稽核紀錄',
-    'fleetos.admin.tab.VAULT': '單次免洗貴賓保險庫',
+    'fleetos.admin.tab.VAULT': '一次性帳密',
     'fleetos.admin.userCount': '{n} 位使用者',
     'fleetos.admin.twoFactor': '需要雙重驗證 (2FA)',
     'fleetos.admin.servicesTotal': '服務總數',
@@ -3270,7 +3270,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'header.session.dispatcherBadge': '首席調度員',
 
     // ---- Admin Guest Pass Vault ----
-    'admin.vault.title': '單次免洗貴賓通行證保險庫',
+    'admin.vault.title': '一次性帳密',
     'admin.vault.subtitle': '生成拋棄式閱讀銷毀憑證與管理即時權限生命週期',
     'admin.vault.generateBtn': '一鍵生成全新單次貴賓通行證',
     'admin.vault.statusActive': '有效 / 未使用',
