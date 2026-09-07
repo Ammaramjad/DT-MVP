@@ -188,6 +188,25 @@ export function GatekeeperProvider({ children }: { children: ReactNode }) {
   const [guestPasses, setGuestPasses] = useState<GuestPass[]>(() => loadStoredGuestPasses())
   const [sessionRemainingMs, setSessionRemainingMs] = useState<number>(SESSION_DURATION_MS)
 
+  // Re-sync lock state on mount (Safari private mode / blocked storage edge cases)
+  useEffect(() => {
+    try {
+      const storage = safeLocalStorage()
+      if (!storage) {
+        setIsLocked(true)
+        return
+      }
+      const token = safeGetItem(storage, AUTH_STORAGE_KEY)
+      setIsLocked(!token)
+      if (!token) {
+        setCurrentUser(null)
+      }
+    } catch {
+      setIsLocked(true)
+      setCurrentUser(null)
+    }
+  }, [])
+
   // Real-time countdown timer updater
   useEffect(() => {
     if (isLocked || !currentUser) {
