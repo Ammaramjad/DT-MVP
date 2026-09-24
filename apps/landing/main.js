@@ -154,7 +154,7 @@
     .filter(([el]) => el)
   let activeKey = ''
   const updateActiveNav = () => {
-    const line = window.innerHeight * 0.45
+    const line = Math.min(window.innerHeight * 0.45, navOffset() + 80)
     let key = '#top'
     for (const [el, k] of regions) {
       const r = el.getBoundingClientRect()
