@@ -5,13 +5,12 @@
   const $ = (s, root = document) => root.querySelector(s)
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s))
 
-  if (!hasGsap) {
+  const showStatic = () => {
+    document.documentElement.classList.add('no-anim')
     $('#loader')?.remove()
-    $$('.reveal-up, .booking, .split .char, .dest').forEach((el) => {
-      el.style.opacity = 1
-      el.style.transform = 'none'
-      el.style.clipPath = 'none'
-    })
+  }
+  if (!hasGsap) {
+    showStatic()
     return
   }
 
@@ -25,9 +24,13 @@
     gsap.ticker.add((t) => lenis.raf(t * 1000))
     gsap.ticker.lagSmoothing(0)
   }
+  const navOffset = () => ($('#nav')?.offsetHeight || 80) + 24
   const scrollTo = (target) => {
-    if (lenis) lenis.scrollTo(target, { offset: -20, duration: 1.4 })
-    else target.scrollIntoView({ behavior: 'smooth' })
+    if (lenis) lenis.scrollTo(target, { offset: -navOffset(), duration: 1.4 })
+    else {
+      const top = target === document.body ? 0 : target.getBoundingClientRect().top + window.scrollY - navOffset()
+      window.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' })
+    }
   }
   $$('a[href^="#"]').forEach((a) => {
     a.addEventListener('click', (e) => {
@@ -109,13 +112,18 @@
       .add(() => intro.play(), '-=0.7')
   }
   if (reduced) {
-    loader?.remove()
+    showStatic()
     intro.progress(1)
   } else {
-    window.addEventListener('load', runLoader, { once: true })
-    setTimeout(() => {
-      if (document.body.contains(loader) && !intro.isActive() && intro.progress() === 0) runLoader()
-    }, 3500)
+    let loaderStarted = false
+    const startLoader = () => {
+      if (loaderStarted) return
+      loaderStarted = true
+      clearTimeout(loaderFallback)
+      runLoader()
+    }
+    const loaderFallback = setTimeout(startLoader, 3500)
+    window.addEventListener('load', startLoader, { once: true })
   }
 
   /* ---------- Nav state, progress ---------- */
@@ -130,22 +138,33 @@
     scrollTrigger: { start: 0, end: 'max', scrub: 0.3 },
   })
 
-  const sections = ['#top', '#booking', '#live', '#services', '#explore', '#enterprise', '#offers', '#about']
   const menuLinks = $$('.nav__menu a')
-  $$('main section[id]').forEach((sec) => {
-    ScrollTrigger.create({
-      trigger: sec,
-      start: 'top 45%',
-      end: 'bottom 45%',
-      onToggle: (self) => {
-        if (!self.isActive) return
-        const id = '#' + sec.id
-        const key = id === '#hero' ? '#top' : id === '#showcase' ? '#about' : id
-        if (!sections.includes(key)) return
-        menuLinks.forEach((l) => l.classList.toggle('is-active', l.getAttribute('href') === key))
-      },
-    })
-  })
+  const regions = [
+    ['#hero', '#top'],
+    ['#booking', '#booking'],
+    ['#showcase', '#about'],
+    ['#live', '#live'],
+    ['#services', '#services'],
+    ['#explore', '#explore'],
+    ['#enterprise', '#enterprise'],
+    ['#offers', '#offers'],
+    ['#about', '#about'],
+  ]
+    .map(([sel, key]) => [$(sel), key])
+    .filter(([el]) => el)
+  let activeKey = ''
+  const updateActiveNav = () => {
+    const line = Math.min(window.innerHeight * 0.45, navOffset() + 80)
+    let key = '#top'
+    for (const [el, k] of regions) {
+      const r = el.getBoundingClientRect()
+      if (r.top <= line && r.bottom > line) key = k
+    }
+    if (key === activeKey) return
+    activeKey = key
+    menuLinks.forEach((l) => l.classList.toggle('is-active', l.getAttribute('href') === key))
+  }
+  ScrollTrigger.create({ start: 0, end: 'max', onUpdate: updateActiveNav, onRefresh: updateActiveNav })
 
   /* ---------- Mobile menu ---------- */
   const burger = $('#burger')
@@ -169,17 +188,19 @@
   })
 
   /* ---------- Hero parallax on scroll ---------- */
-  gsap.to('#heroImg', {
-    yPercent: 18,
-    ease: 'none',
-    scrollTrigger: { trigger: '#hero', start: 'top top', end: 'bottom top', scrub: true },
-  })
-  gsap.to('.hero__content', {
-    yPercent: -25,
-    opacity: 0,
-    ease: 'none',
-    scrollTrigger: { trigger: '#hero', start: 'top top', end: '70% top', scrub: true },
-  })
+  if (!reduced) {
+    gsap.to('#heroImg', {
+      yPercent: 18,
+      ease: 'none',
+      scrollTrigger: { trigger: '#hero', start: 'top top', end: 'bottom top', scrub: true },
+    })
+    gsap.to('.hero__content', {
+      yPercent: -25,
+      opacity: 0,
+      ease: 'none',
+      scrollTrigger: { trigger: '#hero', start: 'top top', end: '70% top', scrub: true },
+    })
+  }
 
   /* ---------- Booking tabs ---------- */
   const tabs = $$('.booking__tab')
@@ -227,6 +248,11 @@
   $$('[data-route]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const [from, to] = btn.dataset.route.split('|')
+      const mode = btn.dataset.mode
+      if (mode) {
+        const tab = $(`.booking__tab[data-tab="${mode}"]`)
+        if (tab && !tab.classList.contains('is-active')) setTab(tab)
+      }
       $('#pickup').value = from
       $('#dropoff').value = to
       if (btn.closest('.dest')) {
@@ -237,24 +263,112 @@
     })
   })
 
-  $('#bookingForm').addEventListener('submit', (e) => {
+  /* ---------- Date default + search results ---------- */
+  const dateInput = $('#datetime')
+  const pad = (n) => String(n).padStart(2, '0')
+  const formatDateTime = (d) => `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}　${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const parseDateTime = (s) => {
+    const m = s.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})\D+(\d{1,2}):(\d{2})/)
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null
+  }
+  if (dateInput) {
+    const d = new Date()
+    d.setDate(d.getDate() + 1)
+    d.setHours(10, 0, 0, 0)
+    dateInput.value = formatDateTime(d)
+  }
+
+  const fleet = [
+    { name: 'Toyota Alphard', cls: '豪華商務', seats: 6, bags: 4, base: 2200, img: 'assets/alphard.jpg' },
+    { name: 'Mercedes-Benz V-Class', cls: '尊榮商務', seats: 6, bags: 5, base: 2800, img: 'assets/alphard.jpg' },
+    { name: 'Toyota Camry', cls: '經典轎車', seats: 3, bags: 2, base: 1400, img: 'assets/taipei-day.jpg' },
+    { name: 'Volkswagen Crafter', cls: '團體巴士', seats: 9, bags: 9, base: 3600, img: 'assets/airport.jpg' },
+  ]
+  const modeFactor = { airport: 1, p2p: 0.9, charter: 3.2, rental: 1.6, multi: 4.5 }
+  const modeUnit = { airport: '/ 趟', p2p: '/ 趟', charter: '/ 日', rental: '/ 日', multi: '/ 行程' }
+  const results = $('#bookingResults')
+  const form = $('#bookingForm')
+  const setFormError = (msg) => {
+    const box = $('#bookingError')
+    box.textContent = msg
+    box.hidden = !msg
+  }
+  form.addEventListener('submit', (e) => {
     e.preventDefault()
+    const data = new FormData(form)
+    const pickup = (data.get('pickup') || '').toString().trim()
+    const dropoff = (data.get('dropoff') || '').toString().trim()
+    const when = parseDateTime((data.get('datetime') || '').toString())
+    const pax = parseInt(((data.get('pax') || '').toString().match(/\d+/) || ['1'])[0], 10)
+    if (!pickup || !dropoff) return setFormError('請輸入上車與下車地點。')
+    if (!when) return setFormError('日期格式請使用 YYYY/MM/DD HH:MM。')
+    if (when.getTime() < Date.now()) return setFormError('出發時間需晚於現在，請重新選擇。')
+    setFormError('')
+
+    const mode = $('.booking__tab.is-active').dataset.tab
     const btn = $('.booking__submit span')
     const original = btn.textContent
     btn.textContent = '搜尋中…'
+    form.querySelector('.booking__submit').disabled = true
     gsap.to('.booking__submit', { scale: 0.98, duration: 0.15, yoyo: true, repeat: 1 })
-    setTimeout(() => (btn.textContent = original), 1400)
+
+    setTimeout(() => {
+      btn.textContent = original
+      form.querySelector('.booking__submit').disabled = false
+      const cars = fleet.filter((c) => c.seats >= pax)
+      results.innerHTML = `
+        <div class="results__head">
+          <div>
+            <small>${$('.booking__tab.is-active').textContent.trim()} · ${formatDateTime(when)}</small>
+            <strong>${pickup} <i>→</i> ${dropoff}</strong>
+          </div>
+          <button type="button" class="results__close" id="resultsClose" aria-label="關閉">✕</button>
+        </div>
+        ${
+          cars.length
+            ? `<ul class="results__list">${cars
+                .map(
+                  (c) => `
+          <li class="result">
+            <img src="${c.img}" alt="${c.name}" loading="lazy" />
+            <div class="result__body">
+              <small>${c.cls}</small>
+              <strong>${c.name}</strong>
+              <span>${c.seats} 位乘客 · ${c.bags} 件行李 · 免費等候 60 分</span>
+            </div>
+            <div class="result__price">
+              <b>NT$ ${Math.round(c.base * modeFactor[mode]).toLocaleString('zh-Hant-TW')}</b>
+              <small>${modeUnit[mode]}</small>
+              <a class="result__cta" href="#booking" data-cursor="hover">預約此車</a>
+            </div>
+          </li>`,
+                )
+                .join('')}</ul>`
+            : `<p class="results__empty">目前沒有符合 ${pax} 位乘客的車輛，請減少乘客人數或選擇多城市行程。</p>`
+        }`
+      results.hidden = false
+      gsap.fromTo(results, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' })
+      gsap.fromTo('.result', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: 'power3.out' })
+      ScrollTrigger.refresh()
+      $('#resultsClose').addEventListener('click', () => {
+        results.hidden = true
+        results.innerHTML = ''
+        ScrollTrigger.refresh()
+      })
+    }, 900)
   })
 
   /* ---------- Marquee ---------- */
   const marquee = $('#marquee')
-  const marqueeTween = gsap.to(marquee, { xPercent: -50, ease: 'none', duration: 30, repeat: -1 })
-  ScrollTrigger.create({
-    onUpdate: (self) => {
-      const v = Math.max(1, Math.min(4, Math.abs(self.getVelocity()) / 400))
-      gsap.to(marqueeTween, { timeScale: (self.direction || 1) * v, duration: 0.6, overwrite: true })
-    },
-  })
+  if (!reduced) {
+    const marqueeTween = gsap.to(marquee, { xPercent: -50, ease: 'none', duration: 30, repeat: -1 })
+    ScrollTrigger.create({
+      onUpdate: (self) => {
+        const v = Math.max(1, Math.min(4, Math.abs(self.getVelocity()) / 400))
+        gsap.to(marqueeTween, { timeScale: (self.direction || 1) * v, duration: 0.6, overwrite: true })
+      },
+    })
+  }
 
   /* ---------- Generic reveals ---------- */
   $$('.reveal-up').forEach((el) => {
@@ -283,7 +397,8 @@
       })
     })
     const spans = $$('.word', manifesto)
-    ScrollTrigger.create({
+    if (reduced) spans.forEach((s) => s.classList.add('is-on'))
+    else ScrollTrigger.create({
       trigger: manifesto,
       start: 'top 75%',
       end: 'bottom 45%',
@@ -296,50 +411,54 @@
   }
 
   /* ---------- Pinned showcase ---------- */
-  const showcase = gsap.timeline({
-    scrollTrigger: { trigger: '.showcase', start: 'top top', end: 'bottom bottom', scrub: 0.6 },
-  })
-  showcase
-    .to('#showcaseImg', { clipPath: 'inset(0% 0% 0% 0% round 0px)', scale: 1, duration: 1 }, 0)
-    .to('#showcaseImg', { filter: 'brightness(0.35) saturate(0.6) contrast(1.1)', duration: 0.6 }, 0.4)
-    .to('.showcase__title .line span', { y: 0, duration: 0.5, stagger: 0.12, ease: 'power3.out' }, 0.45)
-    .to('.showcase__desc', { opacity: 1, y: 0, duration: 0.4 }, 0.7)
-    .to('.showcase__chips .chip', { opacity: 1, duration: 0.3, stagger: 0.08 }, 0.85)
-    .to('#showcaseImg', { yPercent: -6, duration: 0.6 }, 1)
-  $$('[data-float]').forEach((chip, i) => {
-    gsap.to(chip, { y: i % 2 ? 12 : -12, duration: 2.6 + i * 0.3, yoyo: true, repeat: -1, ease: 'sine.inOut' })
-  })
+  if (!reduced) {
+    const showcase = gsap.timeline({
+      scrollTrigger: { trigger: '.showcase', start: 'top top', end: 'bottom bottom', scrub: 0.6 },
+    })
+    showcase
+      .to('#showcaseImg', { clipPath: 'inset(0% 0% 0% 0% round 0px)', scale: 1, duration: 1 }, 0)
+      .to('#showcaseImg', { filter: 'brightness(0.35) saturate(0.6) contrast(1.1)', duration: 0.6 }, 0.4)
+      .to('.showcase__title .line span', { y: 0, duration: 0.5, stagger: 0.12, ease: 'power3.out' }, 0.45)
+      .to('.showcase__desc', { opacity: 1, y: 0, duration: 0.4 }, 0.7)
+      .to('.showcase__chips .chip', { opacity: 1, duration: 0.3, stagger: 0.08 }, 0.85)
+      .to('#showcaseImg', { yPercent: -6, duration: 0.6 }, 1)
+    $$('[data-float]').forEach((chip, i) => {
+      gsap.to(chip, { y: i % 2 ? 12 : -12, duration: 2.6 + i * 0.3, yoyo: true, repeat: -1, ease: 'sine.inOut' })
+    })
+  }
 
   /* ---------- Horizontal services ---------- */
   const track = $('#servicesTrack')
-  const getScroll = () => track.scrollWidth - window.innerWidth + 24
-  const servicesTween = gsap.to(track, {
-    x: () => -getScroll(),
-    ease: 'none',
-    scrollTrigger: {
-      trigger: '.services__pin',
-      start: 'top top',
-      end: () => '+=' + getScroll(),
-      pin: true,
-      scrub: 0.5,
-      invalidateOnRefresh: true,
-      anticipatePin: 1,
-    },
-  })
-  $$('.svc').forEach((card) => {
-    gsap.fromTo(
-      card,
-      { y: 80, opacity: 0, rotate: 2 },
-      {
-        y: 0,
-        opacity: 1,
-        rotate: 0,
-        duration: 1,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: card, containerAnimation: servicesTween, start: 'left 95%' },
+  if (!reduced) {
+    const getScroll = () => track.scrollWidth - window.innerWidth + 24
+    const servicesTween = gsap.to(track, {
+      x: () => -getScroll(),
+      ease: 'none',
+      scrollTrigger: {
+        trigger: '.services__pin',
+        start: 'top top',
+        end: () => '+=' + getScroll(),
+        pin: true,
+        scrub: 0.5,
+        invalidateOnRefresh: true,
+        anticipatePin: 1,
       },
-    )
-  })
+    })
+    $$('.svc').forEach((card) => {
+      gsap.fromTo(
+        card,
+        { y: 80, opacity: 0, rotate: 2 },
+        {
+          y: 0,
+          opacity: 1,
+          rotate: 0,
+          duration: 1,
+          ease: 'power3.out',
+          scrollTrigger: { trigger: card, containerAnimation: servicesTween, start: 'left 95%' },
+        },
+      )
+    })
+  }
 
   /* ---------- Counters ---------- */
   $$('[data-count]').forEach((el) => {
@@ -357,6 +476,7 @@
 
   /* ---------- Explore: clip reveal + parallax ---------- */
   $$('.dest').forEach((card, i) => {
+    if (reduced) return
     gsap.to(card, {
       clipPath: 'inset(0 0 0% 0)',
       duration: 1.2,
