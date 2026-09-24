@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#05070d" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M6 30 L30 6 L42 6 L18 30 Z' fill='%23fff'/%3E%3Cpath d='M6 42 L22 26 L34 26 L18 42 Z' fill='%237dd3fc'/%3E%3C/svg%3E" />
+    <title>FLEET OS — 智慧出行 · 台灣高端交通平台</title>
+    <meta name="description" content="AI 驅動 · 即時交通 · 安全可靠 · 尊榮體驗。機場接送、點對點接送、包車、租車與多城市行程，一站預約。" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&family=Noto+Serif+TC:wght@600;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Preloader -->
+    <div class="loader" id="loader" aria-hidden="true">
+      <div class="loader__inner">
+        <div class="loader__logo">
+          <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true">
+            <path d="M6 30 L30 6 L42 6 L18 30 Z" fill="#fff" />
+            <path d="M6 42 L22 26 L34 26 L18 42 Z" fill="#7dd3fc" />
+          </svg>
+          <span>FLEET OS</span>
+        </div>
+        <div class="loader__count"><span id="loaderCount">0</span>%</div>
+        <div class="loader__bar"><i id="loaderBar"></i></div>
+      </div>
+      <div class="loader__curtain loader__curtain--a"></div>
+      <div class="loader__curtain loader__curtain--b"></div>
+    </div>
+
+    <!-- Custom cursor -->
+    <div class="cursor" id="cursor"><span class="cursor__label" id="cursorLabel"></span></div>
+
+    <!-- Scroll progress -->
+    <div class="progress" id="progress"></div>
+
+    <!-- HEADER (kept from reference layout) -->
+    <header class="nav" id="nav">
+      <div class="nav__inner">
+        <a class="nav__brand" href="#top" data-cursor="hover">
+          <span class="nav__mark">
+            <svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true">
+              <path d="M6 30 L30 6 L42 6 L18 30 Z" fill="currentColor" />
+              <path d="M6 42 L22 26 L34 26 L18 42 Z" fill="#7dd3fc" />
+            </svg>
+          </span>
+          <span class="nav__wordmark">
+            <b>FLEET OS</b>
+            <small>智慧出行 · 台灣高端交通平台</small>
+          </span>
+        </a>
+
+        <nav class="nav__menu" aria-label="主選單">
+          <a class="is-active" href="#top" data-cursor="hover">首頁</a>
+          <a href="#booking" data-cursor="hover">立即預約</a>
+          <a href="#live" data-cursor="hover">即時地圖</a>
+          <a href="#services" data-cursor="hover">服務項目</a>
+          <a href="#explore" data-cursor="hover">探索台灣</a>
+          <a href="#enterprise" data-cursor="hover">企業方案</a>
+          <a href="#offers" data-cursor="hover">優惠活動</a>
+          <a href="#about" data-cursor="hover">關於我們</a>
+        </nav>
+
+        <div class="nav__actions">
+          <button class="nav__lang" type="button" data-cursor="hover">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+            </svg>
+            <span>繁體中文</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          <button class="nav__bell" type="button" aria-label="通知" data-cursor="hover">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0" />
+            </svg>
+            <span class="nav__badge">3</span>
+          </button>
+          <button class="nav__user" type="button" data-cursor="hover">
+            <span class="nav__avatar">管</span>
+            <span>管理員</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          <button class="nav__burger" id="burger" type="button" aria-label="選單" aria-expanded="false">
+            <i></i><i></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Fullscreen menu (mobile / begonia style) -->
+    <div class="menu" id="menu" aria-hidden="true">
+      <div class="menu__bg"></div>
+      <nav class="menu__list">
+        <a href="#top">首頁</a>
+        <a href="#booking">立即預約</a>
+        <a href="#live">即時地圖</a>
+        <a href="#services">服務項目</a>
+        <a href="#explore">探索台灣</a>
+        <a href="#enterprise">企業方案</a>
+        <a href="#offers">優惠活動</a>
+        <a href="#about">關於我們</a>
+      </nav>
+    </div>
+
+    <main id="top">
+      <!-- HERO -->
+      <section class="hero" id="hero">
+        <div class="hero__media">
+          <img class="hero__img" id="heroImg" src="./assets/hero-taipei.jpg" alt="台北夜景與台北 101" />
+          <div class="hero__veil"></div>
+          <div class="hero__grain"></div>
+        </div>
+
+        <div class="hero__plane" id="plane" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="64" height="64" fill="currentColor">
+            <path d="M62 32c0-1.7-1.6-3-4-3H42L26 8h-6l8 21H14l-5-6H4l4 9-4 9h5l5-6h14l-8 21h6l16-21h16c2.4 0 4-1.3 4-3Z" />
+          </svg>
+        </div>
+
+        <div class="hero__content">
+          <div class="hero__eyebrow reveal-up">
+            <span class="dot"></span> AI 驅動 · 即時交通 · 安全可靠 · 尊榮體驗
+          </div>
+          <h1 class="hero__title">
+            <span class="split" data-split>更智慧的出行，</span>
+            <span class="split hero__title-accent" data-split>連接更美好的台灣</span>
+          </h1>
+
+          <div class="hero__ai reveal-up" data-cursor="hover">
+            <span class="hero__ai-icon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="4" y="6" width="16" height="12" rx="4" />
+                <circle cx="9.5" cy="12" r="1.2" fill="currentColor" />
+                <circle cx="14.5" cy="12" r="1.2" fill="currentColor" />
+                <path d="M12 2v4" />
+              </svg>
+            </span>
+            <span class="hero__ai-text">
+              <b>AI 智慧助手</b>
+              <small>告訴我您的行程需求，我將為您推薦最佳路線與車型。</small>
+            </span>
+            <span class="hero__ai-arrow">→</span>
+          </div>
+        </div>
+
+        <!-- BOOKING WIDGET (kept from reference layout) -->
+        <div class="booking" id="booking">
+          <div class="booking__tabs" role="tablist">
+            <span class="booking__indicator" id="tabIndicator"></span>
+            <button class="booking__tab is-active" role="tab" data-tab="airport" data-cursor="hover">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5Z"/></svg>
+              機場接送
+            </button>
+            <button class="booking__tab" role="tab" data-tab="p2p" data-cursor="hover">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+              點對點接送
+            </button>
+            <button class="booking__tab" role="tab" data-tab="charter" data-cursor="hover">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13l2-5h14l2 5v5H3z"/><circle cx="7.5" cy="16.5" r="1.5"/><circle cx="16.5" cy="16.5" r="1.5"/></svg>
+              包車（附司機）
+            </button>
+            <button class="booking__tab" role="tab" data-tab="rental" data-cursor="hover">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h14l-1.5-6h-11z"/><path d="M7 11l1.5-4h7L17 11"/><circle cx="7.5" cy="18" r="1.5"/><circle cx="16.5" cy="18" r="1.5"/></svg>
+              租車（自駕）
+            </button>
+            <button class="booking__tab" role="tab" data-tab="multi" data-cursor="hover">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10l6-3 4 3 6-3v10l-6 3-4-3z"/><path d="M10 7v10M14 10v10"/></svg>
+              多城市行程
+            </button>
+          </div>
+
+          <form class="booking__form" id="bookingForm" autocomplete="off">
+            <label class="field" data-cursor="hover">
+              <span class="field__icon">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5Z"/></svg>
+              </span>
+              <span class="field__body">
+                <small>上車地點</small>
+                <input id="pickup" name="pickup" value="桃園國際機場 (TPE)" />
+              </span>
+              <span class="field__chev">⌄</span>
+            </label>
+
+            <button class="booking__swap" type="button" id="swapBtn" aria-label="交換上下車地點" data-cursor="hover">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4v16m0-16L3 8m4-4 4 4M17 20V4m0 16 4-4m-4 4-4-4"/></svg>
+            </button>
+
+            <label class="field" data-cursor="hover">
+              <span class="field__icon field__icon--pin">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+              </span>
+              <span class="field__body">
+                <small>下車地點</small>
+                <input id="dropoff" name="dropoff" value="台北市區" />
+              </span>
+              <span class="field__chev">⌄</span>
+            </label>
+
+            <label class="field" data-cursor="hover">
+              <span class="field__icon field__icon--cal">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+              </span>
+              <span class="field__body">
+                <small>日期 / 時間</small>
+                <input name="datetime" value="2026/09/24　16:30" />
+              </span>
+              <span class="field__chev">⌄</span>
+            </label>
+
+            <label class="field" data-cursor="hover">
+              <span class="field__icon field__icon--user">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+              </span>
+              <span class="field__body">
+                <small>乘客 / 行李</small>
+                <input name="pax" value="1 位成人 · 2 件行李" />
+              </span>
+              <span class="field__chev">⌄</span>
+            </label>
+
+            <button class="booking__submit magnetic" type="submit" data-cursor="hover">
+              <span>搜尋車輛</span>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+            </button>
+          </form>
+
+          <div class="booking__routes">
+            <span class="booking__routes-label">熱門路線：</span>
+            <button type="button" data-route="桃園國際機場 (TPE)|台北市區" data-cursor="hover">TPE → 台北市</button>
+            <button type="button" data-route="台北市區|九份老街" data-cursor="hover">台北 → 九份</button>
+            <button type="button" data-route="台北市區|日月潭" data-cursor="hover">台北 → 日月潭</button>
+            <button type="button" data-route="台北市區|高雄市" data-cursor="hover">台北 → 高雄</button>
+            <button type="button" data-route="台北市區|墾丁" data-cursor="hover">台北 → 墾丁</button>
+            <button type="button" data-route="台北市區|阿里山" data-cursor="hover">台北 → 阿里山</button>
+            <button type="button" class="more" data-cursor="hover">更多路線 ⌄</button>
+          </div>
+        </div>
+
+        <div class="hero__scroll" aria-hidden="true">
+          <span>SCROLL</span>
+          <i></i>
+        </div>
+      </section>
+
+      <!-- MARQUEE -->
+      <section class="marquee" aria-hidden="true">
+        <div class="marquee__track" id="marquee">
+          <span>機場接送</span><em>✦</em><span>點對點接送</span><em>✦</em><span>包車旅遊</span><em>✦</em><span>自駕租車</span><em>✦</em><span>多城市行程</span><em>✦</em><span>企業專案</span><em>✦</em>
+          <span>機場接送</span><em>✦</em><span>點對點接送</span><em>✦</em><span>包車旅遊</span><em>✦</em><span>自駕租車</span><em>✦</em><span>多城市行程</span><em>✦</em><span>企業專案</span><em>✦</em>
+        </div>
+      </section>
+
+      <!-- MANIFESTO -->
+      <section class="manifesto" id="about">
+        <p class="manifesto__text" data-words>
+          我們相信，移動不該只是抵達。從落地的那一刻起，每一段路程都應該安靜、準確、值得信賴——
+          由 AI 排程、即時路況與專業司機共同守護，讓您把注意力留給旅程本身。
+        </p>
+        <div class="manifesto__meta reveal-up">
+          <span>Taipei · Taoyuan · Taichung · Kaohsiung</span>
+          <span>Since 2019</span>
+        </div>
+      </section>
+
+      <!-- PINNED VEHICLE SHOWCASE -->
+      <section class="showcase" id="showcase">
+        <div class="showcase__sticky">
+          <div class="showcase__media">
+            <img src="./assets/alphard.jpg" alt="Toyota Alphard 黑色" id="showcaseImg" />
+            <div class="showcase__veil"></div>
+          </div>
+          <div class="showcase__copy">
+            <span class="showcase__kicker">FLEET</span>
+            <h2 class="showcase__title">
+              <span class="line"><span>尊榮座駕</span></span>
+              <span class="line"><span>為每一次抵達而生</span></span>
+            </h2>
+            <p class="showcase__desc">
+              Toyota Alphard、Mercedes-Benz V-Class、Lexus LM。全車系不超過三年車齡，
+              每日消毒、行前檢測、專屬司機實名認證。
+            </p>
+          </div>
+          <ul class="showcase__chips" aria-hidden="true">
+            <li class="chip" data-float><i></i>司機已指派 · 陳偉 4.9</li>
+            <li class="chip" data-float><i></i>航班 BR 236 準時起飛</li>
+            <li class="chip" data-float><i></i>預估行程 40–50 分鐘</li>
+            <li class="chip" data-float><i></i>行李 2 件 · 已確認</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- SERVICES: horizontal scroll -->
+      <section class="services" id="services">
+        <div class="services__head">
+          <span class="kicker reveal-up">SERVICES</span>
+          <h2 class="h2 reveal-up">五種出行方式<br />一個平台</h2>
+        </div>
+        <div class="services__pin">
+          <div class="services__track" id="servicesTrack">
+            <article class="svc" data-cursor="drag">
+              <span class="svc__no">01</span>
+              <img src="./assets/airport.jpg" alt="桃園國際機場第二航廈" />
+              <div class="svc__body">
+                <h3>機場接送</h3>
+                <p>航班即時追蹤、免費等候 60 分鐘、專人舉牌接機。TPE / TSA / KHH 全機場服務。</p>
+                <a href="#booking">立即預約 →</a>
+              </div>
+            </article>
+            <article class="svc" data-cursor="drag">
+              <span class="svc__no">02</span>
+              <img src="./assets/taipei-day.jpg" alt="台北市景" />
+              <div class="svc__body">
+                <h3>點對點接送</h3>
+                <p>城市內任意兩點，固定價格、不加價。商務會議、飯店往返、夜間安全接送。</p>
+                <a href="#booking">立即預約 →</a>
+              </div>
+            </article>
+            <article class="svc" data-cursor="drag">
+              <span class="svc__no">03</span>
+              <img src="./assets/sunmoon.jpg" alt="日月潭" />
+              <div class="svc__body">
+                <h3>包車（附司機）</h3>
+                <p>8 / 10 小時彈性包車，司機兼導覽。九份、日月潭、阿里山，一日或多日皆可。</p>
+                <a href="#booking">立即預約 →</a>
+              </div>
+            </article>
+            <article class="svc" data-cursor="drag">
+              <span class="svc__no">04</span>
+              <img src="./assets/alphard.jpg" alt="租車自駕" />
+              <div class="svc__body">
+                <h3>租車（自駕）</h3>
+                <p>機場櫃台取車、異地還車。全險保障、ETC 與導航內建，24 小時道路救援。</p>
+                <a href="#booking">立即預約 →</a>
+              </div>
+            </article>
+            <article class="svc" data-cursor="drag">
+              <span class="svc__no">05</span>
+              <img src="./assets/kaohsiung.jpg" alt="高雄夜景" />
+              <div class="svc__body">
+                <h3>多城市行程</h3>
+                <p>台北 → 台中 → 高雄，一張訂單串起整個環島。AI 自動排程與飯店時段銜接。</p>
+                <a href="#booking">立即預約 →</a>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- LIVE / NUMBERS -->
+      <section class="numbers" id="live">
+        <div class="numbers__grid">
+          <div class="num reveal-up"><b data-count="1240">0</b><span>本週 TPE → 台北 接送</span></div>
+          <div class="num reveal-up"><b data-count="98.6" data-decimals="1">0</b><span>% 準時抵達率</span></div>
+          <div class="num reveal-up"><b data-count="320">0</b><span>位實名認證專業司機</span></div>
+          <div class="num reveal-up"><b data-count="4.9" data-decimals="1">0</b><span>★ 平均乘客評分</span></div>
+        </div>
+        <div class="numbers__map reveal-up" aria-hidden="true">
+          <div class="radar"></div>
+          <span class="pin pin--1"></span>
+          <span class="pin pin--2"></span>
+          <span class="pin pin--3"></span>
+          <span class="pin pin--4"></span>
+          <div class="numbers__eta chip"><i></i>距離最近的車輛 · 3 分鐘 · 1.2 公里</div>
+        </div>
+      </section>
+
+      <!-- EXPLORE TAIWAN -->
+      <section class="explore" id="explore">
+        <div class="explore__head">
+          <span class="kicker reveal-up">EXPLORE TAIWAN</span>
+          <h2 class="h2 reveal-up">探索台灣<br /><em>由北到南，一車直達</em></h2>
+        </div>
+        <div class="explore__grid">
+          <a class="dest dest--tall" href="#booking" data-cursor="view" data-route="台北市區|台北 101">
+            <div class="dest__img"><img src="./assets/hero-taipei.jpg" alt="台北" data-parallax /></div>
+            <div class="dest__meta"><b>台北</b><span>現代與文化</span></div>
+          </a>
+          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|九份老街">
+            <div class="dest__img"><img src="./assets/jiufen.jpg" alt="九份" data-parallax /></div>
+            <div class="dest__meta"><b>九份</b><span>懷舊老街</span></div>
+          </a>
+          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|日月潭">
+            <div class="dest__img"><img src="./assets/sunmoon.jpg" alt="日月潭" data-parallax /></div>
+            <div class="dest__meta"><b>日月潭</b><span>湖光山色</span></div>
+          </a>
+          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|阿里山">
+            <div class="dest__img"><img src="./assets/alishan.jpg" alt="阿里山" data-parallax /></div>
+            <div class="dest__meta"><b>阿里山</b><span>森林美景</span></div>
+          </a>
+          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|高雄市">
+            <div class="dest__img"><img src="./assets/kaohsiung.jpg" alt="高雄" data-parallax /></div>
+            <div class="dest__meta"><b>高雄</b><span>海港城市</span></div>
+          </a>
+          <a class="dest dest--wide" href="#booking" data-cursor="view" data-route="台北市區|墾丁">
+            <div class="dest__img"><img src="./assets/kenting.jpg" alt="墾丁" data-parallax /></div>
+            <div class="dest__meta"><b>墾丁</b><span>陽光海灘</span></div>
+          </a>
+        </div>
+      </section>
+
+      <!-- ENTERPRISE -->
+      <section class="enterprise" id="enterprise">
+        <div class="enterprise__inner">
+          <div class="enterprise__copy">
+            <span class="kicker reveal-up">ENTERPRISE</span>
+            <h2 class="h2 reveal-up">企業方案<br />為團隊而設計的移動基礎設施</h2>
+            <p class="reveal-up">月結帳單、電子發票 e-GUI 自動開立、員工差旅政策、即時行程分享與 24/7 客服專線。</p>
+            <a class="btn btn--ghost reveal-up magnetic" href="#booking" data-cursor="hover">預約企業顧問 →</a>
+          </div>
+          <ul class="enterprise__list">
+            <li class="reveal-up"><b>01</b><span>司機實名認證 · 100% 背景審核</span></li>
+            <li class="reveal-up"><b>02</b><span>行程分享 · 即時位置與 ETA</span></li>
+            <li class="reveal-up"><b>03</b><span>緊急聯絡 · 24/7 客服支援</span></li>
+            <li class="reveal-up"><b>04</b><span>動態定價透明 · 無隱藏費用</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- OFFERS -->
+      <section class="offers" id="offers">
+        <div class="offers__head">
+          <span class="kicker reveal-up">OFFERS</span>
+          <h2 class="h2 reveal-up">優惠活動</h2>
+        </div>
+        <div class="offers__row">
+          <article class="offer reveal-up" data-cursor="hover">
+            <span class="offer__tag">首次使用限定</span>
+            <h3>機場接送 <em>10% 折扣</em></h3>
+            <p>新會員首趟機場接送，輸入代碼 <code>FLEET10</code>。</p>
+          </article>
+          <article class="offer reveal-up" data-cursor="hover">
+            <span class="offer__tag">適用 4 人以上</span>
+            <h3>家庭旅遊 <em>NT$ 300 折扣</em></h3>
+            <p>Alphard / V-Class 車型，週間出發加贈兒童安全座椅。</p>
+          </article>
+          <article class="offer reveal-up" data-cursor="hover">
+            <span class="offer__tag">Gold 會員</span>
+            <h3>機場貴賓 <em>優先派車</em></h3>
+            <p>累積 7,320 點升級 Platinum，享專屬活動與優先預約。</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="cta">
+        <h2 class="cta__title" data-split>準備好出發了嗎？</h2>
+        <a class="btn btn--big magnetic" href="#booking" data-cursor="hover">立即預約 <span>→</span></a>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer__inner">
+        <div class="footer__brand">
+          <svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true">
+            <path d="M6 30 L30 6 L42 6 L18 30 Z" fill="#fff" />
+            <path d="M6 42 L22 26 L34 26 L18 42 Z" fill="#7dd3fc" />
+          </svg>
+          <div><b>FLEET OS</b><small>智慧出行 · 台灣高端交通平台</small></div>
+        </div>
+        <div class="footer__cols">
+          <div><b>服務項目</b><a href="#services">機場接送</a><a href="#services">點對點接送</a><a href="#services">包車（附司機）</a><a href="#services">租車（自駕）</a><a href="#services">多城市行程</a></div>
+          <div><b>探索台灣</b><a href="#explore">台北</a><a href="#explore">九份</a><a href="#explore">日月潭</a><a href="#explore">阿里山</a><a href="#explore">高雄</a><a href="#explore">墾丁</a></div>
+          <div><b>支援服務</b><a href="#">常見問題</a><a href="#">聯絡我們</a><a href="#">安全保障</a><a href="#">隱私權</a></div>
+          <div><b>下載 App</b><a href="#" class="store">App Store</a><a href="#" class="store">Google Play</a></div>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <span>© 2026 FLEET OS. All rights reserved.</span>
+        <span class="footer__social"><a href="#">Facebook</a><a href="#">Instagram</a><a href="#">YouTube</a><a href="#">LINE</a></span>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
+    <script src="./main.js"></script>
+  </body>
+</html>
