@@ -116,9 +116,8 @@ function PlazaVehicle({ id, index }: { id: VehicleId; index: number }) {
       >
         <Vehicle variant={id} color={spec.color} lights={false} />
       </group>
-      {showCard && (
-        <Html position={[0, 3.4, 0]} center distanceFactor={isMobile ? 14 : 12} zIndexRange={[20, 0]} style={{ pointerEvents: 'auto' }}>
-          <div className={`vcard ${isSel ? 'is-selected' : ''}`}>
+      <Html position={[0, 3.4, 0]} center distanceFactor={isMobile ? 14 : 12} zIndexRange={[20, 0]} style={{ pointerEvents: showCard ? 'auto' : 'none' }}>
+          <div className={`vcard ${isSel ? 'is-selected' : ''} ${showCard ? '' : 'is-hidden'}`}>
             <div className="vcard__head">
               <span className="vcard__name">{spec.name}</span>
               <span className="vcard__price">{fmtTWD(trip.fareFor(id))}</span>
@@ -139,8 +138,7 @@ function PlazaVehicle({ id, index }: { id: VehicleId; index: number }) {
               Book this ride
             </button>
           </div>
-        </Html>
-      )}
+      </Html>
     </group>
   )
 }

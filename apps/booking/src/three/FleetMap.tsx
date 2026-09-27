@@ -181,8 +181,8 @@ export function FleetMap() {
       {cars.map((c) => (
         <MiniCar key={c.id} car={c} onHover={onHover} />
       ))}
-      {hover && (
-        <Html position={[hover.pos.x - WORLD.fleet.x, 2.2, hover.pos.z - WORLD.fleet.z]} center distanceFactor={40} zIndexRange={[20, 0]}>
+      <Html position={hover ? [hover.pos.x - WORLD.fleet.x, 2.2, hover.pos.z - WORLD.fleet.z] : [0, 2.2, 0]} center distanceFactor={40} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+        {hover && (
           <div className="fleetcard">
             <div className="fleetcard__row">
               <span className="fleetcard__k">Driver</span>
@@ -201,8 +201,8 @@ export function FleetMap() {
               <span className={`fleetcard__status is-${hover.car.status.replace(' ', '').toLowerCase()}`}>{hover.car.status}</span>
             </div>
           </div>
-        </Html>
-      )}
+        )}
+      </Html>
       <ambientLight intensity={0.25} />
       <directionalLight position={[40, 60, 20]} intensity={1.6} castShadow color="#cfd8ff" shadow-mapSize={[1024, 1024]}>
         <orthographicCamera attach="shadow-camera" args={[-60, 60, 60, -60, 1, 200]} />

@@ -749,8 +749,13 @@ html.is-ready .hero__title .line--accent {
   font-family: var(--font-body);
   color: var(--ink);
   transform: translateY(0);
-  animation: pop 0.5s var(--ease);
+  transition: opacity 0.4s var(--ease), transform 0.4s var(--ease), visibility 0.4s;
   box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.9);
+}
+.vcard.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px) scale(0.96);
 }
 @keyframes pop {
   from {
