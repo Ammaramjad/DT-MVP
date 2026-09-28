@@ -63,6 +63,10 @@ a {
   inset: 0;
   z-index: 0;
 }
+.gl-wrap {
+  position: absolute;
+  inset: 0;
+}
 .gl {
   position: absolute !important;
   inset: 0;
@@ -624,9 +628,42 @@ html.is-ready .hero__title .line--accent {
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr auto auto;
   padding: 100px var(--pad) 32px;
   opacity: clamp(0, calc((var(--p) - 0.4) * 6), 1);
+}
+.ridecard {
+  display: grid;
+  gap: 12px;
+  width: min(420px, 100%);
+  margin: 14px auto 0;
+  padding: 16px 18px;
+  animation: rise 0.6s var(--ease);
+}
+.ridecard__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.ridecard__name {
+  font-family: var(--font);
+  font-size: 20px;
+}
+.ridecard__price {
+  font-family: var(--font);
+  font-size: 22px;
+  color: var(--accent);
+}
+.ridecard__meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.ridecard .btn {
+  justify-self: stretch;
 }
 .choose__head {
   max-width: 620px;
@@ -667,6 +704,13 @@ html.is-ready .hero__title .line--accent {
   font-size: 15px;
   color-scheme: dark;
   padding: 0;
+  min-width: 0;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.tripbar input::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+  margin-left: 4px;
 }
 .stepper {
   display: flex;
@@ -1297,19 +1341,47 @@ html.is-ready .hero__title .line--accent {
   .choose {
     padding-top: 92px;
     padding-bottom: 88px;
+    grid-template-rows: auto 1fr auto auto auto;
+  }
+  .choose__head .story__hint {
+    display: none;
   }
   .tripbar {
     justify-self: stretch;
     flex-wrap: wrap;
     gap: 0;
+    margin-bottom: 10px;
   }
   .tripbar label {
     min-width: 0;
-    flex: 1 1 33%;
+    flex: 1 1 50%;
     padding: 8px 12px;
   }
-  .tripbar label:nth-child(3) {
+  .tripbar label:nth-child(2) {
     border-right: 0;
+  }
+  .tripbar label:nth-child(3) {
+    flex: 1 1 100%;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+  .tripbar input {
+    font-size: 14px;
+  }
+  .ridecard {
+    padding: 12px 14px;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .ridecard__name {
+    font-size: 17px;
+  }
+  .ridecard__price {
+    font-size: 18px;
+  }
+  .ridecard .btn {
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
   .tripbar__fare {
     flex: 1 1 100%;

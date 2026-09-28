@@ -12,7 +12,7 @@ import { RouteSystem } from './Route'
 import { Studio } from './Studio'
 import { VehiclePlaza } from './VehiclePlaza'
 import { WhyObjects } from './WhyObjects'
-import { WORLD } from './world'
+import { WORLD, htmlPortal } from './world'
 
 function Particles({ count }: { count: number }) {
   const ref = useRef<THREE.Points>(null)
@@ -102,6 +102,7 @@ export default function Scene() {
   }, [quality])
 
   return (
+    <div className="gl-wrap" ref={htmlPortal}>
     <Canvas
       className="gl"
       dpr={dpr}
@@ -144,5 +145,6 @@ export default function Scene() {
         </EffectComposer>
       )}
     </Canvas>
+    </div>
   )
 }

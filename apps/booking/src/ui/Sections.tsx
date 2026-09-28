@@ -93,7 +93,10 @@ export function Choose() {
   const b = useStore((s) => s.booking)
   const set = useStore((s) => s.setBooking)
   const isMobile = useStore((s) => s.isMobile)
+  const webgl = useStore((s) => s.webgl)
   const trip = useTrip()
+  const spec = VEHICLES.find((v) => v.id === b.vehicle) ?? VEHICLES[0]
+  const domCard = isMobile || !webgl
   const touch = useRef<{ x: number; y: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -164,6 +167,22 @@ export function Choose() {
             </button>
           ))}
         </div>
+        {domCard && (
+          <div className="glass ridecard" key={spec.id}>
+            <div className="ridecard__head">
+              <span className="ridecard__name">{spec.name}</span>
+              <span className="ridecard__price">{fmtTWD(trip.fare)}</span>
+            </div>
+            <div className="ridecard__meta">
+              <span>{spec.seats} seats</span>
+              <span>{spec.luggage} bags</span>
+              <span>ETA {spec.etaMin} min</span>
+            </div>
+            <button className="btn btn--primary" onClick={() => scrollToSection('confirm')}>
+              Book this ride
+            </button>
+          </div>
+        )}
       </div>
     </Scene>
   )

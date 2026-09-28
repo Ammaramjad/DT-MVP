@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { scrollState, useStore } from '../store'
 import { WHY_ITEMS } from '../lib/content'
-import { WORLD, clamp01 } from './world'
+import { WORLD, clamp01, htmlPortal } from './world'
 
 function Shape({ i, glass }: { i: number; glass: THREE.Material }) {
   switch (i) {
@@ -120,7 +120,7 @@ export function WhyObjects() {
                 <ringGeometry args={[1.7, 1.78, 48]} />
                 <meshBasicMaterial color={hover === i ? '#dfe6ff' : '#3a4468'} toneMapped={false} transparent opacity={0.9} />
               </mesh>
-              <Html position={[0, -1.4, 0]} center distanceFactor={14} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
+              <Html portal={htmlPortal} position={[0, -1.4, 0]} center distanceFactor={14} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
                 <div className={`whylabel ${hover === i ? 'is-hover' : ''}`}>
                   <span className="whylabel__t">{it.title}</span>
                   <span className="whylabel__c">{it.copy}</span>

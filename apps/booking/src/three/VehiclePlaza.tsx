@@ -6,7 +6,7 @@ import { VEHICLES, fmtTWD, type VehicleId } from '../lib/data'
 import { scrollToSection } from '../lib/scroll'
 import { scrollState, useStore, useTrip } from '../store'
 import { Vehicle } from './Vehicle'
-import { WORLD, range, smooth } from './world'
+import { WORLD, htmlPortal, range, smooth } from './world'
 
 const SLOT_BACK: [number, number][] = [
   [-9.5, -7],
@@ -91,7 +91,7 @@ function PlazaVehicle({ id, index }: { id: VehicleId; index: number }) {
     }
   })
 
-  const showCard = isHov || (isSel && !hovered)
+  const showCard = !isMobile && (isHov || (isSel && !hovered))
 
   return (
     <group ref={g} position={[60, 0, 0]}>
@@ -116,7 +116,8 @@ function PlazaVehicle({ id, index }: { id: VehicleId; index: number }) {
       >
         <Vehicle variant={id} color={spec.color} lights={false} />
       </group>
-      <Html position={[0, 3.4, 0]} center distanceFactor={isMobile ? 14 : 12} zIndexRange={[20, 0]} style={{ pointerEvents: showCard ? 'auto' : 'none' }}>
+      {!isMobile && (
+      <Html portal={htmlPortal} position={[0, 3.4, 0]} center distanceFactor={12} zIndexRange={[20, 0]} style={{ pointerEvents: showCard ? 'auto' : 'none' }}>
           <div className={`vcard ${isSel ? 'is-selected' : ''} ${showCard ? '' : 'is-hidden'}`}>
             <div className="vcard__head">
               <span className="vcard__name">{spec.name}</span>
@@ -139,6 +140,7 @@ function PlazaVehicle({ id, index }: { id: VehicleId; index: number }) {
             </button>
           </div>
       </Html>
+      )}
     </group>
   )
 }

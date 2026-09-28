@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { scrollState, useStore } from '../store'
-import { WORLD } from './world'
+import { WORLD, htmlPortal } from './world'
 
 const GRID = 7
 const CELL = 12
@@ -181,7 +181,7 @@ export function FleetMap() {
       {cars.map((c) => (
         <MiniCar key={c.id} car={c} onHover={onHover} />
       ))}
-      <Html position={hover ? [hover.pos.x - WORLD.fleet.x, 2.2, hover.pos.z - WORLD.fleet.z] : [0, 2.2, 0]} center distanceFactor={40} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+      <Html portal={htmlPortal} position={hover ? [hover.pos.x - WORLD.fleet.x, 2.2, hover.pos.z - WORLD.fleet.z] : [0, 2.2, 0]} center distanceFactor={40} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
         {hover && (
           <div className="fleetcard">
             <div className="fleetcard__row">
