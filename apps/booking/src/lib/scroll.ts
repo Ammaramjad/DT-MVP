@@ -101,7 +101,7 @@ export function initScroll() {
 const LANDING: Partial<Record<SectionId, number>> = {
   pickup: 0.55,
   destination: 0.55,
-  choose: 0.6,
+  choose: 0.92,
   confirm: 0.55,
   journey: 0.15,
   fleet: 0.25,
