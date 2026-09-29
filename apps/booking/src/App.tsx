@@ -1,7 +1,6 @@
-import { Canvas } from '@react-three/fiber'
-import { Environment, OrbitControls, useGLTF } from '@react-three/drei'
-import { Component, Suspense, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react'
-import * as THREE from 'three'
+import { useEffect, useMemo, useState } from 'react'
+import { FleetScene } from './three/FleetScene'
+import { createDemoRoute } from './lib/routing'
 import { PLACES, SERVICES, VEHICLES, fmtTWD, vehicleFits, type ServiceId, type VehicleId } from './lib/data'
 import { useStore, useTrip } from './store'
 
@@ -12,7 +11,7 @@ const COPY = {
     heroCopy: 'Airport transfers, private journeys and executive mobility—coordinated with precision from curb to destination.',
     plan: 'Plan your journey', discover: 'Discover Fleet OS', availability: 'Operating across Taiwan',
     bookingEyebrow: 'Intelligent booking', bookingTitle: 'One calm flow. Every detail considered.', bookingCopy: 'Build your journey step by step while the world adapts around you.',
-    steps: ['Service', 'Pickup', 'Destination', 'Schedule', 'Travellers', 'Vehicle', 'Review'],
+    steps: ['Service', 'Pickup', 'Destination', 'Date & time', 'Passengers & luggage', 'Vehicle class', 'Vehicle model', 'Options', 'Review'],
     selectService: 'Choose how you want to move', pickup: 'Where should we meet you?', destination: 'Where are you going?', schedule: 'When should we arrive?',
     travellers: 'Who and what is travelling?', vehicle: 'Choose your vehicle', review: 'Review your journey',
     next: 'Continue', back: 'Back', date: 'Date', time: 'Time', passengers: 'Passengers', luggage: 'Luggage', bags: 'bags', seats: 'seats',
@@ -34,7 +33,7 @@ const COPY = {
     eyebrow: '台灣 · 私人移動服務', heroA: '讓每次移動，', heroB: '都從容有序。', heroCopy: '從機場接送、私人行程到高階商務移動，以精準安排串聯上車地點與目的地。',
     plan: '規劃您的旅程', discover: '探索 Fleet OS', availability: '服務範圍遍及台灣',
     bookingEyebrow: '智慧預約', bookingTitle: '一套從容流程，兼顧每個細節。', bookingCopy: '循序建立行程，視覺情境會隨您的選擇即時變化。',
-    steps: ['服務', '上車地點', '目的地', '日期時間', '乘客與行李', '選擇車輛', '確認'], selectService: '選擇您的移動方式', pickup: '我們要在哪裡接您？', destination: '您要前往哪裡？', schedule: '希望何時出發？',
+    steps: ['服務', '上車地點', '目的地', '日期時間', '乘客與行李', '車輛級別', '車款', '加購選項', '確認'], selectService: '選擇您的移動方式', pickup: '我們要在哪裡接您？', destination: '您要前往哪裡？', schedule: '希望何時出發？',
     travellers: '同行人數與行李', vehicle: '選擇您的車輛', review: '確認您的旅程', next: '繼續', back: '返回', date: '日期', time: '時間', passengers: '乘客', luggage: '行李', bags: '件行李', seats: '座位',
     pickupLabel: '上車地點', destinationLabel: '目的地', estimate: '預估車資', distance: '預估行程', request: '準備預約需求', disclaimer: '此為預覽估價 · 車輛供應與付款將由正式預約服務確認。', selected: '已選擇', unavailable: '空間不足',
     world: ['機場抵達接送區', '機場出發接送', '城市點對點', '私人租車展示間', '行政商務接送'], worldSub: ['桃園機場 · 航廈接送', '市區上車 · 機場送達', '台灣城市移動網絡', '自駕車輛取車', '商務區專車接送'],
@@ -55,47 +54,7 @@ const SERVICE_NAMES: Record<ServiceId, { en: string; zh: string; detailEn: strin
   'chauffeur': { en: 'Professional chauffeur', zh: '專業司機服務', detailEn: 'Executive vehicle and driver', detailZh: '行政車輛與專業司機' },
 }
 
-const WORLD_COLORS: Record<ServiceId, [string, string]> = {
-  'airport-to-location': ['#b8aa91', '#302f2b'], 'location-to-airport': ['#9a8064', '#292b28'],
-  'location-to-location': ['#688076', '#252b28'], 'self-drive': ['#b79b68', '#1b1d1b'], 'chauffeur': ['#5d715d', '#181b19'],
-}
 
-function VehicleModel({ service }: { service: ServiceId }) {
-  const gltf = useGLTF(`${import.meta.env.BASE_URL}models/car.glb`)
-  const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene])
-  useEffect(() => { scene.traverse((o) => { if (o instanceof THREE.Mesh) { o.castShadow = true; o.receiveShadow = true } }) }, [scene])
-  return <primitive object={scene} scale={service === 'self-drive' ? 1.1 : 0.95} rotation={[0, service === 'location-to-airport' ? -0.5 : 0.35, 0]} position={[0, -0.84, 0]} />
-}
-
-function ServiceWorld({ service }: { service: ServiceId }) {
-  const [accent, dark] = WORLD_COLORS[service]
-  const showroom = service === 'self-drive'
-  return <>
-    <color attach="background" args={[dark]} /><fog attach="fog" args={[dark, 8, 34]} />
-    <ambientLight intensity={1.2} /><directionalLight position={[5, 8, 6]} intensity={3} color="#fff7e7" castShadow />
-    <spotLight position={[-6, 6, 2]} intensity={40} angle={0.45} penumbra={1} color={accent} />
-    <group>
-      <mesh rotation-x={-Math.PI / 2} position={[0, -0.9, 0]} receiveShadow><planeGeometry args={[50, 50]} /><meshStandardMaterial color={showroom ? '#171815' : '#252622'} roughness={showroom ? .28 : .9} metalness={showroom ? .35 : .05} /></mesh>
-      {!showroom && <>
-        <mesh rotation-x={-Math.PI / 2} position={[0, -0.885, 0]}><planeGeometry args={[2.6, 38]} /><meshStandardMaterial color="#30312e" roughness={.96} /></mesh>
-        {[-1.25, 1.25].map((x) => <mesh key={x} position={[x, -.87, 0]} rotation-x={-Math.PI / 2}><planeGeometry args={[.08, 38]} /><meshBasicMaterial color="#e9dfc9" /></mesh>)}
-        {(service.includes('airport') ? [-7, 7] : [-6, 6]).map((x) => <group key={x} position={[x, 0, -5]}>
-          <mesh position={[0, 2.2, 0]}><boxGeometry args={[7, 6.2, 9]} /><meshStandardMaterial color={service.includes('airport') ? '#77736a' : '#474b46'} metalness={.35} roughness={.4} /></mesh>
-          <mesh position={[x < 0 ? 3.51 : -3.51, 2.4, 0]}><planeGeometry args={[5.4, 4.2]} /><meshPhysicalMaterial color="#83928d" transmission={.25} roughness={.12} metalness={.6} /></mesh>
-        </group>)}
-      </>}
-      {showroom && <><mesh position={[0, 3, -7]}><boxGeometry args={[16, 6, .2]} /><meshStandardMaterial color="#24241f" metalness={.5} /></mesh><mesh position={[0, -.82, 0]} rotation-x={-Math.PI / 2}><ringGeometry args={[3.2, 3.28, 96]} /><meshBasicMaterial color={accent} /></mesh></>}
-      <Suspense fallback={null}><VehicleModel service={service} /><Environment files={`${import.meta.env.BASE_URL}hdr/sky_1k.hdr`} environmentIntensity={1.15} /></Suspense>
-    </group>
-    <OrbitControls enablePan={false} minDistance={4.5} maxDistance={9} minPolarAngle={.9} maxPolarAngle={1.48} target={[0, 0, 0]} />
-  </>
-}
-
-class WorldBoundary extends Component<{ children: ReactNode; fallback: string }, { failed: boolean }> {
-  state = { failed: false }; static getDerivedStateFromError() { return { failed: true } }
-  componentDidCatch(error: Error, info: ErrorInfo) { console.error('Fleet OS world unavailable', error, info.componentStack) }
-  render() { return this.state.failed ? <div className="world-fallback">{this.props.fallback}</div> : this.props.children }
-}
 
 function Header({ c }: { c: Copy }) {
   const locale = useStore(s => s.locale); const setLocale = useStore(s => s.setLocale); const [open, setOpen] = useState(false)
@@ -113,29 +72,38 @@ function Hero({ c }: { c: Copy }) {
 
 function StepContent({ c, step, setStep }: { c: Copy; step: number; setStep: (n:number)=>void }) {
   const b = useStore(s=>s.booking), set = useStore(s=>s.setBooking), trip = useTrip(), locale=useStore(s=>s.locale)
-  const title=[c.selectService,c.pickup,c.destination,c.schedule,c.travellers,c.vehicle,c.review][step]
-  const next=()=>setStep(Math.min(6,step+1)); const back=()=>setStep(Math.max(0,step-1))
-  return <div className="booking-panel"><div className="panel-head"><span>{String(step+1).padStart(2,'0')} / 07</span><h3>{title}</h3></div>
+  const title=[c.selectService,c.pickup,c.destination,c.schedule,c.travellers,c.vehicle,c.vehicle,locale==='en'?'Journey options':'行程選項',c.review][step]
+  const next=()=>setStep(Math.min(8,step+1)); const back=()=>setStep(Math.max(0,step-1))
+  return <div className="booking-panel"><div className="panel-head"><span>{String(step+1).padStart(2,'0')} / 09</span><h3>{title}</h3></div>
     <div className="panel-body">
       {step===0&&<div className="service-list">{SERVICES.map(s=>{const n=SERVICE_NAMES[s.id];return <button key={s.id} className={b.service===s.id?'active':''} onClick={()=>set({service:s.id})}><i/><span><b>{locale==='en'?n.en:n.zh}</b><small>{locale==='en'?n.detailEn:n.detailZh}</small></span><em>↗</em></button>})}</div>}
       {(step===1||step===2)&&<div className="place-list">{PLACES.slice(step===1?0:2,step===1?6:9).map(p=><button className={(step===1?b.pickup:b.destination)?.id===p.id?'active':''} key={p.id} onClick={()=>set(step===1?{pickup:p}:{destination:p})}><i/><span><b>{p.name}</b><small>{p.area}</small></span><em>→</em></button>)}</div>}
       {step===3&&<div className="schedule-grid"><label><span>{c.date}</span><input type="date" value={b.date} onChange={e=>set({date:e.target.value})}/></label><label><span>{c.time}</span><input type="time" value={b.time} onChange={e=>set({time:e.target.value})}/></label></div>}
       {step===4&&<div className="counters">{[['passengers',c.passengers,1,8],['luggage',c.luggage,0,8]].map(([key,label,min,max])=>{const value=b[key as 'passengers'|'luggage'];return <div key={key as string}><span>{label}</span><button onClick={()=>set({[key as string]:Math.max(min as number,value-1)})}>−</button><b>{value}</b><button onClick={()=>set({[key as string]:Math.min(max as number,value+1)})}>+</button></div>})}</div>}
-      {step===5&&<div className="vehicle-list">{VEHICLES.map(v=>{const fits=vehicleFits(v,b.passengers,b.luggage);return <button key={v.id} disabled={!fits} className={b.vehicle===v.id?'active':''} onClick={()=>set({vehicle:v.id as VehicleId})}><span><b>{v.name}</b><small>{v.model}</small></span><span className="vehicle-cap">{v.seats} {c.seats} · {v.luggage} {c.bags}<strong>{fits?fmtTWD(trip.fareFor(v.id)):c.unavailable}</strong></span></button>})}</div>}
-      {step===6&&<div className="review-card"><div><span>{c.pickupLabel}</span><b>{b.pickup?.name}</b></div><div><span>{c.destinationLabel}</span><b>{b.destination?.name}</b></div><div><span>{c.date}</span><b>{b.date} · {b.time}</b></div><div><span>{c.vehicle}</span><b>{trip.spec.name} · {b.passengers} {c.passengers.toLowerCase()}</b></div><div className="review-price"><span>{c.estimate}</span><b>{fmtTWD(trip.fare)}</b><small>{trip.km.toFixed(0)} km · {trip.duration} min</small></div><p>{c.disclaimer}</p></div>}
-    </div><div className="panel-foot">{step>0?<button className="back" onClick={back}>← {c.back}</button>:<span/>}<button className="button button-accent" onClick={step===6?()=>useStore.getState().confirm():next}>{step===6?c.request:c.next}<span>→</span></button></div>
+      {(step===5||step===6)&&<div className="vehicle-list">{VEHICLES.map(v=>{const fits=vehicleFits(v,b.passengers,b.luggage);return <button key={v.id} disabled={!fits} className={b.vehicle===v.id?'active':''} onClick={()=>set({vehicle:v.id as VehicleId})}><span><b>{v.name}</b><small>{v.model}</small></span><span className="vehicle-cap">{v.seats} {c.seats} · {v.luggage} {c.bags}<strong>{fits?fmtTWD(trip.fareFor(v.id)):c.unavailable}</strong></span></button>})}</div>}
+      {step===7&&<div className="options-list"><label><input type="checkbox"/> {locale==='en'?'Meet & greet at pickup':'上車地點迎賓服務'}</label><label><input type="checkbox"/> {locale==='en'?'Quiet ride preference':'偏好安靜乘車'}</label><label><input type="checkbox"/> {locale==='en'?'Child seat request':'兒童安全座椅需求'}</label></div>}
+      {step===8&&<div className="review-card"><div><span>{c.pickupLabel}</span><b>{b.pickup?.name}</b></div><div><span>{c.destinationLabel}</span><b>{b.destination?.name}</b></div><div><span>{c.date}</span><b>{b.date} · {b.time}</b></div><div><span>{c.vehicle}</span><b>{trip.spec.name} · {b.passengers} {c.passengers.toLowerCase()}</b></div><div className="review-price"><span>{c.estimate}</span><b>{fmtTWD(trip.fare)}</b><small>{trip.km.toFixed(0)} km · {trip.duration} min</small></div><p>{c.disclaimer}</p></div>}
+    </div><div className="panel-foot">{step>0?<button className="back" onClick={back}>← {c.back}</button>:<span/>}<button className="button button-accent" onClick={step===8?()=>useStore.getState().confirm():next}>{step===8?c.request:c.next}<span>→</span></button></div>
   </div>
 }
 
 function Booking({ c }: { c: Copy }) {
   const [step,setStep]=useState(0), service=useStore(s=>s.booking.service), confirmed=useStore(s=>s.confirmed), reset=useStore(s=>s.reset)
-  const index=SERVICES.findIndex(s=>s.id===service)
+  const index=SERVICES.findIndex(s=>s.id===service), booking=useStore(s=>s.booking), trip=useTrip()
+  const route=useMemo(()=>createDemoRoute(booking.pickup??PLACES[0],booking.destination??PLACES[3]),[booking.pickup,booking.destination])
   return <section className="booking" id="book"><div className="section-intro"><p className="kicker"><i/>{c.bookingEyebrow}</p><h2>{c.bookingTitle}</h2><p>{c.bookingCopy}</p></div>
     <div className="booking-shell"><aside className="step-rail">{c.steps.map((s,i)=><button className={i===step?'active':i<step?'done':''} onClick={()=>i<=step&&setStep(i)} key={s}><i>{i<step?'✓':i+1}</i><span>{s}</span></button>)}</aside>
-      <div className="world"><div className="world-meta"><span>LIVE SCENE · 0{index+1}</span><h3>{c.world[index]}</h3><p>{c.worldSub[index]}</p></div><WorldBoundary fallback={c.fallback}><Canvas shadows camera={{position:[5,2.2,6],fov:34}} key={service}><ServiceWorld service={service}/></Canvas></WorldBoundary><div className="world-controls"><span>360°</span><small>DRAG TO EXPLORE</small></div></div>
+      <div className="world"><div className="world-meta"><span>LIVE SCENE · 0{index+1}</span><h3>{c.world[index]}</h3><p>{c.worldSub[index]}</p></div><FleetScene service={service} pickup={booking.pickup??PLACES[0]} vehicle={booking.vehicle} route={route} phase={step>=8?'route':'service'} progress={step>=8?.72:0}/><div className="world-controls"><span>360°</span><small>DRAG TO EXPLORE</small></div></div>
       <StepContent c={c} step={step} setStep={setStep}/></div>
-    {confirmed&&<div className="toast" role="status"><i>✓</i><span><b>{c.ready}</b><small>{c.disclaimer}</small></span><button onClick={reset}>{c.close}</button></div>}
+    {confirmed&&<TripLifecycle c={c} routeId={route.routeId} vehicle={trip.spec.name} onClose={reset}/>}
   </section>
+}
+
+function TripLifecycle({c,routeId,vehicle,onClose}:{c:Copy;routeId:string;vehicle:string;onClose:()=>void}) {
+  const locale=useStore(s=>s.locale), [stage,setStage]=useState(0)
+  const labels=locale==='en'?['Booked','Matching driver','Driver approach','Driver arrived','Pickup','Travelling','Arrived']:['已預約','媒合司機','司機前往中','司機已抵達','乘客上車','行程中','已抵達']
+  useEffect(()=>{const timer=setInterval(()=>setStage(x=>Math.min(6,x+1)),1800);return()=>clearInterval(timer)},[])
+  return <div className="trip-lifecycle" role="status"><header><span>{locale==='en'?'DEMO JOURNEY · SIMULATED':'示範行程 · 模擬資料'}</span><button onClick={onClose}>{c.close}</button></header><b>{labels[stage]}</b><small>{vehicle} · {routeId}</small><ol>{labels.map((x,i)=><li className={i<=stage?'active':''} key={x}><i/>{x}</li>)}</ol></div>
 }
 
 function Business({c}:{c:Copy}) { return <section className="business" id="business"><div className="business-head"><p className="kicker light"><i/>{c.businessKicker}</p><h2>{c.businessTitle}</h2><p>{c.businessCopy}</p></div><div className="business-grid">{c.pillars.map((p,i)=><article key={p[0]}><span>0{i+1}</span><div className={`pillar-visual visual-${i}`}><i/><i/><i/></div><h3>{p[0]}</h3><p>{p[1]}</p></article>)}</div><div className="business-metrics"><div><b>01</b><span>{c.metricA}</span></div><div><b>360°</b><span>{c.metricB}</span></div><div><b>24/7</b><span>{c.metricC}</span></div></div></section> }
