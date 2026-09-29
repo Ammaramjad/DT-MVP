@@ -55,10 +55,10 @@ function CityWorld() {
       <JourneyVehicle />
       <VehiclePlaza />
       {quality !== 'low' && <Particles count={quality === 'high' ? 700 : 300} />}
-      <directionalLight position={[-40, 60, 20]} intensity={1.1} color="#b7c4ff" castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0003}>
+      <directionalLight position={[-40, 60, 20]} intensity={1.4} color="#ffffff" castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0003}>
         <orthographicCamera attach="shadow-camera" args={[-40, 40, 40, -40, 1, 200]} />
       </directionalLight>
-      <hemisphereLight args={['#2a3350', '#05060a', 0.8]} />
+      <hemisphereLight args={['#ffffff', '#d5dae3', 1.6]} />
     </group>
   )
 }
@@ -75,9 +75,9 @@ function Ready() {
 
 function SceneBackground() {
   const { scene } = useThree()
-  const fog = useMemo(() => new THREE.FogExp2('#06080d', 0.0065), [])
+  const fog = useMemo(() => new THREE.FogExp2('#e4e8ef', 0.0065), [])
   useEffect(() => {
-    scene.background = new THREE.Color('#06080d')
+    scene.background = new THREE.Color('#e4e8ef')
     scene.fog = fog
     return () => {
       scene.fog = null
@@ -112,7 +112,7 @@ export default function Scene() {
       eventPrefix="client"
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping
-        gl.toneMappingExposure = 1.05
+        gl.toneMappingExposure = 1.25
       }}
     >
       <PerformanceMonitor
@@ -127,10 +127,10 @@ export default function Scene() {
       <CameraRig />
       <Suspense fallback={null}>
         <Environment resolution={quality === 'high' ? 256 : 128} frames={1}>
-          <Lightformer intensity={2.2} rotation-x={Math.PI / 2} position={[0, 6, 0]} scale={[14, 2, 1]} color="#dfe6ff" />
-          <Lightformer intensity={1.2} rotation-y={Math.PI / 2} position={[-8, 2, 0]} scale={[8, 3, 1]} color="#a7b6ff" />
-          <Lightformer intensity={0.9} rotation-y={-Math.PI / 2} position={[8, 2, 0]} scale={[8, 3, 1]} color="#f4e9c8" />
-          <Lightformer intensity={0.4} position={[0, 2, -10]} scale={[20, 6, 1]} color="#5b6b8c" />
+          <Lightformer intensity={2.2} rotation-x={Math.PI / 2} position={[0, 6, 0]} scale={[14, 2, 1]} color="#ffffff" />
+          <Lightformer intensity={1.2} rotation-y={Math.PI / 2} position={[-8, 2, 0]} scale={[8, 3, 1]} color="#dfe4f2" />
+          <Lightformer intensity={0.9} rotation-y={-Math.PI / 2} position={[8, 2, 0]} scale={[8, 3, 1]} color="#f3ede2" />
+          <Lightformer intensity={0.4} position={[0, 2, -10]} scale={[20, 6, 1]} color="#8a96b0" />
         </Environment>
       </Suspense>
       <CityWorld />

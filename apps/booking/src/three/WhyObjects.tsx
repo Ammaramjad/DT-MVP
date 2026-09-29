@@ -65,7 +65,7 @@ export function WhyObjects() {
 
   const glass = useMemo(() => {
     if (quality === 'high')
-      return new THREE.MeshPhysicalMaterial({ color: '#dfe6ff', roughness: 0.08, metalness: 0, transmission: 0.92, thickness: 1.2, ior: 1.4, clearcoat: 1, envMapIntensity: 1.5 })
+      return new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.08, metalness: 0, transmission: 0.92, thickness: 1.2, ior: 1.4, clearcoat: 1, envMapIntensity: 1.5 })
     return new THREE.MeshPhysicalMaterial({ color: '#aab6f0', roughness: 0.15, metalness: 0.7, clearcoat: 1, envMapIntensity: 1.5 })
   }, [quality])
 
@@ -95,7 +95,7 @@ export function WhyObjects() {
     <group ref={root} position={WORLD.why}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.6, 0]} receiveShadow>
         <circleGeometry args={[40, 64]} />
-        <meshStandardMaterial color="#080a10" roughness={0.35} metalness={0.6} />
+        <meshStandardMaterial color="#c9cdd6" roughness={0.35} metalness={0.6} />
       </mesh>
       <group ref={ring}>
         {WHY_ITEMS.map((it, i) => {
@@ -118,7 +118,7 @@ export function WhyObjects() {
               </group>
               <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.55, 0]}>
                 <ringGeometry args={[1.7, 1.78, 48]} />
-                <meshBasicMaterial color={hover === i ? '#dfe6ff' : '#3a4468'} toneMapped={false} transparent opacity={0.9} />
+                <meshBasicMaterial color={hover === i ? '#ffffff' : '#7f8bb0'} toneMapped={false} transparent opacity={0.9} />
               </mesh>
               <Html portal={htmlPortal} position={[0, -1.4, 0]} center distanceFactor={14} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
                 <div className={`whylabel ${hover === i ? 'is-hover' : ''}`}>
@@ -130,9 +130,9 @@ export function WhyObjects() {
           )
         })}
       </group>
-      <pointLight position={[0, 10, 0]} intensity={200} distance={60} color="#dfe6ff" />
-      <pointLight position={[-12, 4, 12]} intensity={80} distance={50} color="#a7b6ff" />
-      <pointLight position={[12, 4, -12]} intensity={60} distance={50} color="#f4e9c8" />
+      <pointLight position={[0, 10, 0]} intensity={200} distance={60} color="#ffffff" />
+      <pointLight position={[-12, 4, 12]} intensity={80} distance={50} color="#4f63e0" />
+      <pointLight position={[12, 4, -12]} intensity={60} distance={50} color="#c89a2e" />
     </group>
   )
 }

@@ -99,15 +99,15 @@ export function JourneyVehicle() {
           <group key={i} position={pos} scale={[1, 0.001, 1]}>
             <mesh position={[0, 6, 0]}>
               <cylinderGeometry args={[0.05, 0.05, 12, 6]} />
-              <meshBasicMaterial color={i === 4 ? '#f4e9c8' : '#a7b6ff'} toneMapped={false} transparent opacity={0.9} />
+              <meshBasicMaterial color={i === 4 ? '#c89a2e' : '#4f63e0'} toneMapped={false} transparent opacity={0.9} />
             </mesh>
             <mesh position={[0, 12.4, 0]}>
               <octahedronGeometry args={[0.7, 0]} />
-              <meshBasicMaterial color={i === 4 ? '#f4e9c8' : '#dfe6ff'} toneMapped={false} />
+              <meshBasicMaterial color={i === 4 ? '#c89a2e' : '#ffffff'} toneMapped={false} />
             </mesh>
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
               <ringGeometry args={[1.4, 1.7, 40]} />
-              <meshBasicMaterial color={i === 4 ? '#f4e9c8' : '#a7b6ff'} toneMapped={false} side={THREE.DoubleSide} />
+              <meshBasicMaterial color={i === 4 ? '#c89a2e' : '#4f63e0'} toneMapped={false} side={THREE.DoubleSide} />
             </mesh>
           </group>
         ))}

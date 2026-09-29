@@ -17,7 +17,7 @@ function makeWindowTexture() {
   c.width = 64
   c.height = 128
   const ctx = c.getContext('2d')!
-  ctx.fillStyle = '#0a0d14'
+  ctx.fillStyle = '#cfd4dd'
   ctx.fillRect(0, 0, 64, 128)
   const rnd = seeded(7)
   for (let y = 4; y < 128; y += 8) {
@@ -93,7 +93,7 @@ export function City() {
 
   const mat = useMemo(() => {
     const m = new THREE.MeshStandardMaterial({
-      color: '#141926',
+      color: '#e6e9ef',
       roughness: 0.6,
       metalness: 0.3,
       emissive: '#ffffff',
@@ -156,7 +156,7 @@ export function Road() {
       {/* asphalt */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, centerZ]} receiveShadow>
         <planeGeometry args={[WORLD.roadWidth, length]} />
-        <meshStandardMaterial color="#0c0f16" roughness={0.35} metalness={0.5} />
+        <meshStandardMaterial color="#8c93a1" roughness={0.35} metalness={0.5} />
       </mesh>
       {/* edge glow strips */}
       {[-1, 1].map((s) => (
@@ -174,13 +174,13 @@ export function Road() {
       {[-1, 1].map((s) => (
         <mesh key={`sw${s}`} position={[s * (WORLD.roadWidth / 2 + 3), 0.15, centerZ]} receiveShadow>
           <boxGeometry args={[6, 0.3, length]} />
-          <meshStandardMaterial color="#12161f" roughness={0.9} />
+          <meshStandardMaterial color="#d0d5de" roughness={0.9} />
         </mesh>
       ))}
       {/* ground */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, centerZ]} receiveShadow>
         <planeGeometry args={[900, length + 400]} />
-        <meshStandardMaterial color="#070910" roughness={1} />
+        <meshStandardMaterial color="#c3c8d2" roughness={1} />
       </mesh>
       {/* light poles */}
       {quality !== 'low' &&
@@ -188,7 +188,7 @@ export function Road() {
           <group key={i} position={[x, 0, z]}>
             <mesh position={[0, 4, 0]}>
               <cylinderGeometry args={[0.06, 0.09, 8, 6]} />
-              <meshStandardMaterial color="#1a1f2b" />
+              <meshStandardMaterial color="#f2f4f8" />
             </mesh>
             <mesh position={[x > 0 ? -1.2 : 1.2, 8, 0]}>
               <boxGeometry args={[2.4, 0.08, 0.3]} />

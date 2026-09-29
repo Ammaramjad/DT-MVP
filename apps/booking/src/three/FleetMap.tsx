@@ -60,7 +60,7 @@ function MiniCar({ car, onHover }: { car: Car; onHover: (c: Car | null, pos: THR
       </mesh>
       <mesh position={[0, 0.35, -0.1]}>
         <boxGeometry args={[0.95, 0.3, 1.2]} />
-        <meshStandardMaterial color="#0d1522" roughness={0.1} />
+        <meshStandardMaterial color="#b9c7dc" roughness={0.1} />
       </mesh>
       <mesh position={[0, 0.05, -1.16]}>
         <boxGeometry args={[0.8, 0.1, 0.05]} />
@@ -87,7 +87,7 @@ export function FleetMap() {
   const cars = useMemo<Car[]>(() => {
     const rnd = seeded(11)
     const n = quality === 'low' ? 8 : 14
-    const palette = ['#c9ced8', '#5b6b8c', '#1b1f2a', '#0b0c10', '#2c3140', '#8a93a8']
+    const palette = ['#c9ced8', '#8a96b0', '#5b6170', '#0b0c10', '#2c3140', '#8a93a8']
     return Array.from({ length: n }, (_, i) => ({
       id: i,
       axis: i % 2 === 0 ? 'x' : 'z',
@@ -151,32 +151,32 @@ export function FleetMap() {
     <group ref={root} position={WORLD.fleet}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[EXT * 2 + 40, EXT * 2 + 40]} />
-        <meshStandardMaterial color="#090c13" roughness={0.6} metalness={0.3} />
+        <meshStandardMaterial color="#cdd2db" roughness={0.6} metalness={0.3} />
       </mesh>
       {/* road grid */}
       {Array.from({ length: GRID + 1 }, (_, i) => (
         <group key={i}>
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, -EXT + i * CELL]}>
             <planeGeometry args={[EXT * 2 + 8, ROAD]} />
-            <meshStandardMaterial color="#10141d" roughness={0.4} metalness={0.5} />
+            <meshStandardMaterial color="#e8ebf1" roughness={0.4} metalness={0.5} />
           </mesh>
           <mesh rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[-EXT + i * CELL, 0.01, 0]}>
             <planeGeometry args={[EXT * 2 + 8, ROAD]} />
-            <meshStandardMaterial color="#10141d" roughness={0.4} metalness={0.5} />
+            <meshStandardMaterial color="#e8ebf1" roughness={0.4} metalness={0.5} />
           </mesh>
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, -EXT + i * CELL]}>
             <planeGeometry args={[EXT * 2 + 8, 0.08]} />
-            <meshBasicMaterial color="#3d4a75" toneMapped={false} />
+            <meshBasicMaterial color="#7d8ab5" toneMapped={false} />
           </mesh>
           <mesh rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[-EXT + i * CELL, 0.02, 0]}>
             <planeGeometry args={[EXT * 2 + 8, 0.08]} />
-            <meshBasicMaterial color="#3d4a75" toneMapped={false} />
+            <meshBasicMaterial color="#7d8ab5" toneMapped={false} />
           </mesh>
         </group>
       ))}
       <instancedMesh ref={blocks} args={[undefined, undefined, blockData.length]} castShadow receiveShadow>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#141926" roughness={0.7} metalness={0.2} />
+        <meshStandardMaterial color="#e6e9ef" roughness={0.7} metalness={0.2} />
       </instancedMesh>
       {cars.map((c) => (
         <MiniCar key={c.id} car={c} onHover={onHover} />
@@ -203,8 +203,8 @@ export function FleetMap() {
           </div>
         )}
       </Html>
-      <ambientLight intensity={0.25} />
-      <directionalLight position={[40, 60, 20]} intensity={1.6} castShadow color="#cfd8ff" shadow-mapSize={[1024, 1024]}>
+      <hemisphereLight args={["#ffffff", "#dfe3ea", 2.2]} />
+      <directionalLight position={[40, 60, 20]} intensity={2.2} castShadow color="#ffffff" shadow-mapSize={[1024, 1024]}>
         <orthographicCamera attach="shadow-camera" args={[-60, 60, 60, -60, 1, 200]} />
       </directionalLight>
     </group>
