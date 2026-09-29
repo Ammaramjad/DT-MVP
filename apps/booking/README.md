@@ -22,3 +22,11 @@ npm run lint     # oxlint
 ## Quality & fallbacks
 
 Quality is picked from device class and renderer (software renderers → `low`). Override with `?q=low|medium|high`; force the CSS-only fallback with `?gl=0`. The 3D bundle (`three`, `r3f` chunks) is lazy-loaded; the DOM booking flow works without it.
+
+## Assets
+
+All bundled assets are free to redistribute; each is streamed lazily with a procedural/flat fallback while loading.
+
+- `public/models/car.glb` — Ferrari 458 by [vicent091036](https://sketchfab.com/models/57bf6cc56931426e87494f554df1dab6) (CC BY 4.0), via the three.js examples. Body/glass/chrome/rim/light materials are replaced at runtime per vehicle category.
+- `public/textures/asphalt_02_*` and `concrete_wall_005_*` — [Poly Haven](https://polyhaven.com) (CC0), 1k.
+- `public/hdr/sky_1k.hdr` — Poly Haven "Kloofendal 48d Partly Cloudy (Pure Sky)" (CC0), used for image-based lighting/reflections.

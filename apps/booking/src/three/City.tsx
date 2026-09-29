@@ -1,5 +1,6 @@
+import { useTexture } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { Suspense, useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useStore } from '../store'
 import { WORLD } from './world'
@@ -12,28 +13,77 @@ function seeded(seed: number) {
   }
 }
 
-function makeWindowTexture() {
-  const c = document.createElement('canvas')
-  c.width = 64
-  c.height = 128
-  const ctx = c.getContext('2d')!
-  ctx.fillStyle = '#cfd4dd'
-  ctx.fillRect(0, 0, 64, 128)
+const TEX = `${import.meta.env.BASE_URL}textures/`
+const ROAD_TEX = [`${TEX}asphalt_02_diff_1k.jpg`, `${TEX}asphalt_02_nor_gl_1k.jpg`, `${TEX}asphalt_02_rough_1k.jpg`]
+const WALL_TEX = [`${TEX}concrete_wall_005_diff_1k.jpg`, `${TEX}concrete_wall_005_nor_gl_1k.jpg`, `${TEX}concrete_wall_005_rough_1k.jpg`]
+
+/**
+ * Curtain-wall facade: one tile = one floor of a tower. Colour carries the
+ * glass/mullion pattern, roughness/metalness maps make the glass reflect the
+ * sky while the concrete spandrels stay matte. Each map is built once.
+ */
+function makeFacadeMaps() {
+  const W = 256
+  const H = 256
+  const cols = 4
+  const rows = 8
+  const cw = W / cols
+  const rh = H / rows
   const rnd = seeded(7)
-  for (let y = 4; y < 128; y += 8) {
-    for (let x = 4; x < 64; x += 8) {
-      const on = rnd()
-      if (on > 0.62) {
-        const warm = rnd() > 0.5
-        ctx.fillStyle = warm ? `rgba(255,225,180,${0.5 + rnd() * 0.5})` : `rgba(170,190,255,${0.4 + rnd() * 0.5})`
-        ctx.fillRect(x, y, 4, 5)
+  const color = document.createElement('canvas')
+  const rough = document.createElement('canvas')
+  const emis = document.createElement('canvas')
+  for (const c of [color, rough, emis]) {
+    c.width = W
+    c.height = H
+  }
+  const cc = color.getContext('2d')!
+  const rc = rough.getContext('2d')!
+  const ec = emis.getContext('2d')!
+  // concrete frame
+  cc.fillStyle = '#b9bec8'
+  cc.fillRect(0, 0, W, H)
+  rc.fillStyle = 'rgb(230,0,0)' // r = roughness, g = metalness (rough concrete)
+  rc.fillRect(0, 0, W, H)
+  ec.fillStyle = '#000'
+  ec.fillRect(0, 0, W, H)
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = c * cw + 6
+      const y = r * rh + 5
+      const w = cw - 12
+      const h = rh - 12
+      // glass pane with a vertical gradient (sky reflection)
+      const g = cc.createLinearGradient(0, y, 0, y + h)
+      const t = rnd()
+      g.addColorStop(0, `hsl(${215 + t * 15}, 30%, ${58 + t * 14}%)`)
+      g.addColorStop(1, `hsl(${215 + t * 15}, 22%, ${34 + t * 10}%)`)
+      cc.fillStyle = g
+      cc.fillRect(x, y, w, h)
+      // mullion
+      cc.fillStyle = 'rgba(40,46,58,0.55)'
+      cc.fillRect(x + w / 2 - 1, y, 2, h)
+      // glossy, metallic glass
+      rc.fillStyle = 'rgb(28,190,0)'
+      rc.fillRect(x, y, w, h)
+      // a few lit interiors
+      if (rnd() > 0.7) {
+        ec.fillStyle = rnd() > 0.5 ? 'rgba(255,226,186,0.9)' : 'rgba(200,214,255,0.8)'
+        ec.fillRect(x + 2, y + 2, w - 4, h - 4)
       }
     }
   }
-  const tex = new THREE.CanvasTexture(c)
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-  tex.colorSpace = THREE.SRGBColorSpace
-  return tex
+  // slab line at the bottom of each floor
+  cc.fillStyle = '#9ca3ad'
+  for (let r = 0; r < rows; r++) cc.fillRect(0, r * rh, W, 3)
+  const mk = (c: HTMLCanvasElement, srgb: boolean) => {
+    const t = new THREE.CanvasTexture(c)
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace
+    t.anisotropy = 4
+    return t
+  }
+  return { map: mk(color, true), rough: mk(rough, false), emissive: mk(emis, true) }
 }
 
 /**
@@ -44,7 +94,7 @@ export function City() {
   const quality = useStore((s) => s.quality)
   const count = quality === 'high' ? 520 : quality === 'medium' ? 300 : 140
   const ref = useRef<THREE.InstancedMesh>(null)
-  const tex = useMemo(makeWindowTexture, [])
+  const maps = useMemo(() => makeFacadeMaps(), [])
 
   const data = useMemo(() => {
     const rnd = seeded(42)
@@ -84,7 +134,7 @@ export function City() {
       o.scale.copy(d.scale)
       o.updateMatrix()
       m.setMatrixAt(i, o.matrix)
-      color.setHSL(0.62, 0.15, 0.06 + d.shade * 0.08)
+      color.setHSL(0.6, 0.04 + d.shade * 0.05, 0.62 + d.shade * 0.3)
       m.setColorAt(i, color)
     })
     m.instanceMatrix.needsUpdate = true
@@ -93,18 +143,42 @@ export function City() {
 
   const mat = useMemo(() => {
     const m = new THREE.MeshStandardMaterial({
-      color: '#e6e9ef',
-      roughness: 0.6,
-      metalness: 0.3,
+      color: '#ffffff',
+      map: maps.map,
+      roughnessMap: maps.rough,
+      metalnessMap: maps.rough,
+      roughness: 1,
+      metalness: 1,
+      envMapIntensity: 1.2,
       emissive: '#ffffff',
-      emissiveMap: tex,
-      emissiveIntensity: 0.9,
+      emissiveMap: maps.emissive,
+      emissiveIntensity: 0.35,
     })
+    // tile the facade per floor: instances scale a unit box, so the shader
+    // derives repeats from world-space size to keep floors ~3.6m tall.
+    m.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <uv_vertex>', `#include <uv_vertex>
+          {
+            vec3 sx = vec3(instanceMatrix[0][0], instanceMatrix[0][1], instanceMatrix[0][2]);
+            vec3 sy = vec3(instanceMatrix[1][0], instanceMatrix[1][1], instanceMatrix[1][2]);
+            vec3 sz = vec3(instanceMatrix[2][0], instanceMatrix[2][1], instanceMatrix[2][2]);
+            vec3 n = abs(normal);
+            float horiz = n.x > 0.5 ? length(sz) : length(sx);
+            float floors = length(sy) / 3.6;
+            float bays = horiz / 3.6;
+            vec2 fuv = n.y > 0.5 ? vec2(0.02) : vec2(uv.x * bays, uv.y * floors);
+            vMapUv = fuv;
+            vRoughnessMapUv = fuv;
+            vMetalnessMapUv = fuv;
+            vEmissiveMapUv = fuv;
+          }`)
+    }
     return m
-  }, [tex])
+  }, [maps])
 
   useFrame(({ clock }) => {
-    mat.emissiveIntensity = 0.85 + Math.sin(clock.elapsedTime * 0.7) * 0.08
+    mat.emissiveIntensity = 0.35 + Math.sin(clock.elapsedTime * 0.7) * 0.05
   })
 
   return (
@@ -113,6 +187,56 @@ export function City() {
         <boxGeometry args={[1, 1, 1]} />
       </instancedMesh>
     </group>
+  )
+}
+
+function TexturedGround({ length, centerZ }: { length: number; centerZ: number }) {
+  const [rMap, rNor, rRough] = useTexture(ROAD_TEX)
+  const [wMap, wNor, wRough] = useTexture(WALL_TEX)
+  useLayoutEffect(() => {
+    for (const t of [rMap, rNor, rRough]) {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping
+      t.repeat.set(WORLD.roadWidth / 3.5, length / 3.5)
+      t.anisotropy = 8
+      t.needsUpdate = true
+    }
+    for (const t of [wMap, wNor, wRough]) {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping
+      t.repeat.set(1.5, length / 4)
+      t.anisotropy = 8
+      t.needsUpdate = true
+    }
+  }, [rMap, rNor, rRough, wMap, wNor, wRough, length])
+  return (
+    <>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, centerZ]} receiveShadow>
+        <planeGeometry args={[WORLD.roadWidth, length]} />
+        <meshStandardMaterial map={rMap} normalMap={rNor} roughnessMap={rRough} color="#dde1e8" roughness={1} metalness={0.05} normalScale={new THREE.Vector2(0.6, 0.6)} />
+      </mesh>
+      {[-1, 1].map((s) => (
+        <mesh key={`sw${s}`} position={[s * (WORLD.roadWidth / 2 + 3), 0.15, centerZ]} receiveShadow>
+          <boxGeometry args={[6, 0.3, length]} />
+          <meshStandardMaterial map={wMap} normalMap={wNor} roughnessMap={wRough} color="#e3e6ec" roughness={1} />
+        </mesh>
+      ))}
+    </>
+  )
+}
+
+function FlatGround({ length, centerZ }: { length: number; centerZ: number }) {
+  return (
+    <>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, centerZ]} receiveShadow>
+        <planeGeometry args={[WORLD.roadWidth, length]} />
+        <meshStandardMaterial color="#8c93a1" roughness={0.8} metalness={0.1} />
+      </mesh>
+      {[-1, 1].map((s) => (
+        <mesh key={`sw${s}`} position={[s * (WORLD.roadWidth / 2 + 3), 0.15, centerZ]} receiveShadow>
+          <boxGeometry args={[6, 0.3, length]} />
+          <meshStandardMaterial color="#d0d5de" roughness={0.9} />
+        </mesh>
+      ))}
+    </>
   )
 }
 
@@ -153,30 +277,22 @@ export function Road() {
 
   return (
     <group>
-      {/* asphalt */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, centerZ]} receiveShadow>
-        <planeGeometry args={[WORLD.roadWidth, length]} />
-        <meshStandardMaterial color="#8c93a1" roughness={0.35} metalness={0.5} />
-      </mesh>
-      {/* edge glow strips */}
+      {/* asphalt + sidewalks (textured when the maps are in, flat until then) */}
+      <Suspense fallback={<FlatGround length={length} centerZ={centerZ} />}>
+        <TexturedGround length={length} centerZ={centerZ} />
+      </Suspense>
+      {/* edge lines */}
       {[-1, 1].map((s) => (
-        <mesh key={s} rotation={[-Math.PI / 2, 0, 0]} position={[s * (WORLD.roadWidth / 2 - 0.15), 0.015, centerZ]}>
-          <planeGeometry args={[0.14, length]} />
-          <meshBasicMaterial color="#8fa3ff" toneMapped={false} />
+        <mesh key={s} rotation={[-Math.PI / 2, 0, 0]} position={[s * (WORLD.roadWidth / 2 - 0.3), 0.012, centerZ]}>
+          <planeGeometry args={[0.16, length]} />
+          <meshStandardMaterial color="#f4f5f7" roughness={0.7} />
         </mesh>
       ))}
       {/* lane dashes */}
       <instancedMesh ref={dashRef} args={[undefined, undefined, dashes.length]} frustumCulled={false}>
         <boxGeometry args={[1, 0.02, 1]} />
-        <meshBasicMaterial color="#5f6b8f" />
+        <meshStandardMaterial color="#eef0f3" roughness={0.7} />
       </instancedMesh>
-      {/* sidewalks */}
-      {[-1, 1].map((s) => (
-        <mesh key={`sw${s}`} position={[s * (WORLD.roadWidth / 2 + 3), 0.15, centerZ]} receiveShadow>
-          <boxGeometry args={[6, 0.3, length]} />
-          <meshStandardMaterial color="#d0d5de" roughness={0.9} />
-        </mesh>
-      ))}
       {/* ground */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, centerZ]} receiveShadow>
         <planeGeometry args={[900, length + 400]} />

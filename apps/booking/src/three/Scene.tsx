@@ -63,6 +63,20 @@ function CityWorld() {
   )
 }
 
+const HDR_URL = `${import.meta.env.BASE_URL}hdr/sky_1k.hdr`
+
+/** Lightformer studio used until the sky HDRI has streamed in. */
+function StudioEnv({ quality }: { quality: string }) {
+  return (
+    <Environment resolution={quality === 'high' ? 256 : 128} frames={1}>
+      <Lightformer intensity={2.2} rotation-x={Math.PI / 2} position={[0, 6, 0]} scale={[14, 2, 1]} color="#ffffff" />
+      <Lightformer intensity={1.2} rotation-y={Math.PI / 2} position={[-8, 2, 0]} scale={[8, 3, 1]} color="#dfe4f2" />
+      <Lightformer intensity={0.9} rotation-y={-Math.PI / 2} position={[8, 2, 0]} scale={[8, 3, 1]} color="#f3ede2" />
+      <Lightformer intensity={0.4} position={[0, 2, -10]} scale={[20, 6, 1]} color="#8a96b0" />
+    </Environment>
+  )
+}
+
 function Ready() {
   const setReady = useStore((s) => s.setReady)
   const frames = useRef(0)
@@ -125,13 +139,8 @@ export default function Scene() {
       <AdaptiveDpr pixelated={false} />
       <SceneBackground />
       <CameraRig />
-      <Suspense fallback={null}>
-        <Environment resolution={quality === 'high' ? 256 : 128} frames={1}>
-          <Lightformer intensity={2.2} rotation-x={Math.PI / 2} position={[0, 6, 0]} scale={[14, 2, 1]} color="#ffffff" />
-          <Lightformer intensity={1.2} rotation-y={Math.PI / 2} position={[-8, 2, 0]} scale={[8, 3, 1]} color="#dfe4f2" />
-          <Lightformer intensity={0.9} rotation-y={-Math.PI / 2} position={[8, 2, 0]} scale={[8, 3, 1]} color="#f3ede2" />
-          <Lightformer intensity={0.4} position={[0, 2, -10]} scale={[20, 6, 1]} color="#8a96b0" />
-        </Environment>
+      <Suspense fallback={<StudioEnv quality={quality} />}>
+        <Environment files={HDR_URL} environmentIntensity={1.1} />
       </Suspense>
       <CityWorld />
       <FleetMap />
