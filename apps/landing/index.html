@@ -208,7 +208,7 @@
               </span>
               <span class="field__body">
                 <small>日期 / 時間</small>
-                <input name="datetime" value="2026/09/24　16:30" />
+                <input id="datetime" name="datetime" value="" inputmode="numeric" placeholder="YYYY/MM/DD HH:MM" />
               </span>
               <span class="field__chev">⌄</span>
             </label>
@@ -229,15 +229,17 @@
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
             </button>
           </form>
+          <p class="booking__error" id="bookingError" role="alert" hidden></p>
+          <div class="booking__results" id="bookingResults" aria-live="polite" hidden></div>
 
           <div class="booking__routes">
             <span class="booking__routes-label">熱門路線：</span>
-            <button type="button" data-route="桃園國際機場 (TPE)|台北市區" data-cursor="hover">TPE → 台北市</button>
-            <button type="button" data-route="台北市區|九份老街" data-cursor="hover">台北 → 九份</button>
-            <button type="button" data-route="台北市區|日月潭" data-cursor="hover">台北 → 日月潭</button>
-            <button type="button" data-route="台北市區|高雄市" data-cursor="hover">台北 → 高雄</button>
-            <button type="button" data-route="台北市區|墾丁" data-cursor="hover">台北 → 墾丁</button>
-            <button type="button" data-route="台北市區|阿里山" data-cursor="hover">台北 → 阿里山</button>
+            <button type="button" data-route="桃園國際機場 (TPE)|台北市區" data-mode="airport" data-cursor="hover">TPE → 台北市</button>
+            <button type="button" data-route="台北市區|九份老街" data-mode="charter" data-cursor="hover">台北 → 九份</button>
+            <button type="button" data-route="台北市區|日月潭" data-mode="charter" data-cursor="hover">台北 → 日月潭</button>
+            <button type="button" data-route="台北市區|高雄市" data-mode="multi" data-cursor="hover">台北 → 高雄</button>
+            <button type="button" data-route="台北市區|墾丁" data-mode="charter" data-cursor="hover">台北 → 墾丁</button>
+            <button type="button" data-route="台北市區|阿里山" data-mode="charter" data-cursor="hover">台北 → 阿里山</button>
             <button type="button" class="more" data-cursor="hover">更多路線 ⌄</button>
           </div>
         </div>
@@ -377,27 +379,27 @@
           <h2 class="h2 reveal-up">探索台灣<br /><em>由北到南，一車直達</em></h2>
         </div>
         <div class="explore__grid">
-          <a class="dest dest--tall" href="#booking" data-cursor="view" data-route="台北市區|台北 101">
+          <a class="dest dest--tall" href="#booking" data-cursor="view" data-route="台北市區|台北 101" data-mode="p2p">
             <div class="dest__img"><img src="./assets/hero-taipei.jpg" alt="台北" data-parallax /></div>
             <div class="dest__meta"><b>台北</b><span>現代與文化</span></div>
           </a>
-          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|九份老街">
+          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|九份老街" data-mode="charter">
             <div class="dest__img"><img src="./assets/jiufen.jpg" alt="九份" data-parallax /></div>
             <div class="dest__meta"><b>九份</b><span>懷舊老街</span></div>
           </a>
-          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|日月潭">
+          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|日月潭" data-mode="charter">
             <div class="dest__img"><img src="./assets/sunmoon.jpg" alt="日月潭" data-parallax /></div>
             <div class="dest__meta"><b>日月潭</b><span>湖光山色</span></div>
           </a>
-          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|阿里山">
+          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|阿里山" data-mode="charter">
             <div class="dest__img"><img src="./assets/alishan.jpg" alt="阿里山" data-parallax /></div>
             <div class="dest__meta"><b>阿里山</b><span>森林美景</span></div>
           </a>
-          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|高雄市">
+          <a class="dest" href="#booking" data-cursor="view" data-route="台北市區|高雄市" data-mode="multi">
             <div class="dest__img"><img src="./assets/kaohsiung.jpg" alt="高雄" data-parallax /></div>
             <div class="dest__meta"><b>高雄</b><span>海港城市</span></div>
           </a>
-          <a class="dest dest--wide" href="#booking" data-cursor="view" data-route="台北市區|墾丁">
+          <a class="dest dest--wide" href="#booking" data-cursor="view" data-route="台北市區|墾丁" data-mode="charter">
             <div class="dest__img"><img src="./assets/kenting.jpg" alt="墾丁" data-parallax /></div>
             <div class="dest__meta"><b>墾丁</b><span>陽光海灘</span></div>
           </a>
