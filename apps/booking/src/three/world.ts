@@ -1,4 +1,12 @@
 import * as THREE from 'three'
+import type { RefObject } from 'react'
+
+/**
+ * Stable container for drei <Html> portals. Without an explicit portal, Html
+ * re-targets to R3F's connected event element after mount and tears down its
+ * DOM root mid-commit, which React 19 reports as a synchronous unmount.
+ */
+export const htmlPortal = { current: null } as unknown as RefObject<HTMLDivElement>
 
 /** World layout — everything in metres. The main road runs along -Z. */
 export const WORLD = {

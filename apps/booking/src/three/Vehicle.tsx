@@ -25,16 +25,16 @@ export type VehicleProps = {
 }
 
 const glassMat = new THREE.MeshPhysicalMaterial({
-  color: '#0d1522',
+  color: '#b9c7dc',
   roughness: 0.08,
   metalness: 0.2,
   transparent: true,
   opacity: 0.85,
   envMapIntensity: 1.6,
 })
-const tireMat = new THREE.MeshStandardMaterial({ color: '#0a0b0e', roughness: 0.95 })
+const tireMat = new THREE.MeshStandardMaterial({ color: '#c0c4cc', roughness: 0.95 })
 const rimMat = new THREE.MeshStandardMaterial({ color: '#c8cdd8', roughness: 0.25, metalness: 0.9 })
-const trimMat = new THREE.MeshStandardMaterial({ color: '#0b0d12', roughness: 0.5, metalness: 0.6 })
+const trimMat = new THREE.MeshStandardMaterial({ color: '#c6cad3', roughness: 0.5, metalness: 0.6 })
 const headMat = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#dfe9ff', emissiveIntensity: 4 })
 const tailMat = new THREE.MeshStandardMaterial({ color: '#ff3b3b', emissive: '#ff2a2a', emissiveIntensity: 3 })
 
@@ -58,7 +58,7 @@ function Wheel({ x, z, r, spin }: { x: number; z: number; r: number; spin: React
 }
 
 export const Vehicle = forwardRef<THREE.Group, VehicleProps>(function Vehicle(
-  { variant, color = '#5b6b8c', lights = true, speedRef, paintRoughness = 0.18, scale = 1 },
+  { variant, color = '#8a96b0', lights = true, speedRef, paintRoughness = 0.18, scale = 1 },
   ref,
 ) {
   const d = DIMS[variant]

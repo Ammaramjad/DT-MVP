@@ -6,7 +6,7 @@ import { VEHICLES, fmtTWD, type VehicleId } from '../lib/data'
 import { scrollToSection } from '../lib/scroll'
 import { scrollState, useStore, useTrip } from '../store'
 import { Vehicle } from './Vehicle'
-import { WORLD, range, smooth } from './world'
+import { WORLD, htmlPortal, range, smooth } from './world'
 
 const SLOT_BACK: [number, number][] = [
   [-9.5, -7],
@@ -26,11 +26,11 @@ function Turntable({ active }: { active: boolean }) {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
         <circleGeometry args={[3.6, 48]} />
-        <meshStandardMaterial color="#0d1119" roughness={0.25} metalness={0.7} />
+        <meshStandardMaterial color="#d7dbe3" roughness={0.25} metalness={0.7} />
       </mesh>
       <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
         <ringGeometry args={[3.5, 3.62, 64]} />
-        <meshBasicMaterial color="#a7b6ff" transparent opacity={0.25} toneMapped={false} />
+        <meshBasicMaterial color="#4f63e0" transparent opacity={0.25} toneMapped={false} />
       </mesh>
     </group>
   )
@@ -87,16 +87,16 @@ function PlazaVehicle({ id, index }: { id: VehicleId; index: number }) {
     if (light.current) {
       const target = isHov ? 260 : isSel ? 170 : 60
       light.current.intensity = THREE.MathUtils.damp(light.current.intensity, target, 5, dt)
-      light.current.color.lerp(new THREE.Color(isHov ? spec.accent : '#dfe6ff'), dt * 4)
+      light.current.color.lerp(new THREE.Color(isHov ? spec.accent : '#ffffff'), dt * 4)
     }
   })
 
-  const showCard = isHov || (isSel && !hovered)
+  const showCard = !isMobile && (isHov || (isSel && !hovered))
 
   return (
     <group ref={g} position={[60, 0, 0]}>
       <Turntable active={isSel || isHov} />
-      <spotLight ref={light} position={[0, 9, 2]} angle={0.5} penumbra={0.9} intensity={60} distance={30} castShadow color="#dfe6ff" target-position={[0, 0, 0]} />
+      <spotLight ref={light} position={[0, 9, 2]} angle={0.5} penumbra={0.9} intensity={60} distance={30} castShadow color="#ffffff" target-position={[0, 0, 0]} />
       <group
         ref={inner}
         rotation={[0, Math.PI, 0]}
@@ -116,9 +116,9 @@ function PlazaVehicle({ id, index }: { id: VehicleId; index: number }) {
       >
         <Vehicle variant={id} color={spec.color} lights={false} />
       </group>
-      {showCard && (
-        <Html position={[0, 3.4, 0]} center distanceFactor={isMobile ? 14 : 12} zIndexRange={[20, 0]} style={{ pointerEvents: 'auto' }}>
-          <div className={`vcard ${isSel ? 'is-selected' : ''}`}>
+      {!isMobile && (
+      <Html portal={htmlPortal} position={[0, 3.4, 0]} center distanceFactor={12} zIndexRange={[20, 0]} style={{ pointerEvents: showCard ? 'auto' : 'none' }}>
+          <div className={`vcard ${isSel ? 'is-selected' : ''} ${showCard ? '' : 'is-hidden'}`}>
             <div className="vcard__head">
               <span className="vcard__name">{spec.name}</span>
               <span className="vcard__price">{fmtTWD(trip.fareFor(id))}</span>
@@ -139,7 +139,7 @@ function PlazaVehicle({ id, index }: { id: VehicleId; index: number }) {
               Book this ride
             </button>
           </div>
-        </Html>
+      </Html>
       )}
     </group>
   )
@@ -151,16 +151,16 @@ export function VehiclePlaza() {
     <group position={WORLD.plaza}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, -3]} receiveShadow>
         <circleGeometry args={[28, 64]} />
-        <meshStandardMaterial color="#0a0d14" roughness={0.3} metalness={0.6} />
+        <meshStandardMaterial color="#cfd4dd" roughness={0.3} metalness={0.6} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, -3]}>
         <ringGeometry args={[27.6, 28, 96]} />
-        <meshBasicMaterial color="#3a4468" toneMapped={false} />
+        <meshBasicMaterial color="#7f8bb0" toneMapped={false} />
       </mesh>
       {/* back wall wash */}
       <mesh position={[0, 6, -22]}>
         <planeGeometry args={[70, 14]} />
-        <meshStandardMaterial color="#0b0f18" roughness={1} />
+        <meshStandardMaterial color="#d5dae3" roughness={1} />
       </mesh>
       <pointLight position={[0, 10, -14]} intensity={120} distance={50} color="#7f8fd8" />
       {VEHICLES.map((v, i) => (

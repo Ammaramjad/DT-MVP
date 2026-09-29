@@ -4,9 +4,9 @@ import * as THREE from 'three'
 import { scrollState, useStore } from '../store'
 import { range, routeCurve, smooth } from './world'
 
-const pinMat = new THREE.MeshStandardMaterial({ color: '#f4f6ff', emissive: '#a7b6ff', emissiveIntensity: 1.2, roughness: 0.3, metalness: 0.4 })
-const destMat = new THREE.MeshStandardMaterial({ color: '#fff3d6', emissive: '#f4e9c8', emissiveIntensity: 1.1, roughness: 0.3, metalness: 0.4 })
-const ringMat = new THREE.MeshBasicMaterial({ color: '#a7b6ff', transparent: true, opacity: 0.6, side: THREE.DoubleSide, toneMapped: false })
+const pinMat = new THREE.MeshStandardMaterial({ color: '#f4f6ff', emissive: '#4f63e0', emissiveIntensity: 1.2, roughness: 0.3, metalness: 0.4 })
+const destMat = new THREE.MeshStandardMaterial({ color: '#fff3d6', emissive: '#c89a2e', emissiveIntensity: 1.1, roughness: 0.3, metalness: 0.4 })
+const ringMat = new THREE.MeshBasicMaterial({ color: '#4f63e0', transparent: true, opacity: 0.6, side: THREE.DoubleSide, toneMapped: false })
 
 /** Floating location pin: a cone stem and a sphere head, plus a pulsing ground ring. */
 export function Pin({ position, riseRef, gold = false }: { position: THREE.Vector3; riseRef: React.MutableRefObject<number>; gold?: boolean }) {
@@ -46,9 +46,9 @@ export function Pin({ position, riseRef, gold = false }: { position: THREE.Vecto
         </mesh>
         <mesh position={[0, 3.4, 0]}>
           <sphereGeometry args={[0.42, 16, 12]} />
-          <meshBasicMaterial color={gold ? '#3a2d10' : '#0b1020'} />
+          <meshBasicMaterial color={gold ? '#3a2d10' : '#cfd6e6'} />
         </mesh>
-        <pointLight position={[0, 4, 0]} intensity={gold ? 40 : 60} distance={22} color={gold ? '#f4e9c8' : '#a7b6ff'} />
+        <pointLight position={[0, 4, 0]} intensity={gold ? 40 : 60} distance={22} color={gold ? '#c89a2e' : '#4f63e0'} />
       </group>
       <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[position.x, 0.06, position.z]} material={ringMat.clone()}>
         <ringGeometry args={[0.9, 1.0, 48]} />
@@ -103,7 +103,7 @@ export function RouteLine({ progressRef }: { progressRef: React.MutableRefObject
       </mesh>
       <instancedMesh ref={dots} args={[undefined, undefined, N]} frustumCulled={false}>
         <sphereGeometry args={[1, 10, 8]} />
-        <meshBasicMaterial color="#dfe6ff" toneMapped={false} />
+        <meshBasicMaterial color="#ffffff" toneMapped={false} />
       </instancedMesh>
     </group>
   )

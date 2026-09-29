@@ -17,9 +17,9 @@ export const WHY_ITEMS = [
 ]
 
 export const SHOWCASE = [
-  { key: 'comfort', title: 'Comfort', copy: 'Ventilated leather, whisper-quiet cabin, climate tuned before you step in.', color: '#f4e9c8' },
-  { key: 'space', title: 'Space', copy: 'Executive rear legroom and luggage capacity for the longest itinerary.', color: '#dfe6ff' },
-  { key: 'safety', title: 'Safety', copy: 'Five-star rated platforms, driver assistance, continuous monitoring.', color: '#a7b6ff' },
+  { key: 'comfort', title: 'Comfort', copy: 'Ventilated leather, whisper-quiet cabin, climate tuned before you step in.', color: '#c89a2e' },
+  { key: 'space', title: 'Space', copy: 'Executive rear legroom and luggage capacity for the longest itinerary.', color: '#ffffff' },
+  { key: 'safety', title: 'Safety', copy: 'Five-star rated platforms, driver assistance, continuous monitoring.', color: '#4f63e0' },
   { key: 'tech', title: 'Technology', copy: 'Live route sharing, in-car connectivity, contactless everything.', color: '#c7f0ff' },
   { key: 'service', title: 'Professional Service', copy: 'Chauffeurs trained in discretion, punctuality and care.', color: '#ffe3c2' },
 ]

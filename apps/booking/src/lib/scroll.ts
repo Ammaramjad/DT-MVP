@@ -97,11 +97,27 @@ export function initScroll() {
   }
 }
 
-export function scrollToSection(id: SectionId, offset = 0) {
+/** Section progress at which each section's UI is fully revealed (matches styles.css). */
+const LANDING: Partial<Record<SectionId, number>> = {
+  pickup: 0.55,
+  destination: 0.55,
+  choose: 0.92,
+  confirm: 0.55,
+  journey: 0.15,
+  fleet: 0.25,
+  why: 0.25,
+  showcase: 0.15,
+  outro: 0.4,
+}
+
+export function scrollToSection(id: SectionId, progress = LANDING[id] ?? 0) {
   const el = document.querySelector<HTMLElement>(`[data-section="${id}"]`)
   if (!el) return
-  if (lenis) lenis.scrollTo(el, { offset, duration: 1.6, easing: (t) => 1 - Math.pow(1 - t, 4) })
-  else el.scrollIntoView({ behavior: 'smooth' })
+  measure()
+  const b = bounds[id]
+  const top = b ? b.top + Math.max(0, b.height - window.innerHeight) * progress : el.offsetTop
+  if (lenis) lenis.scrollTo(top, { duration: 1.6, easing: (t) => 1 - Math.pow(1 - t, 4) })
+  else window.scrollTo({ top, behavior: 'smooth' })
 }
 
 export function scrollBy(delta: number) {
