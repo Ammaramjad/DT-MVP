@@ -1,17 +1,19 @@
-import { RoundedBox } from '@react-three/drei'
+import { useGLTF } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { forwardRef, useMemo, useRef } from 'react'
+import { Suspense, forwardRef, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { VehicleId } from '../lib/data'
+import { ProceduralVehicle } from './ProceduralVehicle'
 
-type Dim = { L: number; W: number; H: number; cabL: number; cabH: number; cabOff: number; wheel: number; nose: number }
+export const CAR_URL = `${import.meta.env.BASE_URL}models/car.glb`
 
-const DIMS: Record<VehicleId, Dim> = {
-  economy: { L: 3.9, W: 1.75, H: 0.62, cabL: 2.2, cabH: 0.6, cabOff: -0.15, wheel: 0.33, nose: 0.9 },
-  comfort: { L: 4.6, W: 1.85, H: 0.62, cabL: 2.5, cabH: 0.56, cabOff: -0.25, wheel: 0.35, nose: 1.05 },
-  business: { L: 5.1, W: 1.9, H: 0.64, cabL: 2.8, cabH: 0.56, cabOff: -0.3, wheel: 0.37, nose: 1.15 },
-  premium: { L: 5.3, W: 1.98, H: 0.6, cabL: 2.6, cabH: 0.52, cabOff: -0.45, wheel: 0.39, nose: 1.35 },
-  van: { L: 5.0, W: 1.92, H: 0.9, cabL: 3.8, cabH: 0.9, cabOff: -0.35, wheel: 0.36, nose: 0.6 },
+/** Per-category footprint: [length/width scale, height scale]. */
+const FIT: Record<VehicleId, [number, number]> = {
+  economy: [0.92, 1.0],
+  comfort: [1.0, 1.0],
+  business: [1.08, 1.02],
+  premium: [1.14, 1.0],
+  van: [1.1, 1.22],
 }
 
 export type VehicleProps = {
@@ -24,44 +26,27 @@ export type VehicleProps = {
   scale?: number
 }
 
+const WHEELS = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr']
+
+const headMat = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#dfe9ff', emissiveIntensity: 3, toneMapped: false })
+const tailMat = new THREE.MeshStandardMaterial({ color: '#ff3b3b', emissive: '#ff2a2a', emissiveIntensity: 2.5 })
 const glassMat = new THREE.MeshPhysicalMaterial({
-  color: '#b9c7dc',
-  roughness: 0.08,
-  metalness: 0.2,
+  color: '#1a222f',
+  roughness: 0.05,
+  metalness: 0.4,
   transparent: true,
-  opacity: 0.85,
-  envMapIntensity: 1.6,
+  opacity: 0.72,
+  envMapIntensity: 2,
 })
-const tireMat = new THREE.MeshStandardMaterial({ color: '#c0c4cc', roughness: 0.95 })
-const rimMat = new THREE.MeshStandardMaterial({ color: '#c8cdd8', roughness: 0.25, metalness: 0.9 })
-const trimMat = new THREE.MeshStandardMaterial({ color: '#c6cad3', roughness: 0.5, metalness: 0.6 })
-const headMat = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#dfe9ff', emissiveIntensity: 4 })
-const tailMat = new THREE.MeshStandardMaterial({ color: '#ff3b3b', emissive: '#ff2a2a', emissiveIntensity: 3 })
+const chromeMat = new THREE.MeshStandardMaterial({ color: '#e8ebf0', roughness: 0.12, metalness: 1 })
+const tireMat = new THREE.MeshStandardMaterial({ color: '#15171a', roughness: 0.92 })
+const rimMat = new THREE.MeshStandardMaterial({ color: '#c9ced8', roughness: 0.25, metalness: 0.95 })
 
-function Wheel({ x, z, r, spin }: { x: number; z: number; r: number; spin: React.MutableRefObject<number> }) {
-  const ref = useRef<THREE.Group>(null)
-  useFrame((_, dt) => {
-    if (ref.current) ref.current.rotation.x -= spin.current * dt * 6
-  })
-  return (
-    <group position={[x, r, z]}>
-      <group ref={ref} rotation={[0, 0, Math.PI / 2]}>
-        <mesh material={tireMat} castShadow>
-          <cylinderGeometry args={[r, r, 0.26, 28]} />
-        </mesh>
-        <mesh material={rimMat} position={[0, x > 0 ? 0.04 : -0.04, 0]}>
-          <cylinderGeometry args={[r * 0.62, r * 0.62, 0.2, 20]} />
-        </mesh>
-      </group>
-    </group>
-  )
-}
-
-export const Vehicle = forwardRef<THREE.Group, VehicleProps>(function Vehicle(
+const GlbVehicle = forwardRef<THREE.Group, VehicleProps>(function GlbVehicle(
   { variant, color = '#8a96b0', lights = true, speedRef, paintRoughness = 0.18, scale = 1 },
   ref,
 ) {
-  const d = DIMS[variant]
+  const { scene } = useGLTF(CAR_URL)
   const fallbackSpin = useRef(0)
   const spin = speedRef ?? fallbackSpin
   const paint = useMemo(
@@ -69,50 +54,83 @@ export const Vehicle = forwardRef<THREE.Group, VehicleProps>(function Vehicle(
       new THREE.MeshPhysicalMaterial({
         color,
         roughness: paintRoughness,
-        metalness: 0.55,
+        metalness: 0.7,
         clearcoat: 1,
-        clearcoatRoughness: 0.06,
-        envMapIntensity: 1.4,
+        clearcoatRoughness: 0.04,
+        envMapIntensity: 1.6,
       }),
     [color, paintRoughness],
   )
-  const wheelY = d.wheel
-  const bodyY = wheelY + d.H / 2 - 0.05
-  const axle = d.L / 2 - d.nose * 0.75
+
+  const { model, wheels, axle, len } = useMemo(() => {
+    const model = scene.clone(true)
+    const wheels: THREE.Object3D[] = []
+    const raw = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3())
+    const axle: 'x' | 'z' = raw.x > raw.z ? 'z' : 'x'
+    model.traverse((o) => {
+      if (WHEELS.includes(o.name)) wheels.push(o)
+      if (!(o instanceof THREE.Mesh)) return
+      o.castShadow = true
+      o.receiveShadow = false
+      switch (o.name) {
+        case 'body':
+          o.material = paint
+          break
+        case 'glass':
+          o.material = glassMat
+          break
+        case 'chrome':
+        case 'metal':
+          o.material = chromeMat
+          break
+        case 'tire':
+          o.material = tireMat
+          break
+        case 'rim_fl':
+        case 'rim_fr':
+        case 'rim_rl':
+        case 'rim_rr':
+          o.material = rimMat
+          break
+        case 'lights':
+          o.material = headMat
+          break
+        case 'lights_red':
+          o.material = tailMat
+          break
+      }
+    })
+    // long axis → Z, wheels on the ground, headlights facing -Z
+    if (axle === 'z') model.rotation.y = Math.PI / 2
+    model.updateMatrixWorld(true)
+    const b2 = new THREE.Box3().setFromObject(model)
+    const head = model.getObjectByName('lights')
+    if (head) {
+      const hb = new THREE.Box3().setFromObject(head).getCenter(new THREE.Vector3())
+      const c = b2.getCenter(new THREE.Vector3())
+      if (hb.z > c.z) model.rotation.y += Math.PI
+    }
+    model.updateMatrixWorld(true)
+    const b3 = new THREE.Box3().setFromObject(model)
+    const c3 = b3.getCenter(new THREE.Vector3())
+    model.position.set(-c3.x, -b3.min.y, -c3.z)
+    return { model, wheels, axle, len: b3.max.z - b3.min.z }
+  }, [scene, paint])
+
+  useFrame((_, dt) => {
+    for (const w of wheels) w.rotation[axle] -= spin.current * dt * 6
+  })
+
+  const [f, fy] = FIT[variant]
   return (
     <group ref={ref} scale={scale}>
-      {/* body */}
-      <RoundedBox args={[d.W, d.H, d.L]} radius={0.12} smoothness={4} position={[0, bodyY, 0]} material={paint} castShadow receiveShadow />
-      {/* cabin */}
-      <RoundedBox
-        args={[d.W * 0.86, d.cabH, d.cabL]}
-        radius={0.16}
-        smoothness={4}
-        position={[0, bodyY + d.H / 2 + d.cabH / 2 - 0.08, d.cabOff]}
-        material={glassMat}
-        castShadow
-      />
-      {/* roof plate */}
-      <RoundedBox args={[d.W * 0.72, 0.05, d.cabL * 0.55]} radius={0.02} position={[0, bodyY + d.H / 2 + d.cabH - 0.06, d.cabOff]} material={paint} />
-      {/* sills */}
-      <mesh material={trimMat} position={[0, wheelY - 0.02, 0]}>
-        <boxGeometry args={[d.W * 0.98, 0.14, d.L * 0.96]} />
-      </mesh>
-      {/* headlights */}
-      <mesh material={headMat} position={[d.W * 0.32, bodyY + 0.05, -d.L / 2 + 0.01]}>
-        <boxGeometry args={[0.36, 0.08, 0.05]} />
-      </mesh>
-      <mesh material={headMat} position={[-d.W * 0.32, bodyY + 0.05, -d.L / 2 + 0.01]}>
-        <boxGeometry args={[0.36, 0.08, 0.05]} />
-      </mesh>
-      {/* taillight bar */}
-      <mesh material={tailMat} position={[0, bodyY + 0.08, d.L / 2 - 0.01]}>
-        <boxGeometry args={[d.W * 0.8, 0.06, 0.05]} />
-      </mesh>
+      <group scale={[f, f * fy, f]}>
+        <primitive object={model} />
+      </group>
       {lights && (
         <spotLight
-          position={[0, bodyY, -d.L / 2]}
-          target-position={[0, 0, -d.L / 2 - 12]}
+          position={[0, 0.6, (-len / 2) * f]}
+          target-position={[0, 0, (-len / 2) * f - 12]}
           angle={0.55}
           penumbra={0.8}
           intensity={35}
@@ -120,10 +138,17 @@ export const Vehicle = forwardRef<THREE.Group, VehicleProps>(function Vehicle(
           color="#dfe9ff"
         />
       )}
-      <Wheel x={d.W / 2 - 0.05} z={-axle} r={wheelY} spin={spin} />
-      <Wheel x={-d.W / 2 + 0.05} z={-axle} r={wheelY} spin={spin} />
-      <Wheel x={d.W / 2 - 0.05} z={axle} r={wheelY} spin={spin} />
-      <Wheel x={-d.W / 2 + 0.05} z={axle} r={wheelY} spin={spin} />
     </group>
   )
 })
+
+/** Realistic GLB car; falls back to the procedural body while the model streams in. */
+export const Vehicle = forwardRef<THREE.Group, VehicleProps>(function Vehicle(props, ref) {
+  return (
+    <Suspense fallback={<ProceduralVehicle {...props} ref={ref} />}>
+      <GlbVehicle {...props} ref={ref} />
+    </Suspense>
+  )
+})
+
+useGLTF.preload(CAR_URL)
