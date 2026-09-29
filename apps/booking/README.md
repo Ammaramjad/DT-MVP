@@ -44,3 +44,11 @@ The SUV, dedicated three-row **7-Seater**, and Van / Group bodies are original p
 - **Static assets:** deploy the generated `dist/` directory without rewriting `/models`, `/textures`, or `/hdr` asset requests.
 
 The current fare, route, confirmation, and fleet information are deterministic demo estimates. A production deployment still requires server-side pricing, routing/geocoding, availability/dispatch, reservation, authentication, and payment integrations. The UI does not claim that a reservation or payment has occurred.
+
+## Production geography and vehicle integration
+
+`src/lib/geo.ts` defines provider-neutral contracts for geocoding, routing, POIs and geographic 3D context. The checked-in location list is explicitly a preview dataset, not a live geocoder. A production deployment should inject authenticated providers, preserve their attribution, and only describe buildings as exact when the provider supplies that identity.
+
+Vehicle records distinguish the redistributed CC BY reference GLB from original digital prototypes. The latter are capacity/shape previews and must be replaced with properly licensed, optimized production GLBs before marketing the viewer as photorealistic. Category and model labels are separate so multiple licensed models can be added without changing booking capacity rules.
+
+English and Traditional Chinese customer copy lives in `src/lib/i18n.ts`; the selected locale is persisted locally. Provider-returned place names remain in their source language until a localized production places provider is configured.

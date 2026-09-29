@@ -26,8 +26,11 @@ export default function App() {
   const webgl = useStore((s) => s.webgl)
   const ready = useStore((s) => s.ready)
   const isMobile = useStore((s) => s.isMobile)
+  const locale = useStore((s) => s.locale)
 
   useEffect(() => initScroll(), [])
+
+  useEffect(() => { document.documentElement.lang = locale }, [locale])
 
   useEffect(() => {
     document.documentElement.classList.toggle('is-ready', ready || !webgl)

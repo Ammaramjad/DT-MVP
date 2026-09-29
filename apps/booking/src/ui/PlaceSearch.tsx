@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PLACES, type Place } from '../lib/data'
+import { useT } from '../store'
 
 export function PlaceSearch({ value, onChange, placeholder, tone = 'blue' }: { value: Place | null; onChange: (p: Place) => void; placeholder: string; tone?: 'blue' | 'gold' }) {
+  const t = useT()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const [idx, setIdx] = useState(0)
@@ -59,7 +61,7 @@ export function PlaceSearch({ value, onChange, placeholder, tone = 'blue' }: { v
               <small>{p.area}</small>
             </li>
           ))}
-          {results.length === 0 && <li className="is-empty">No matches. Try “Airport” or “Taipei 101”.</li>}
+          {results.length === 0 && <li className="is-empty">{t('search.empty')}</li>}
         </ul>
       )}
     </div>

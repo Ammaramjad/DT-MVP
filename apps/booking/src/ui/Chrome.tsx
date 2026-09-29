@@ -1,18 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { scrollToSection } from '../lib/scroll'
-import { scrollState, useStore } from '../store'
+import { scrollState, useStore, useT } from '../store'
 
 const NAV = [
-  { label: 'Book', to: 'pickup' },
-  { label: 'Fleet', to: 'fleet' },
-  { label: 'How It Works', to: 'journey' },
-  { label: 'Business', to: 'showcase' },
-  { label: 'About', to: 'why' },
+  { label: 'nav.book', to: 'pickup' },
+  { label: 'nav.business', to: 'showcase' },
+  { label: 'nav.about', to: 'why' },
 ] as const
 
 export function Logo() {
+  const t = useT()
   return (
-    <a className="logo" href="#" onClick={(e) => { e.preventDefault(); scrollToSection('hero') }} aria-label="Fleet OS home">
+    <a className="logo" href="#" onClick={(e) => { e.preventDefault(); scrollToSection('hero') }} aria-label={t('a11y.home')}>
       <svg viewBox="0 0 48 48" width="26" height="26" aria-hidden>
         <path d="M6 30 L30 6 L42 6 L18 30 Z" fill="currentColor" />
         <path d="M6 42 L22 26 L34 26 L18 42 Z" fill="#a7b6ff" />
@@ -23,7 +22,10 @@ export function Logo() {
 }
 
 export function Nav() {
+  const t = useT()
   const active = useStore((s) => s.active)
+  const locale = useStore((s) => s.locale)
+  const setLocale = useStore((s) => s.setLocale)
   const [open, setOpen] = useState(false)
   const overScene = active !== 'hero'
   return (
@@ -41,16 +43,17 @@ export function Nav() {
               scrollToSection(n.to)
             }}
           >
-            {n.label}
+            {t(n.label)}
           </a>
         ))}
       </nav>
       <div className="nav__actions">
-        <span className="nav__login" title="Reservations and account services require production integrations">Demo mode</span>
+        <label className="language"><span className="sr-only">{t('a11y.language')}</span><select value={locale} onChange={(e) => setLocale(e.target.value as 'en' | 'zh-TW')} aria-label={t('a11y.language')}><option value="en">EN</option><option value="zh-TW">繁中</option></select></label>
+        <span className="nav__login" title="Reservations and account services require production integrations">{t('nav.demo')}</span>
         <button className="btn btn--primary btn--sm" onClick={() => scrollToSection('pickup')}>
-          Book a ride
+          {t('nav.cta')}
         </button>
-        <button className="nav__burger" aria-label="Menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <button className="nav__burger" aria-label={t('a11y.menu')} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
           <i />
           <i />
         </button>
@@ -134,12 +137,13 @@ export function Loader() {
 }
 
 export function MobileBar() {
+  const t = useT()
   const active = useStore((s) => s.active)
   const hidden = active === 'hero' || active === 'choose' || active === 'confirm'
   return (
     <div className={`mbar ${hidden ? 'is-hidden' : ''}`}>
       <button className="btn btn--primary" onClick={() => scrollToSection('pickup')}>
-        Book now
+        {t('nav.cta')}
       </button>
     </div>
   )

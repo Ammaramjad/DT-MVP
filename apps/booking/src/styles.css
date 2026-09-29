@@ -1545,3 +1545,20 @@ html.is-ready .hero__title .line--accent {
     min-height: 44px;
   }
 }
+
+/* Warm graphite premium design layer */
+:root { --bg:#e9e5dc; --ink:#171815; --ink-2:rgba(23,24,21,.68); --ink-3:rgba(23,24,21,.46); --line:rgba(38,35,29,.14); --accent:#8d6c32; --gold:#9a7331; --glass:rgba(246,243,236,.62); --glass-strong:rgba(248,245,238,.86); }
+::selection { background:rgba(154,115,49,.28); }
+.logo svg path:last-child { fill:#a98343; }
+.nav.is-glass { background:rgba(239,235,226,.78); box-shadow:0 12px 48px rgba(30,27,21,.07); }
+.language select { appearance:none; border:1px solid var(--line); border-radius:999px; background:rgba(255,255,255,.3); padding:7px 25px 7px 11px; font:600 11px/1 var(--font-body); letter-spacing:.08em; cursor:pointer; background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%); background-position:calc(100% - 12px) 48%,calc(100% - 8px) 48%; background-size:4px 4px; background-repeat:no-repeat; }
+.hero__title,.story__title,.outro__title { font-family:Georgia,'Times New Roman',serif; font-weight:400; letter-spacing:-.045em; }
+.line--accent { color:#8a6730; }
+.glass { box-shadow:0 24px 80px rgba(38,32,23,.10); border-color:rgba(64,53,37,.13); }
+.btn--primary { background:#1b1c19; color:#f5f1e8; }
+.btn--primary:hover { background:#8a6730; }
+.ridecard__name { display:flex; flex-direction:column; gap:4px; }
+.ridecard__name small { color:var(--ink-3); font:500 10px/1.2 var(--font-body); letter-spacing:.08em; text-transform:uppercase; }
+.editorial-copy { max-width:560px; margin:18px auto 30px; }
+.business-intro { color:var(--ink-2); max-width:520px; line-height:1.65; }
+@media (max-width:760px) { .language select { padding-block:9px; } .nav__login { display:none; } }
