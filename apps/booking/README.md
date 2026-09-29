@@ -1,4 +1,4 @@
-# AURA — immersive 3D booking experience
+# Fleet OS — immersive 3D booking experience
 
 Cinematic, scroll-driven B2C transportation booking site built with React 19, Vite, React Three Fiber, GSAP ScrollTrigger and Lenis.
 
@@ -30,3 +30,17 @@ All bundled assets are free to redistribute; each is streamed lazily with a proc
 - `public/models/car.glb` — Ferrari 458 by [vicent091036](https://sketchfab.com/models/57bf6cc56931426e87494f554df1dab6) (CC BY 4.0), via the three.js examples. Body/glass/chrome/rim/light materials are replaced at runtime per vehicle category.
 - `public/textures/asphalt_02_*` and `concrete_wall_005_*` — [Poly Haven](https://polyhaven.com) (CC0), 1k.
 - `public/hdr/sky_1k.hdr` — Poly Haven "Kloofendal 48d Partly Cloudy (Pure Sky)" (CC0), used for image-based lighting/reflections.
+
+The SUV, dedicated three-row **7-Seater**, and Van / Group bodies are original procedural geometry in `src/three/ProceduralVehicle.tsx`; they do not introduce third-party badges or assets.
+
+## Deployment
+
+- **Project/root directory:** `apps/booking`
+- **Install command:** `npm ci`
+- **Build command:** `npm run build`
+- **Output directory:** `dist`
+- **Environment variables:** none are required for the current static demo.
+- **Routing:** `vercel.json` rewrites unknown paths to `index.html` for SPA-compatible hosting.
+- **Static assets:** deploy the generated `dist/` directory without rewriting `/models`, `/textures`, or `/hdr` asset requests.
+
+The current fare, route, confirmation, and fleet information are deterministic demo estimates. A production deployment still requires server-side pricing, routing/geocoding, availability/dispatch, reservation, authentication, and payment integrations. The UI does not claim that a reservation or payment has occurred.

@@ -13,6 +13,7 @@ const FIT: Record<VehicleId, [number, number]> = {
   comfort: [1.0, 1.0],
   business: [1.08, 1.02],
   premium: [1.14, 1.0],
+  seven: [1, 1],
   van: [1.1, 1.22],
 }
 
@@ -144,6 +145,11 @@ const GlbVehicle = forwardRef<THREE.Group, VehicleProps>(function GlbVehicle(
 
 /** Realistic GLB car; falls back to the procedural body while the model streams in. */
 export const Vehicle = forwardRef<THREE.Group, VehicleProps>(function Vehicle(props, ref) {
+  // The repository GLB is a sports sedan. Larger categories use purpose-built
+  // geometry so their wheelbase, roof line and cabin volume remain truthful.
+  if (props.variant === 'business' || props.variant === 'seven' || props.variant === 'van') {
+    return <ProceduralVehicle {...props} ref={ref} />
+  }
   return (
     <Suspense fallback={<ProceduralVehicle {...props} ref={ref} />}>
       <GlbVehicle {...props} ref={ref} />

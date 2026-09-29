@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { VEHICLES, fmtTWD } from '../lib/data'
+import { SERVICES, VEHICLES, fmtTWD, vehicleFits } from '../lib/data'
 import { scrollToSection } from '../lib/scroll'
 import { JOURNEY_STAGES, SHOWCASE, WHY_ITEMS } from '../lib/content'
 import { useStore, useTrip, type SectionId } from '../store'
@@ -18,7 +18,7 @@ export function Hero() {
     <Scene id="hero" h={170}>
       <div className="hero">
         <p className="eyebrow hero__eyebrow">
-          <span>AURA</span> · Premium transportation
+          <span>FLEET OS</span> · Premium transportation
         </p>
         <h1 className="hero__title">
           <span className="line">Your Journey.</span>
@@ -51,6 +51,17 @@ export function Pickup() {
         <p className="eyebrow">01 — Pickup</p>
         <h2 className="story__title">Where should we pick you up?</h2>
         <div className="glass glass--panel">
+          <fieldset className="service-picker">
+            <legend>Service</legend>
+            <div className="service-picker__options">
+              {SERVICES.map((service) => (
+                <button key={service.id} type="button" aria-pressed={b.service === service.id} className={b.service === service.id ? 'is-active' : ''} onClick={() => set({ service: service.id })}>
+                  {service.name}
+                </button>
+              ))}
+            </div>
+            <small>{SERVICES.find((service) => service.id === b.service)?.note}</small>
+          </fieldset>
           <PlaceSearch value={b.pickup} onChange={(p) => set({ pickup: p })} placeholder="Search a pickup point" />
           <div className="glass__foot">
             <span>Airports · Stations · Hotels · Any address</span>
@@ -149,9 +160,17 @@ export function Choose() {
                 −
               </button>
               <b>{b.passengers}</b>
-              <button aria-label="More passengers" onClick={() => set({ passengers: Math.min(7, b.passengers + 1) })}>
+              <button aria-label="More passengers" onClick={() => set({ passengers: Math.min(8, b.passengers + 1) })}>
                 +
               </button>
+            </div>
+          </label>
+          <label>
+            <span>Luggage</span>
+            <div className="stepper">
+              <button aria-label="Fewer bags" onClick={() => set({ luggage: Math.max(0, b.luggage - 1) })}>−</button>
+              <b>{b.luggage}</b>
+              <button aria-label="More bags" onClick={() => set({ luggage: Math.min(8, b.luggage + 1) })}>+</button>
             </div>
           </label>
           <div className="tripbar__fare">
@@ -161,9 +180,10 @@ export function Choose() {
         </div>
         <div className="chips" role="tablist" aria-label="Vehicle category">
           {VEHICLES.map((v) => (
-            <button key={v.id} role="tab" aria-selected={b.vehicle === v.id} className={`chip ${b.vehicle === v.id ? 'is-active' : ''} ${v.seats < b.passengers ? 'is-small' : ''}`} onClick={() => set({ vehicle: v.id })}>
+            <button key={v.id} role="tab" aria-selected={b.vehicle === v.id} disabled={!vehicleFits(v, b.passengers, b.luggage)} aria-describedby={`capacity-${v.id}`} className={`chip ${b.vehicle === v.id ? 'is-active' : ''}`} onClick={() => set({ vehicle: v.id })}>
               {v.name}
               <small>{fmtTWD(trip.fareFor(v.id))}</small>
+              <span id={`capacity-${v.id}`} className="sr-only">{vehicleFits(v, b.passengers, b.luggage) ? `${v.seats} passengers and ${v.luggage} bags` : `Unavailable: supports up to ${v.seats} passengers and ${v.luggage} bags`}</span>
             </button>
           ))}
         </div>
@@ -199,8 +219,8 @@ export function Confirm() {
     <Scene id="confirm" h={190}>
       <div className="confirm">
         <div className={`glass confirm__card ${confirmed ? 'is-confirmed' : ''}`}>
-          <p className="eyebrow">04 — {confirmed ? 'Confirmed' : 'Confirm your journey'}</p>
-          <h2 className="story__title">{confirmed ? 'Your journey begins.' : 'Confirm your journey'}</h2>
+          <p className="eyebrow">04 — {confirmed ? 'Request ready' : 'Review your journey'}</p>
+          <h2 className="story__title">{confirmed ? 'Ready for integration.' : 'Review your journey'}</h2>
           <div className="confirm__route">
             <div>
               <small>Pickup</small>
@@ -222,8 +242,12 @@ export function Confirm() {
               <dd>{trip.spec.name}</dd>
             </div>
             <div>
+              <dt>Service</dt>
+              <dd>{SERVICES.find((service) => service.id === trip.service)?.name}</dd>
+            </div>
+            <div>
               <dt>Passengers</dt>
-              <dd>{trip.passengers}</dd>
+              <dd>{trip.passengers} · {trip.luggage} bags</dd>
             </div>
             <div>
               <dt>Distance</dt>
@@ -248,12 +272,12 @@ export function Confirm() {
                   setTimeout(() => scrollToSection('journey'), 500)
                 }}
               >
-                Confirm booking
+                Prepare request
               </button>
             </div>
           ) : (
             <div className="confirm__actions">
-              <span className="confirm__ok">Driver matched · Reference AU-{(trip.fare * 7919).toString(36).toUpperCase().slice(0, 6)}</span>
+              <span className="confirm__ok">Demo request prepared · No reservation or payment has been submitted.</span>
               <button className="btn btn--ghost" onClick={reset}>
                 New booking
               </button>
@@ -297,9 +321,9 @@ export function Fleet() {
   return (
     <Scene id="fleet" h={230}>
       <div className="story story--left story--top">
-        <p className="eyebrow">06 — Live fleet</p>
-        <h2 className="story__title">A living network.</h2>
-        <p className="story__hint">Hover any vehicle to meet the driver, see the car and its ETA.</p>
+        <p className="eyebrow">06 — Fleet simulation</p>
+        <h2 className="story__title">A connected network.</h2>
+        <p className="story__hint">Explore demonstration vehicles, drivers, and ETAs. This is not live availability.</p>
         <div className="legend">
           <span>
             <i className="is-available" /> Available
@@ -320,7 +344,7 @@ export function Why() {
   return (
     <Scene id="why" h={230}>
       <div className="story story--center story--top">
-        <p className="eyebrow">07 — Why AURA</p>
+        <p className="eyebrow">07 — Why Fleet OS</p>
         <h2 className="story__title">Built around you.</h2>
         <ul className="why__list" aria-label="Reasons">
           {WHY_ITEMS.map((w) => (
@@ -367,7 +391,7 @@ export function Outro() {
           Book your ride
         </button>
         <div className="outro__foot">
-          <span>© {new Date().getFullYear()} AURA Mobility · Taipei</span>
+          <span>© {new Date().getFullYear()} Fleet OS · Taipei</span>
           <span>Premium transportation, intelligently connected.</span>
         </div>
       </footer>

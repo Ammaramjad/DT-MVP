@@ -17,7 +17,16 @@ export const PLACES: Place[] = [
   { id: 'shilin', name: 'Shilin Night Market', area: 'Shilin', lat: 25.0879, lng: 121.5241 },
 ]
 
-export type VehicleId = 'economy' | 'comfort' | 'business' | 'premium' | 'van'
+export type VehicleId = 'economy' | 'comfort' | 'business' | 'premium' | 'seven' | 'van'
+export type ServiceId = 'airport-to-location' | 'location-to-airport' | 'location-to-location' | 'self-drive' | 'chauffeur'
+
+export const SERVICES: { id: ServiceId; name: string; note: string }[] = [
+  { id: 'airport-to-location', name: 'Airport → Location', note: 'Terminal pickup with flight details added at checkout.' },
+  { id: 'location-to-airport', name: 'Location → Airport', note: 'Scheduled departure with a recommended arrival buffer.' },
+  { id: 'location-to-location', name: 'Location → Location', note: 'A private point-to-point journey.' },
+  { id: 'self-drive', name: 'Self-drive rental', note: 'Prototype estimate only; licence verification is required.' },
+  { id: 'chauffeur', name: 'Chauffeur', note: 'Vehicle with a professional driver.' },
+]
 
 export type VehicleSpec = {
   id: VehicleId
@@ -33,12 +42,16 @@ export type VehicleSpec = {
 }
 
 export const VEHICLES: VehicleSpec[] = [
-  { id: 'economy', name: 'Economy', tagline: 'Efficient, everyday', seats: 3, luggage: 2, base: 85, perKm: 22, color: '#c9ced8', accent: '#9aa5b8', etaMin: 3 },
-  { id: 'comfort', name: 'Comfort', tagline: 'Quiet, spacious', seats: 4, luggage: 3, base: 120, perKm: 28, color: '#5b6b8c', accent: '#a7b6ff', etaMin: 4 },
-  { id: 'business', name: 'Business', tagline: 'Executive class', seats: 4, luggage: 3, base: 220, perKm: 42, color: '#1b1f2a', accent: '#d8dcff', etaMin: 6 },
-  { id: 'premium', name: 'Premium', tagline: 'First class, chauffeured', seats: 3, luggage: 3, base: 380, perKm: 64, color: '#0b0c10', accent: '#f4e9c8', etaMin: 8 },
-  { id: 'van', name: 'Van / Group', tagline: 'Up to seven, together', seats: 7, luggage: 6, base: 260, perKm: 48, color: '#2c3140', accent: '#b7c4ff', etaMin: 9 },
+  { id: 'economy', name: 'Sedan', tagline: 'Efficient, everyday', seats: 3, luggage: 2, base: 85, perKm: 22, color: '#c9ced8', accent: '#9aa5b8', etaMin: 3 },
+  { id: 'comfort', name: 'Premium Sedan', tagline: 'Quiet, spacious', seats: 4, luggage: 3, base: 120, perKm: 28, color: '#5b6b8c', accent: '#a7b6ff', etaMin: 4 },
+  { id: 'business', name: 'SUV', tagline: 'Confident all-road space', seats: 5, luggage: 4, base: 220, perKm: 42, color: '#1b1f2a', accent: '#d8dcff', etaMin: 6 },
+  { id: 'premium', name: 'Luxury / Chauffeur', tagline: 'First class, chauffeured', seats: 3, luggage: 3, base: 380, perKm: 64, color: '#0b0c10', accent: '#f4e9c8', etaMin: 8 },
+  { id: 'seven', name: '7-Seater', tagline: 'Three-row SUV versatility', seats: 7, luggage: 4, base: 285, perKm: 51, color: '#35453f', accent: '#b9dcc9', etaMin: 8 },
+  { id: 'van', name: 'Van / Group', tagline: 'Group travel with cargo room', seats: 8, luggage: 8, base: 330, perKm: 56, color: '#2c3140', accent: '#b7c4ff', etaMin: 9 },
 ]
+
+export const vehicleFits = (vehicle: VehicleSpec, passengers: number, luggage: number) =>
+  vehicle.seats >= passengers && vehicle.luggage >= luggage
 
 export function haversineKm(a: Place, b: Place) {
   const R = 6371
