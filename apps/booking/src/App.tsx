@@ -3,6 +3,7 @@ import { FleetScene } from './three/FleetScene'
 import { createDemoRoute } from './lib/routing'
 import { PLACES, SERVICES, VEHICLES, fmtTWD, vehicleFits, type ServiceId, type VehicleId } from './lib/data'
 import { useStore, useTrip } from './store'
+import { AboutWorld, BusinessWorld, HeroWorld } from './three/CinematicWorlds'
 
 const COPY = {
   en: {
@@ -65,8 +66,8 @@ function Header({ c }: { c: Copy }) {
 }
 
 function Hero({ c }: { c: Copy }) {
-  return <section className="hero" id="top"><div className="hero-copy"><p className="kicker"><i />{c.eyebrow}</p><h1>{c.heroA}<br/><em>{c.heroB}</em></h1><p className="lead">{c.heroCopy}</p><div className="hero-actions"><a className="button button-accent" href="#book">{c.plan}<span>→</span></a><a className="text-link" href="#business">{c.discover}<span>↓</span></a></div></div>
-    <div className="hero-visual" aria-hidden="true"><div className="architecture"><i/><i/><i/></div><div className="hero-car"><div className="car-glass"/><div className="car-body"/><i/><i/></div><div className="road-lines"/><div className="hero-caption"><span>25.0330° N</span><b>{c.availability}</b><span>121.5654° E</span></div></div>
+  return <section className="hero hero-2030" id="top"><div className="hero-world"><HeroWorld/></div><div className="hero-shade"/><div className="hero-copy"><p className="kicker"><i />{c.eyebrow}</p><h1>{c.heroA}<br/><em>{c.heroB}</em></h1><p className="lead">{c.heroCopy}</p><div className="hero-actions"><a className="button button-accent" href="#book">{c.bookRide}<span>↗</span></a></div></div>
+    <div className="hero-caption"><span>25.0330° N</span><b>{c.availability}</b><span>INTERACTIVE / DRAG</span></div>
   </section>
 }
 
@@ -106,9 +107,9 @@ function TripLifecycle({c,routeId,vehicle,onClose}:{c:Copy;routeId:string;vehicl
   return <div className="trip-lifecycle" role="status"><header><span>{locale==='en'?'DEMO JOURNEY · SIMULATED':'示範行程 · 模擬資料'}</span><button onClick={onClose}>{c.close}</button></header><b>{labels[stage]}</b><small>{vehicle} · {routeId}</small><ol>{labels.map((x,i)=><li className={i<=stage?'active':''} key={x}><i/>{x}</li>)}</ol></div>
 }
 
-function Business({c}:{c:Copy}) { return <section className="business" id="business"><div className="business-head"><p className="kicker light"><i/>{c.businessKicker}</p><h2>{c.businessTitle}</h2><p>{c.businessCopy}</p></div><div className="business-grid">{c.pillars.map((p,i)=><article key={p[0]}><span>0{i+1}</span><div className={`pillar-visual visual-${i}`}><i/><i/><i/></div><h3>{p[0]}</h3><p>{p[1]}</p></article>)}</div><div className="business-metrics"><div><b>01</b><span>{c.metricA}</span></div><div><b>360°</b><span>{c.metricB}</span></div><div><b>24/7</b><span>{c.metricC}</span></div></div></section> }
+function Business({c}:{c:Copy}) { const [mode,setMode]=useState(0); return <section className="business business-2030" id="business"><div className="business-editorial"><p className="kicker light"><i/>{c.businessKicker}</p><h2>{c.businessTitle}</h2><p>{c.businessCopy}</p><div className="business-tabs" role="tablist">{c.pillars.map((p,i)=><button role="tab" aria-selected={mode===i} className={mode===i?'active':''} onClick={()=>setMode(i)} key={p[0]}><span>0{i+1}</span><b>{p[0]}</b></button>)}</div><div className="business-statement" key={mode}><span>0{mode+1} / 04</span><h3>{c.pillars[mode][0]}</h3><p>{c.pillars[mode][1]}</p></div></div><div className="business-world"><BusinessWorld mode={mode}/><span className="scene-tag">3D / {c.pillars[mode][0]}</span></div></section> }
 
-function About({c}:{c:Copy}) { return <><section className="about" id="about"><div className="about-index">F—OS<br/>2030</div><div><p className="kicker"><i/>{c.aboutKicker}</p><h2>{c.aboutTitle}</h2></div><div className="about-copy"><p>{c.aboutCopy}</p><span>{c.cities}</span></div></section><section className="closing"><span>FLEET OS / TAIWAN</span><h2>{c.ctaTitle}</h2><a href="#book" className="button button-accent">{c.plan}<span>→</span></a><footer><b>FLEET OS</b><span>© {new Date().getFullYear()} {c.footer}</span></footer></section></> }
+function About({c}:{c:Copy}) { return <><section className="about about-2030" id="about"><div className="about-world"><AboutWorld/></div><div className="about-index">F—OS<br/>2030</div><div><p className="kicker"><i/>{c.aboutKicker}</p><h2>{c.aboutTitle}</h2></div><div className="about-copy"><p>{c.aboutCopy}</p><span>{c.cities}</span></div></section><section className="closing"><span>FLEET OS / TAIWAN</span><h2>{c.ctaTitle}</h2><a href="#book" className="button button-accent">{c.plan}<span>→</span></a><footer><b>FLEET OS</b><span>© {new Date().getFullYear()} {c.footer}</span></footer></section></> }
 
 export default function App() {
   const locale=useStore(s=>s.locale); const c=COPY[locale]
