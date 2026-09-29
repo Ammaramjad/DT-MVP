@@ -205,6 +205,8 @@ already models one trip at a time end-to-end.
 
 ### Trying it live
 
+The hosted demo is public: opening its URL or any route below goes straight to the app without a GitHub or preview login.
+
 - **Urgency tier + auto-cancel**: `/booking` → select "Last-Minute / Same-Day", pick Airport Pickup, look up a flight
   → submit → in `/fleet-os` (Control Center), use the order card's demo "simulate flight landed" button → within the
   compressed demo window the order auto-cancels with a refund note in its audit log.
