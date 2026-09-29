@@ -27,11 +27,11 @@ function Turntable({ active }: { active: boolean }) {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
         <circleGeometry args={[3.6, 48]} />
-        <meshStandardMaterial color="#d7dbe3" roughness={0.25} metalness={0.7} />
+        <meshStandardMaterial color="#d6d0c5" roughness={0.25} metalness={0.7} />
       </mesh>
       <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
         <ringGeometry args={[3.5, 3.62, 64]} />
-        <meshBasicMaterial color="#4f63e0" transparent opacity={0.25} toneMapped={false} />
+        <meshBasicMaterial color="#9a7331" transparent opacity={0.25} toneMapped={false} />
       </mesh>
     </group>
   )
@@ -155,18 +155,18 @@ export function VehiclePlaza() {
     <group position={WORLD.plaza}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, -3]} receiveShadow>
         <circleGeometry args={[28, 64]} />
-        <meshStandardMaterial color="#cfd4dd" roughness={0.3} metalness={0.6} />
+        <meshStandardMaterial color="#d4cdc0" roughness={0.3} metalness={0.6} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, -3]}>
         <ringGeometry args={[27.6, 28, 96]} />
-        <meshBasicMaterial color="#7f8bb0" toneMapped={false} />
+        <meshBasicMaterial color="#8f8067" toneMapped={false} />
       </mesh>
       {/* back wall wash */}
       <mesh position={[0, 6, -22]}>
         <planeGeometry args={[70, 14]} />
-        <meshStandardMaterial color="#d5dae3" roughness={1} />
+        <meshStandardMaterial color="#d8d1c5" roughness={1} />
       </mesh>
-      <pointLight position={[0, 10, -14]} intensity={120} distance={50} color="#7f8fd8" />
+      <pointLight position={[0, 10, -14]} intensity={120} distance={50} color="#ad9567" />
       {VEHICLES.map((v, i) => (
         <PlazaVehicle key={v.id} id={v.id} index={i} />
       ))}

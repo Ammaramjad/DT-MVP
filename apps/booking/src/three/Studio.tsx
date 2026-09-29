@@ -39,9 +39,9 @@ export function Studio() {
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <circleGeometry args={[30, 96]} />
         {quality === 'high' ? (
-          <MeshReflectorMaterial blur={[400, 100]} resolution={1024} mixBlur={1} mixStrength={18} roughness={0.9} depthScale={1.1} minDepthThreshold={0.4} maxDepthThreshold={1.3} color="#dde1e8" metalness={0.6} mirror={0.5} />
+          <MeshReflectorMaterial blur={[400, 100]} resolution={1024} mixBlur={1} mixStrength={18} roughness={0.9} depthScale={1.1} minDepthThreshold={0.4} maxDepthThreshold={1.3} color="#d8d1c5" metalness={0.6} mirror={0.5} />
         ) : (
-          <meshStandardMaterial color="#c9ced8" roughness={0.25} metalness={0.8} />
+          <meshStandardMaterial color="#c8c0b3" roughness={0.25} metalness={0.8} />
         )}
       </mesh>
       {/* stage disc */}
@@ -52,22 +52,22 @@ export function Studio() {
       {/* cyclorama */}
       <mesh position={[0, 12, -22]} receiveShadow>
         <planeGeometry args={[90, 40]} />
-        <meshStandardMaterial color="#d5dae3" roughness={1} />
+        <meshStandardMaterial color="#d8d1c5" roughness={1} />
       </mesh>
       <group ref={car} rotation={[0, Math.PI * 0.75, 0]}>
         <Vehicle variant="premium" color="#0b0c10" lights={false} paintRoughness={0.1} />
       </group>
       {/* studio lighting */}
-      <hemisphereLight args={['#ffffff', '#e4e8ef', 1.4]} />
+      <hemisphereLight args={['#ffffff', '#e7e1d6', 1.4]} />
       <spotLight ref={key} position={[6, 9, 6]} angle={0.45} penumbra={0.7} intensity={380} distance={40} castShadow color="#fff6e6" shadow-mapSize={[2048, 2048]} shadow-bias={-0.0002} target-position={[0, 0.5, 0]} />
-      <spotLight position={[-8, 6, -2]} angle={0.5} penumbra={0.8} intensity={160} distance={40} color="#c9d4ff" target-position={[0, 0.5, 0]} />
+      <spotLight position={[-8, 6, -2]} angle={0.5} penumbra={0.8} intensity={160} distance={40} color="#d9c9a8" target-position={[0, 0.5, 0]} />
       <spotLight ref={rim} position={[0, 5, -9]} angle={0.7} penumbra={0.9} intensity={260} distance={40} color="#c89a2e" target-position={[0, 0.6, 0]} />
       {/* soft box overhead */}
       <mesh position={[0, 7, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[9, 1.2]} />
-        <meshBasicMaterial color="#e9eeff" toneMapped={false} />
+        <meshBasicMaterial color="#f0e7d4" toneMapped={false} />
       </mesh>
-      <pointLight position={[0, 6.5, 0]} intensity={90} distance={20} color="#e9eeff" />
+      <pointLight position={[0, 6.5, 0]} intensity={90} distance={20} color="#f0e7d4" />
     </group>
   )
 }

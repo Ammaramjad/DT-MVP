@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { SERVICES, VEHICLES, fmtTWD, vehicleFits } from '../lib/data'
 import { scrollToSection } from '../lib/scroll'
 import { JOURNEY_STAGES, SHOWCASE, WHY_ITEMS } from '../lib/content'
-import { useStore, useTrip, type SectionId } from '../store'
+import { useStore, useT, useTrip, type SectionId } from '../store'
 import { PlaceSearch } from './PlaceSearch'
 
 function Scene({ id, h, children, className = '' }: { id: SectionId; h: number; children: ReactNode; className?: string }) {
@@ -14,28 +14,29 @@ function Scene({ id, h, children, className = '' }: { id: SectionId; h: number; 
 }
 
 export function Hero() {
+  const t = useT()
   return (
     <Scene id="hero" h={170}>
       <div className="hero">
         <p className="eyebrow hero__eyebrow">
-          <span>FLEET OS</span> · Premium transportation
+          <span>FLEET OS</span> · {t('hero.kicker')}
         </p>
         <h1 className="hero__title">
-          <span className="line">Your Journey.</span>
-          <span className="line line--accent">Reimagined.</span>
+          <span className="line">{t('hero.title1')}</span>
+          <span className="line line--accent">{t('hero.title2')}</span>
         </h1>
-        <p className="hero__sub">Premium transportation, intelligently connected.</p>
+        <p className="hero__sub">{t('hero.copy')}</p>
         <div className="hero__cta">
           <button className="btn btn--primary" onClick={() => scrollToSection('pickup')}>
-            Book your ride
+            {t('hero.book')}
           </button>
           <button className="btn btn--ghost" onClick={() => scrollToSection('journey')}>
-            Explore the experience
+            {t('hero.explore')}
           </button>
         </div>
         <div className="hero__scroll" aria-hidden>
           <span />
-          Scroll to enter the city
+          {t('hero.scroll')}
         </div>
       </div>
     </Scene>
@@ -43,16 +44,17 @@ export function Hero() {
 }
 
 export function Pickup() {
+  const t = useT()
   const b = useStore((s) => s.booking)
   const set = useStore((s) => s.setBooking)
   return (
     <Scene id="pickup" h={230}>
       <div className="story story--left">
-        <p className="eyebrow">01 — Pickup</p>
-        <h2 className="story__title">Where should we pick you up?</h2>
+        <p className="eyebrow">{t('book.pickupStep')}</p>
+        <h2 className="story__title">{t('book.pickupTitle')}</h2>
         <div className="glass glass--panel">
           <fieldset className="service-picker">
-            <legend>Service</legend>
+            <legend>{t('book.service')}</legend>
             <div className="service-picker__options">
               {SERVICES.map((service) => (
                 <button key={service.id} type="button" aria-pressed={b.service === service.id} className={b.service === service.id ? 'is-active' : ''} onClick={() => set({ service: service.id })}>
@@ -62,11 +64,11 @@ export function Pickup() {
             </div>
             <small>{SERVICES.find((service) => service.id === b.service)?.note}</small>
           </fieldset>
-          <PlaceSearch value={b.pickup} onChange={(p) => set({ pickup: p })} placeholder="Search a pickup point" />
+          <PlaceSearch value={b.pickup} onChange={(p) => set({ pickup: p })} placeholder={t('book.pickupPlaceholder')} />
           <div className="glass__foot">
             <span>Airports · Stations · Hotels · Any address</span>
             <button className="btn btn--text" onClick={() => scrollToSection('destination')}>
-              Next →
+              {t('book.next')} →
             </button>
           </div>
         </div>
@@ -76,22 +78,23 @@ export function Pickup() {
 }
 
 export function Destination() {
+  const t = useT()
   const b = useStore((s) => s.booking)
   const set = useStore((s) => s.setBooking)
   const trip = useTrip()
   return (
     <Scene id="destination" h={230}>
       <div className="story story--right">
-        <p className="eyebrow">02 — Destination</p>
-        <h2 className="story__title">Where are you going?</h2>
+        <p className="eyebrow">{t('book.destinationStep')}</p>
+        <h2 className="story__title">{t('book.destinationTitle')}</h2>
         <div className="glass glass--panel">
-          <PlaceSearch value={b.destination} onChange={(p) => set({ destination: p })} placeholder="Search a destination" tone="gold" />
+          <PlaceSearch value={b.destination} onChange={(p) => set({ destination: p })} placeholder={t('book.destinationPlaceholder')} tone="gold" />
           <div className="glass__foot">
             <span>
               {trip.km.toFixed(0)} km · ~{trip.duration} min
             </span>
             <button className="btn btn--text" onClick={() => scrollToSection('choose')}>
-              Choose a ride →
+              {t('book.choose')} →
             </button>
           </div>
         </div>
@@ -101,6 +104,7 @@ export function Destination() {
 }
 
 export function Choose() {
+  const t = useT()
   const b = useStore((s) => s.booking)
   const set = useStore((s) => s.setBooking)
   const isMobile = useStore((s) => s.isMobile)
@@ -140,21 +144,21 @@ export function Choose() {
     <Scene id="choose" h={320}>
       <div ref={ref} className="choose">
         <div className="choose__head">
-          <p className="eyebrow">03 — Choose your ride</p>
-          <h2 className="story__title">Choose your ride</h2>
-          <p className="story__hint">{isMobile ? 'Swipe to browse. Tap a vehicle for details.' : 'Hover a vehicle to see price, capacity and ETA. Click to select.'}</p>
+          <p className="eyebrow">{t('book.vehicleStep')}</p>
+          <h2 className="story__title">{t('book.vehicleTitle')}</h2>
+          <p className="story__hint">{t('book.vehicleHint')}</p>
         </div>
         <div className="glass tripbar">
           <label>
-            <span>Date</span>
+            <span>{t('book.date')}</span>
             <input type="date" value={b.date} onChange={(e) => set({ date: e.target.value })} />
           </label>
           <label>
-            <span>Time</span>
+            <span>{t('book.time')}</span>
             <input type="time" value={b.time} onChange={(e) => set({ time: e.target.value })} />
           </label>
           <label>
-            <span>Passengers</span>
+            <span>{t('book.passengers')}</span>
             <div className="stepper">
               <button aria-label="Fewer passengers" onClick={() => set({ passengers: Math.max(1, b.passengers - 1) })}>
                 −
@@ -166,7 +170,7 @@ export function Choose() {
             </div>
           </label>
           <label>
-            <span>Luggage</span>
+            <span>{t('book.luggage')}</span>
             <div className="stepper">
               <button aria-label="Fewer bags" onClick={() => set({ luggage: Math.max(0, b.luggage - 1) })}>−</button>
               <b>{b.luggage}</b>
@@ -174,7 +178,7 @@ export function Choose() {
             </div>
           </label>
           <div className="tripbar__fare">
-            <span>Estimated fare</span>
+            <span>{t('book.estimate')}</span>
             <b>{fmtTWD(trip.fare)}</b>
           </div>
         </div>
@@ -190,16 +194,16 @@ export function Choose() {
         {domCard && (
           <div className="glass ridecard" key={spec.id}>
             <div className="ridecard__head">
-              <span className="ridecard__name">{spec.name}</span>
+              <span className="ridecard__name">{spec.name}<small>{spec.model}</small></span>
               <span className="ridecard__price">{fmtTWD(trip.fare)}</span>
             </div>
             <div className="ridecard__meta">
-              <span>{spec.seats} seats</span>
-              <span>{spec.luggage} bags</span>
-              <span>ETA {spec.etaMin} min</span>
+              <span>{spec.seats} {t('book.seats')}</span>
+              <span>{spec.luggage} {t('book.bags')}</span>
+              <span>{t('book.eta')} {spec.etaMin} min</span>
             </div>
             <button className="btn btn--primary" onClick={() => scrollToSection('confirm')}>
-              Book this ride
+              {t('book.select')}
             </button>
           </div>
         )}
@@ -209,6 +213,7 @@ export function Choose() {
 }
 
 export function Confirm() {
+  const t = useT()
   const trip = useTrip()
   const confirmed = useStore((s) => s.confirmed)
   const confirm = useStore((s) => s.confirm)
@@ -219,51 +224,51 @@ export function Confirm() {
     <Scene id="confirm" h={190}>
       <div className="confirm">
         <div className={`glass confirm__card ${confirmed ? 'is-confirmed' : ''}`}>
-          <p className="eyebrow">04 — {confirmed ? 'Request ready' : 'Review your journey'}</p>
-          <h2 className="story__title">{confirmed ? 'Ready for integration.' : 'Review your journey'}</h2>
+          <p className="eyebrow">{t('review.step')}</p>
+          <h2 className="story__title">{confirmed ? t('review.ready') : t('review.title')}</h2>
           <div className="confirm__route">
             <div>
-              <small>Pickup</small>
+              <small>{t('review.pickup')}</small>
               <b>{trip.pickup?.name}</b>
             </div>
             <i className="confirm__arrow" aria-hidden />
             <div>
-              <small>Destination</small>
+              <small>{t('review.destination')}</small>
               <b>{trip.destination?.name}</b>
             </div>
           </div>
           <dl className="confirm__grid">
             <div>
-              <dt>When</dt>
+              <dt>{t('review.when')}</dt>
               <dd>{when}</dd>
             </div>
             <div>
-              <dt>Vehicle</dt>
-              <dd>{trip.spec.name}</dd>
+              <dt>{t('review.vehicle')}</dt>
+              <dd>{trip.spec.name} · {trip.spec.model}</dd>
             </div>
             <div>
-              <dt>Service</dt>
+              <dt>{t('review.service')}</dt>
               <dd>{SERVICES.find((service) => service.id === trip.service)?.name}</dd>
             </div>
             <div>
-              <dt>Passengers</dt>
+              <dt>{t('book.passengers')}</dt>
               <dd>{trip.passengers} · {trip.luggage} bags</dd>
             </div>
             <div>
-              <dt>Distance</dt>
+              <dt>{t('review.distance')}</dt>
               <dd>
                 {trip.km.toFixed(0)} km · {trip.duration} min
               </dd>
             </div>
             <div className="confirm__fare">
-              <dt>Estimated fare</dt>
+              <dt>{t('book.estimate')}</dt>
               <dd>{fmtTWD(trip.fare)}</dd>
             </div>
           </dl>
           {!confirmed ? (
             <div className="confirm__actions">
               <button className="btn btn--text" onClick={() => scrollToSection('choose')}>
-                ← Change ride
+                ← {t('review.change')}
               </button>
               <button
                 className="btn btn--primary btn--lg"
@@ -272,14 +277,14 @@ export function Confirm() {
                   setTimeout(() => scrollToSection('journey'), 500)
                 }}
               >
-                Prepare request
+                {t('review.prepare')}
               </button>
             </div>
           ) : (
             <div className="confirm__actions">
-              <span className="confirm__ok">Demo request prepared · No reservation or payment has been submitted.</span>
+              <span className="confirm__ok">{t('review.disclaimer')}</span>
               <button className="btn btn--ghost" onClick={reset}>
-                New booking
+                {t('review.new')}
               </button>
             </div>
           )}
@@ -341,12 +346,13 @@ export function Fleet() {
 }
 
 export function Why() {
+  const t = useT()
   return (
     <Scene id="why" h={230}>
       <div className="story story--center story--top">
-        <p className="eyebrow">07 — Why Fleet OS</p>
-        <h2 className="story__title">Built around you.</h2>
-        <ul className="why__list" aria-label="Reasons">
+        <p className="eyebrow">{t('about.kicker')}</p>
+        <h2 className="story__title">{t('about.title')}</h2>
+        <p className="story__hint editorial-copy">{t('about.copy')}</p><ul className="why__list" aria-label="Reasons">
           {WHY_ITEMS.map((w) => (
             <li key={w.key}>{w.title}</li>
           ))}
@@ -357,15 +363,16 @@ export function Why() {
 }
 
 export function Showcase() {
+  const t = useT()
   const idx = useStore((s) => s.showcaseIndex)
   const cur = SHOWCASE[idx]
   return (
     <Scene id="showcase" h={420}>
       <div className="showcase">
         <div className="showcase__head">
-          <p className="eyebrow">08 — Premium showcase</p>
+          <p className="eyebrow">{t('business.kicker')}</p>
         </div>
-        <div className="showcase__copy" key={cur.key}>
+        <div className="showcase__copy" key={cur.key}><p className="business-intro">{t('business.copy')}</p>
           <span className="showcase__idx">
             {String(idx + 1).padStart(2, '0')} / {String(SHOWCASE.length).padStart(2, '0')}
           </span>
@@ -383,16 +390,17 @@ export function Showcase() {
 }
 
 export function Outro() {
+  const t = useT()
   return (
     <Scene id="outro" h={130} className="scene--outro">
       <footer className="outro">
-        <h2 className="outro__title">Ready when you are.</h2>
+        <h2 className="outro__title">{t('outro.title')}</h2>
         <button className="btn btn--primary btn--lg" onClick={() => scrollToSection('pickup')}>
-          Book your ride
+          {t('hero.book')}
         </button>
         <div className="outro__foot">
           <span>© {new Date().getFullYear()} Fleet OS · Taipei</span>
-          <span>Premium transportation, intelligently connected.</span>
+          <span>{t('hero.copy')}</span>
         </div>
       </footer>
     </Scene>

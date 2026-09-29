@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { PLACES, VEHICLES, estimateDurationMin, estimateFare, haversineKm, vehicleFits, type Place, type ServiceId, type VehicleId } from './lib/data'
+import { translate, type Locale, type TranslationKey } from './lib/i18n'
 
 export type SectionId =
   | 'hero'
@@ -64,6 +65,7 @@ type State = {
   confirmed: boolean
   journeyStage: number
   showcaseIndex: number
+  locale: Locale
   setReady: (v: boolean) => void
   setQuality: (q: Quality) => void
   setActive: (s: SectionId) => void
@@ -73,6 +75,7 @@ type State = {
   reset: () => void
   setJourneyStage: (n: number) => void
   setShowcaseIndex: (n: number) => void
+  setLocale: (locale: Locale) => void
 }
 
 function detect() {
@@ -125,6 +128,7 @@ export const useStore = create<State>((set) => ({
   confirmed: false,
   journeyStage: 0,
   showcaseIndex: 0,
+  locale: (localStorage.getItem('fleet-os-locale') === 'zh-TW' ? 'zh-TW' : 'en'),
   setReady: (ready) => set({ ready }),
   setQuality: (quality) => set({ quality }),
   setActive: (active) => set({ active }),
@@ -142,7 +146,17 @@ export const useStore = create<State>((set) => ({
   reset: () => set({ confirmed: false }),
   setJourneyStage: (journeyStage) => set({ journeyStage }),
   setShowcaseIndex: (showcaseIndex) => set({ showcaseIndex }),
+  setLocale: (locale) => {
+    localStorage.setItem('fleet-os-locale', locale)
+    document.documentElement.lang = locale
+    set({ locale })
+  },
 }))
+
+export function useT() {
+  const locale = useStore((s) => s.locale)
+  return (key: TranslationKey) => translate(locale, key)
+}
 
 export function useTrip() {
   const b = useStore((s) => s.booking)

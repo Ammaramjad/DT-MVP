@@ -15,6 +15,10 @@ export const PLACES: Place[] = [
   { id: 'keelung', name: 'Keelung Harbor', area: 'Keelung', lat: 25.1319, lng: 121.7412 },
   { id: 'yms', name: 'Yangmingshan National Park', area: 'Beitou', lat: 25.1559, lng: 121.5459 },
   { id: 'shilin', name: 'Shilin Night Market', area: 'Shilin', lat: 25.0879, lng: 121.5241 },
+  { id: 'hsinchu-hsr', name: 'Hsinchu HSR Station', area: 'Hsinchu', lat: 24.8082, lng: 121.0403 },
+  { id: 'taichung-hsr', name: 'Taichung HSR Station', area: 'Taichung', lat: 24.112, lng: 120.616 },
+  { id: 'tainan-hsr', name: 'Tainan HSR Station', area: 'Tainan', lat: 22.9248, lng: 120.2857 },
+  { id: 'kaohsiung-hsr', name: 'Zuoying HSR Station', area: 'Kaohsiung', lat: 22.6877, lng: 120.309 },
 ]
 
 export type VehicleId = 'economy' | 'comfort' | 'business' | 'premium' | 'seven' | 'van'
@@ -39,15 +43,17 @@ export type VehicleSpec = {
   color: string
   accent: string
   etaMin: number
+  model: string
+  assetStatus: 'licensed-glb' | 'original-prototype'
 }
 
 export const VEHICLES: VehicleSpec[] = [
-  { id: 'economy', name: 'Sedan', tagline: 'Efficient, everyday', seats: 3, luggage: 2, base: 85, perKm: 22, color: '#c9ced8', accent: '#9aa5b8', etaMin: 3 },
-  { id: 'comfort', name: 'Premium Sedan', tagline: 'Quiet, spacious', seats: 4, luggage: 3, base: 120, perKm: 28, color: '#5b6b8c', accent: '#a7b6ff', etaMin: 4 },
-  { id: 'business', name: 'SUV', tagline: 'Confident all-road space', seats: 5, luggage: 4, base: 220, perKm: 42, color: '#1b1f2a', accent: '#d8dcff', etaMin: 6 },
-  { id: 'premium', name: 'Luxury / Chauffeur', tagline: 'First class, chauffeured', seats: 3, luggage: 3, base: 380, perKm: 64, color: '#0b0c10', accent: '#f4e9c8', etaMin: 8 },
-  { id: 'seven', name: '7-Seater', tagline: 'Three-row SUV versatility', seats: 7, luggage: 4, base: 285, perKm: 51, color: '#35453f', accent: '#b9dcc9', etaMin: 8 },
-  { id: 'van', name: 'Van / Group', tagline: 'Group travel with cargo room', seats: 8, luggage: 8, base: 330, perKm: 56, color: '#2c3140', accent: '#b7c4ff', etaMin: 9 },
+  { id: 'economy', name: 'Sedan', model: 'Reference Sedan', assetStatus: 'licensed-glb', tagline: 'Efficient, everyday', seats: 3, luggage: 2, base: 85, perKm: 22, color: '#c6c2ba', accent: '#8d877e', etaMin: 3 },
+  { id: 'comfort', name: 'Premium Sedan', model: 'Reference Grand Sedan', assetStatus: 'licensed-glb', tagline: 'Quiet, spacious', seats: 4, luggage: 3, base: 120, perKm: 28, color: '#4e504e', accent: '#bca77d', etaMin: 4 },
+  { id: 'business', name: 'SUV', model: 'SUV Digital Prototype', assetStatus: 'original-prototype', tagline: 'Confident all-road space', seats: 5, luggage: 4, base: 220, perKm: 42, color: '#242624', accent: '#c8b387', etaMin: 6 },
+  { id: 'premium', name: 'Luxury / Chauffeur', model: 'Reference Executive Sedan', assetStatus: 'licensed-glb', tagline: 'First class, chauffeured', seats: 3, luggage: 3, base: 380, perKm: 64, color: '#111211', accent: '#dbcba7', etaMin: 8 },
+  { id: 'seven', name: '7-Seater', model: 'Three-row Digital Prototype', assetStatus: 'original-prototype', tagline: 'Three-row SUV versatility', seats: 7, luggage: 4, base: 285, perKm: 51, color: '#38413b', accent: '#afbea9', etaMin: 8 },
+  { id: 'van', name: 'Van / Group', model: 'Group Van Digital Prototype', assetStatus: 'original-prototype', tagline: 'Group travel with cargo room', seats: 8, luggage: 8, base: 330, perKm: 56, color: '#333532', accent: '#c1b392', etaMin: 9 },
 ]
 
 export const vehicleFits = (vehicle: VehicleSpec, passengers: number, luggage: number) =>
