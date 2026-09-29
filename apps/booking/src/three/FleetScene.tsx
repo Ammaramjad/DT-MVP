@@ -1,0 +1,11 @@
+import { Canvas } from '@react-three/fiber'
+import { OrbitControls } from '@react-three/drei'
+import { Suspense } from 'react'
+import type { Place, ServiceId, VehicleId } from '../lib/data'
+import type { Route } from '../lib/routing'
+import { EnvironmentLighting } from './EnvironmentLighting'
+import { ServiceSceneManager } from './ServiceWorlds'
+import { RouteScene } from './RouteScene'
+import { TripJourneyScene } from './TripJourneyScene'
+import { CameraDirector } from './CameraDirector'
+export function FleetScene({service,pickup,vehicle,route,phase='service',progress=0}:{service:ServiceId;pickup:Place;vehicle:VehicleId;route:Route;phase?:'service'|'route'|'studio';progress?:number}){const studio=service==='self-drive';return <Canvas shadows dpr={[.8,1.6]} camera={{position:[8,5,10],fov:38}} gl={{antialias:true,powerPreference:'high-performance'}}><EnvironmentLighting night={service==='chauffeur'||studio}/><CameraDirector mode={studio?'studio':phase}/><Suspense fallback={null}>{phase==='service'?<ServiceSceneManager service={service} pickup={pickup} vehicle={vehicle}/>:<><RouteScene route={route}/><TripJourneyScene route={route} vehicle={vehicle} progress={progress}/></>}</Suspense>{studio&&<OrbitControls enablePan={false} minDistance={4.5} maxDistance={9} minPolarAngle={.85} maxPolarAngle={1.48} target={[0,0,0]}/>}</Canvas>}

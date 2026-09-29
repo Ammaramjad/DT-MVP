@@ -1,24 +1,27 @@
-export type Place = { id: string; name: string; area: string; lat: number; lng: number }
+export type City = 'Taipei' | 'New Taipei' | 'Taoyuan' | 'Hsinchu' | 'Taichung' | 'Tainan' | 'Kaohsiung'
+export type PlaceType = 'airport' | 'station' | 'landmark' | 'district' | 'hotel'
+/** Normalized demo location. Coordinates identify real public places; scene architecture is representative. */
+export type Place = { id: string; name: string; address: string; area: string; city: City; lat: number; lng: number; type: PlaceType; poi?: string }
 
 export const PLACES: Place[] = [
-  { id: 'tpe', name: 'Taoyuan International Airport (TPE)', area: 'Terminal 1 & 2', lat: 25.0797, lng: 121.2342 },
-  { id: 'tsa', name: 'Songshan Airport (TSA)', area: 'Taipei City', lat: 25.0694, lng: 121.5521 },
-  { id: 'main', name: 'Taipei Main Station', area: 'Zhongzheng', lat: 25.0478, lng: 121.5171 },
-  { id: '101', name: 'Taipei 101', area: 'Xinyi', lat: 25.0339, lng: 121.5645 },
-  { id: 'grand', name: 'The Grand Hotel', area: 'Zhongshan', lat: 25.0794, lng: 121.5262 },
-  { id: 'ximen', name: 'Ximending', area: 'Wanhua', lat: 25.0421, lng: 121.5081 },
-  { id: 'beitou', name: 'Beitou Hot Springs', area: 'Beitou', lat: 25.1367, lng: 121.5063 },
-  { id: 'nangang', name: 'Nangang Exhibition Center', area: 'Nangang', lat: 25.0556, lng: 121.6176 },
-  { id: 'banqiao', name: 'Banqiao HSR Station', area: 'New Taipei', lat: 25.0143, lng: 121.4634 },
-  { id: 'tamsui', name: 'Tamsui Fisherman’s Wharf', area: 'New Taipei', lat: 25.1826, lng: 121.4116 },
-  { id: 'jiufen', name: 'Jiufen Old Street', area: 'Ruifang', lat: 25.1097, lng: 121.8443 },
-  { id: 'keelung', name: 'Keelung Harbor', area: 'Keelung', lat: 25.1319, lng: 121.7412 },
-  { id: 'yms', name: 'Yangmingshan National Park', area: 'Beitou', lat: 25.1559, lng: 121.5459 },
-  { id: 'shilin', name: 'Shilin Night Market', area: 'Shilin', lat: 25.0879, lng: 121.5241 },
-  { id: 'hsinchu-hsr', name: 'Hsinchu HSR Station', area: 'Hsinchu', lat: 24.8082, lng: 121.0403 },
-  { id: 'taichung-hsr', name: 'Taichung HSR Station', area: 'Taichung', lat: 24.112, lng: 120.616 },
-  { id: 'tainan-hsr', name: 'Tainan HSR Station', area: 'Tainan', lat: 22.9248, lng: 120.2857 },
-  { id: 'kaohsiung-hsr', name: 'Zuoying HSR Station', area: 'Kaohsiung', lat: 22.6877, lng: 120.309 },
+  { id: 'tpe', name: 'Taoyuan International Airport (TPE)', address: 'Airport South Road', area: 'Terminal district', city: 'Taoyuan', lat: 25.0797, lng: 121.2342, type: 'airport', poi: 'International airport' },
+  { id: 'tsa', name: 'Songshan Airport (TSA)', address: 'Dunhua North Road', area: 'Songshan', city: 'Taipei', lat: 25.0694, lng: 121.5521, type: 'airport' },
+  { id: 'main', name: 'Taipei Main Station', address: 'Beiping West Road', area: 'Zhongzheng', city: 'Taipei', lat: 25.0478, lng: 121.5171, type: 'station' },
+  { id: '101', name: 'Taipei 101', address: 'Xinyi Road', area: 'Xinyi', city: 'Taipei', lat: 25.0339, lng: 121.5645, type: 'landmark' },
+  { id: 'grand', name: 'Grand Hotel district', address: 'Zhongshan North Road', area: 'Zhongshan', city: 'Taipei', lat: 25.0794, lng: 121.5262, type: 'hotel' },
+  { id: 'ximen', name: 'Ximending', address: 'Chengdu Road', area: 'Wanhua', city: 'Taipei', lat: 25.0421, lng: 121.5081, type: 'district' },
+  { id: 'beitou', name: 'Beitou Hot Springs district', address: 'Guangming Road', area: 'Beitou', city: 'Taipei', lat: 25.1367, lng: 121.5063, type: 'district' },
+  { id: 'nangang', name: 'Nangang Exhibition Center', address: 'Jingmao 2nd Road', area: 'Nangang', city: 'Taipei', lat: 25.0556, lng: 121.6176, type: 'landmark' },
+  { id: 'banqiao', name: 'Banqiao HSR Station', address: 'Xianmin Boulevard', area: 'Banqiao', city: 'New Taipei', lat: 25.0143, lng: 121.4634, type: 'station' },
+  { id: 'tamsui', name: 'Tamsui waterfront', address: 'Guangzhou Road', area: 'Tamsui', city: 'New Taipei', lat: 25.1826, lng: 121.4116, type: 'district' },
+  { id: 'hsinchu-hsr', name: 'Hsinchu HSR Station', address: 'Gaotie 7th Road', area: 'Zhubei', city: 'Hsinchu', lat: 24.8082, lng: 121.0403, type: 'station' },
+  { id: 'hsinchu-city', name: 'Hsinchu city center', address: 'Zhongzheng Road', area: 'East District', city: 'Hsinchu', lat: 24.8066, lng: 120.9686, type: 'district' },
+  { id: 'taichung-hsr', name: 'Taichung HSR Station', address: 'Zhanqu 2nd Road', area: 'Wuri', city: 'Taichung', lat: 24.112, lng: 120.616, type: 'station' },
+  { id: 'taichung-city', name: 'Taichung civic district', address: 'Taiwan Boulevard', area: 'Xitun', city: 'Taichung', lat: 24.1632, lng: 120.6466, type: 'district' },
+  { id: 'tainan-hsr', name: 'Tainan HSR Station', address: 'Guiren Boulevard', area: 'Guiren', city: 'Tainan', lat: 22.9248, lng: 120.2857, type: 'station' },
+  { id: 'tainan-center', name: 'Tainan city center', address: 'Minsheng Road', area: 'West Central', city: 'Tainan', lat: 22.9948, lng: 120.1965, type: 'district' },
+  { id: 'kaohsiung-hsr', name: 'Zuoying HSR Station', address: 'Gaotie Road', area: 'Zuoying', city: 'Kaohsiung', lat: 22.6877, lng: 120.309, type: 'station' },
+  { id: 'kaohsiung-harbor', name: 'Kaohsiung harbor district', address: 'Dayong Road', area: 'Yancheng', city: 'Kaohsiung', lat: 22.6201, lng: 120.2815, type: 'district' },
 ]
 
 export type VehicleId = 'economy' | 'comfort' | 'business' | 'premium' | 'seven' | 'van'
