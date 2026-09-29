@@ -52,6 +52,7 @@ type Booking = {
   passengers: number
   luggage: number
   vehicle: VehicleId
+  options: string[]
 }
 
 type State = {
@@ -123,6 +124,7 @@ export const useStore = create<State>((set) => ({
     passengers: 2,
     luggage: 2,
     vehicle: 'comfort',
+    options: [],
   },
   hovered: null,
   confirmed: false,
