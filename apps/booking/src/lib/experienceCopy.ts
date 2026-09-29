@@ -1,0 +1,52 @@
+import type { ServiceId } from './data'
+
+export const COPY = {
+  en: {
+    nav: ['Book', 'Business', 'About'], bookRide: 'Book a ride', language: 'Language', menu: 'Menu',
+    eyebrow: 'Private mobility · Taiwan', heroA: 'Movement,', heroB: 'beautifully managed.',
+    heroCopy: 'Airport transfers, private journeys and executive mobility—coordinated with precision from curb to destination.',
+    plan: 'Plan your journey', discover: 'Discover Fleet OS', availability: 'Operating across Taiwan',
+    bookingEyebrow: 'Intelligent booking', bookingTitle: 'One calm flow. Every detail considered.', bookingCopy: 'Build your journey step by step while the world adapts around you.',
+    steps: ['Service', 'Pickup', 'Destination', 'Date & time', 'Passengers & luggage', 'Vehicle class', 'Vehicle model', 'Options', 'Review'],
+    selectService: 'Choose how you want to move', pickup: 'Where should we meet you?', destination: 'Where are you going?', schedule: 'When should we arrive?',
+    travellers: 'Who and what is travelling?', vehicle: 'Choose your vehicle', review: 'Review your journey',
+    next: 'Continue', back: 'Back', date: 'Date', time: 'Time', passengers: 'Passengers', luggage: 'Luggage', bags: 'bags', seats: 'seats',
+    pickupLabel: 'Pickup', destinationLabel: 'Destination', estimate: 'Estimated fare', distance: 'Estimated journey', request: 'Prepare booking request',
+    disclaimer: 'Prototype estimate · Availability and payment are confirmed by a connected booking provider.', selected: 'Selected', unavailable: 'Does not fit',
+    world: ['Arrivals concourse', 'Departure transfer', 'Urban point-to-point', 'Private rental studio', 'Executive chauffeur'],
+    worldSub: ['Terminal pickup · Taoyuan', 'City pickup · Airport drop-off', 'Taiwan city network', 'Self-drive collection', 'Business district pickup'],
+    businessKicker: 'Fleet OS for business', businessTitle: 'Mobility infrastructure for people who cannot be late.',
+    businessCopy: 'A single premium standard for executive travel, airport programmes, employee transport and group movement.',
+    pillars: [['COMFORT', 'A quiet, considered cabin experience for every passenger.'], ['SPACE', 'The right vehicle and luggage capacity, matched before dispatch.'], ['SAFETY', 'Operational checks and journey status—presented clearly, never fabricated.'], ['INTELLIGENCE', 'Booking, routing and dispatch designed as one connected system.']],
+    metricA: 'service design', metricB: 'operational view', metricC: 'journey support',
+    aboutKicker: 'Built for motion', aboutTitle: 'Transportation should feel effortless. The intelligence behind it should not.',
+    aboutCopy: 'Fleet OS is a premium transportation interface designed around reliability, transparent capacity and thoughtful human service. This preview uses representative city environments; exact geography appears only when verified provider data is connected.',
+    cities: 'Taipei · New Taipei · Taoyuan · Hsinchu · Taichung · Tainan · Kaohsiung',
+    ctaTitle: 'Your next journey, precisely arranged.', footer: 'Fleet OS · Taiwan', ready: 'Request prepared', close: 'Close', loading: 'Preparing vehicle world…', fallback: 'Interactive preview unavailable. Booking remains available.',
+  },
+  'zh-TW': {
+    nav: ['預約', '企業服務', '關於我們'], bookRide: '開始預約', language: '語言', menu: '選單',
+    eyebrow: '台灣 · 私人移動服務', heroA: '讓每次移動，', heroB: '都從容有序。', heroCopy: '從機場接送、私人行程到高階商務移動，以精準安排串聯上車地點與目的地。',
+    plan: '規劃您的旅程', discover: '探索 Fleet OS', availability: '服務範圍遍及台灣',
+    bookingEyebrow: '智慧預約', bookingTitle: '一套從容流程，兼顧每個細節。', bookingCopy: '循序建立行程，視覺情境會隨您的選擇即時變化。',
+    steps: ['服務', '上車地點', '目的地', '日期時間', '乘客與行李', '車輛級別', '車款', '加購選項', '確認'], selectService: '選擇您的移動方式', pickup: '我們要在哪裡接您？', destination: '您要前往哪裡？', schedule: '希望何時出發？',
+    travellers: '同行人數與行李', vehicle: '選擇您的車輛', review: '確認您的旅程', next: '繼續', back: '返回', date: '日期', time: '時間', passengers: '乘客', luggage: '行李', bags: '件行李', seats: '座位',
+    pickupLabel: '上車地點', destinationLabel: '目的地', estimate: '預估車資', distance: '預估行程', request: '準備預約需求', disclaimer: '此為預覽估價 · 車輛供應與付款將由正式預約服務確認。', selected: '已選擇', unavailable: '空間不足',
+    world: ['機場抵達接送區', '機場出發接送', '城市點對點', '私人租車展示間', '行政商務接送'], worldSub: ['桃園機場 · 航廈接送', '市區上車 · 機場送達', '台灣城市移動網絡', '自駕車輛取車', '商務區專車接送'],
+    businessKicker: 'Fleet OS 企業移動', businessTitle: '為分秒必爭的團隊打造移動基礎。', businessCopy: '以一致的高品質標準，整合高階主管用車、機場接送方案、員工交通與團體移動。',
+    pillars: [['舒適', '為每位乘客打造安靜、細緻的車室體驗。'], ['空間', '派車前即依人數與行李，媒合真正合適的車輛。'], ['安全', '清楚呈現營運檢核與行程狀態，不虛構即時資料。'], ['智慧', '讓預約、路線與調度成為一套相互連結的系統。']],
+    metricA: '服務設計', metricB: '營運視野', metricC: '全程支援', aboutKicker: '為移動而生', aboutTitle: '交通體驗應該毫不費力，背後的智慧則必須縝密。',
+    aboutCopy: 'Fleet OS 以可靠營運、透明乘載資訊與細緻人性服務為核心，打造高品質交通介面。本預覽採用城市情境示意；僅在串接驗證資料後呈現精確地理資訊。',
+    cities: '台北 · 新北 · 桃園 · 新竹 · 台中 · 台南 · 高雄', ctaTitle: '下一段旅程，從精準安排開始。', footer: 'Fleet OS · 台灣', ready: '需求已準備完成', close: '關閉', loading: '正在準備車輛情境…', fallback: '互動預覽目前無法使用，您仍可繼續完成預約。',
+  },
+} as const
+export type Copy = (typeof COPY)[keyof typeof COPY]
+
+export const SERVICE_NAMES: Record<ServiceId, { en: string; zh: string; detailEn: string; detailZh: string }> = {
+  'airport-to-location': { en: 'Airport to location', zh: '機場至目的地', detailEn: 'Meet-and-greet terminal pickup', detailZh: '航廈接機與迎賓服務' },
+  'location-to-airport': { en: 'Location to airport', zh: '地點至機場', detailEn: 'Timed departure with airport buffer', detailZh: '預留機場報到時間' },
+  'location-to-location': { en: 'City journey', zh: '城市點對點', detailEn: 'Private door-to-door transfer', detailZh: '私人門到門接送' },
+  'self-drive': { en: 'Self-drive rental', zh: '自駕租車', detailEn: 'Premium vehicle collection', detailZh: '高品質車輛取車服務' },
+  'chauffeur': { en: 'Professional chauffeur', zh: '專業司機服務', detailEn: 'Executive vehicle and driver', detailZh: '行政車輛與專業司機' },
+}
+
