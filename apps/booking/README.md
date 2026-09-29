@@ -14,7 +14,8 @@ npm run lint     # oxlint
 
 - `src/lib/scroll.ts` — Lenis + ScrollTrigger; measures `[data-section]` blocks, publishes per-section progress to `scrollState` (read by the 3D scene) and to CSS `--p` (read by DOM sections). Journey stage / showcase index are derived here so text and scene always agree.
 - `src/lib/data.ts` — places, vehicle categories, fare/duration estimation.
-- `src/lib/content.ts` — story copy shared by DOM and 3D.
+- `src/lib/experienceCopy.ts` — centralized English and Traditional Chinese copy for the 2030 customer experience.
+- `src/lib/content.ts` — legacy scene-story constants retained for the older scroll experience.
 - `src/store.ts` — Zustand booking state, quality tier and WebGL detection.
 - `src/three/` — procedural city, route, vehicles, camera rig, fleet map, benefit objects, studio.
 - `src/ui/` — nav, loader, story sections, booking controls, mobile bar.
@@ -51,4 +52,4 @@ The current fare, route, confirmation, and fleet information are deterministic d
 
 Vehicle records distinguish the redistributed CC BY reference GLB from original digital prototypes. The latter are capacity/shape previews and must be replaced with properly licensed, optimized production GLBs before marketing the viewer as photorealistic. Category and model labels are separate so multiple licensed models can be added without changing booking capacity rules.
 
-English and Traditional Chinese customer copy lives in `src/lib/i18n.ts`; the selected locale is persisted locally. Provider-returned place names remain in their source language until a localized production places provider is configured.
+Shared UI translations live in `src/lib/i18n.ts`; all customer copy used by the 2030 experience lives in `src/lib/experienceCopy.ts`; the selected locale is persisted locally. Provider-returned place names remain in their source language until a localized production places provider is configured.
