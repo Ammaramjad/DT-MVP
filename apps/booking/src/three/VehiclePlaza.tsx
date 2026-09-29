@@ -2,13 +2,14 @@ import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { VEHICLES, fmtTWD, type VehicleId } from '../lib/data'
+import { VEHICLES, fmtTWD, vehicleFits, type VehicleId } from '../lib/data'
 import { scrollToSection } from '../lib/scroll'
 import { scrollState, useStore, useTrip } from '../store'
 import { Vehicle } from './Vehicle'
 import { WORLD, htmlPortal, range, smooth } from './world'
 
 const SLOT_BACK: [number, number][] = [
+  [-13.5, -5],
   [-9.5, -7],
   [-4.8, -8.5],
   [4.8, -8.5],
@@ -44,6 +45,7 @@ function PlazaVehicle({ id, index }: { id: VehicleId; index: number }) {
   const setBooking = useStore((s) => s.setBooking)
   const isMobile = useStore((s) => s.isMobile)
   const trip = useTrip()
+  const available = vehicleFits(spec, trip.passengers, trip.luggage)
   const g = useRef<THREE.Group>(null)
   const inner = useRef<THREE.Group>(null)
   const light = useRef<THREE.SpotLight>(null)
@@ -111,7 +113,7 @@ function PlazaVehicle({ id, index }: { id: VehicleId; index: number }) {
         }}
         onClick={(e) => {
           e.stopPropagation()
-          setBooking({ vehicle: id })
+          if (available) setBooking({ vehicle: id })
         }}
       >
         <Vehicle variant={id} color={spec.color} lights={false} />
@@ -126,12 +128,14 @@ function PlazaVehicle({ id, index }: { id: VehicleId; index: number }) {
             <div className="vcard__meta">
               <span>{spec.seats} seats</span>
               <span>{spec.luggage} bags</span>
-              <span>ETA {spec.etaMin} min</span>
+              <span>{available ? `Demo ETA ${spec.etaMin} min` : 'Capacity exceeded'}</span>
             </div>
             <button
               className="vcard__cta"
+              disabled={!available}
               onClick={(e) => {
                 e.stopPropagation()
+                if (!available) return
                 setBooking({ vehicle: id })
                 scrollToSection('confirm')
               }}

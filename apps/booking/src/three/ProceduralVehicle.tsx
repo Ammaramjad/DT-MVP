@@ -12,6 +12,7 @@ const DIMS: Record<VehicleId, Dim> = {
   comfort: { L: 4.6, W: 1.85, H: 0.62, cabL: 2.5, cabH: 0.56, cabOff: -0.25, wheel: 0.35, nose: 1.05 },
   business: { L: 5.1, W: 1.9, H: 0.64, cabL: 2.8, cabH: 0.56, cabOff: -0.3, wheel: 0.37, nose: 1.15 },
   premium: { L: 5.3, W: 1.98, H: 0.6, cabL: 2.6, cabH: 0.52, cabOff: -0.45, wheel: 0.39, nose: 1.35 },
+  seven: { L: 5.15, W: 2.02, H: 0.82, cabL: 3.25, cabH: 0.78, cabOff: 0.05, wheel: 0.41, nose: 0.82 },
   van: { L: 5.0, W: 1.92, H: 0.9, cabL: 3.8, cabH: 0.9, cabOff: -0.35, wheel: 0.36, nose: 0.6 },
 }
 

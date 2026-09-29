@@ -12,12 +12,12 @@ const NAV = [
 
 export function Logo() {
   return (
-    <a className="logo" href="#" onClick={(e) => { e.preventDefault(); scrollToSection('hero') }} aria-label="AURA home">
+    <a className="logo" href="#" onClick={(e) => { e.preventDefault(); scrollToSection('hero') }} aria-label="Fleet OS home">
       <svg viewBox="0 0 48 48" width="26" height="26" aria-hidden>
         <path d="M6 30 L30 6 L42 6 L18 30 Z" fill="currentColor" />
         <path d="M6 42 L22 26 L34 26 L18 42 Z" fill="#a7b6ff" />
       </svg>
-      <span>AURA</span>
+      <span>FLEET OS</span>
     </a>
   )
 }
@@ -46,9 +46,7 @@ export function Nav() {
         ))}
       </nav>
       <div className="nav__actions">
-        <a href="#login" className="nav__login" onClick={(e) => e.preventDefault()}>
-          Login
-        </a>
+        <span className="nav__login" title="Reservations and account services require production integrations">Demo mode</span>
         <button className="btn btn--primary btn--sm" onClick={() => scrollToSection('pickup')}>
           Book a ride
         </button>
@@ -148,12 +146,13 @@ export function MobileBar() {
 }
 
 /** Static poster shown when WebGL is unavailable or blocked. */
-export function Fallback() {
+export function Fallback({ message }: { message?: string }) {
   return (
-    <div className="fallback" aria-hidden>
+    <div className="fallback" role="status">
       <div className="fallback__grid" />
       <div className="fallback__glow" />
       <div className="fallback__road" />
+      {message && <p className="fallback__message">{message}</p>}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { PLACES, VEHICLES, estimateDurationMin, estimateFare, haversineKm, type Place, type VehicleId } from './lib/data'
+import { PLACES, VEHICLES, estimateDurationMin, estimateFare, haversineKm, vehicleFits, type Place, type ServiceId, type VehicleId } from './lib/data'
 
 export type SectionId =
   | 'hero'
@@ -43,11 +43,13 @@ export const scrollState = {
 }
 
 type Booking = {
+  service: ServiceId
   pickup: Place | null
   destination: Place | null
   date: string
   time: string
   passengers: number
+  luggage: number
   vehicle: VehicleId
 }
 
@@ -110,11 +112,13 @@ export const useStore = create<State>((set) => ({
   ...detect(),
   active: 'hero',
   booking: {
+    service: 'airport-to-location',
     pickup: PLACES[0],
     destination: PLACES[3],
     date: `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate() + 1)}`,
     time: '09:30',
     passengers: 2,
+    luggage: 2,
     vehicle: 'comfort',
   },
   hovered: null,
@@ -124,7 +128,15 @@ export const useStore = create<State>((set) => ({
   setReady: (ready) => set({ ready }),
   setQuality: (quality) => set({ quality }),
   setActive: (active) => set({ active }),
-  setBooking: (b) => set((s) => ({ booking: { ...s.booking, ...b } })),
+  setBooking: (patch) => set((s) => {
+    const booking = { ...s.booking, ...patch }
+    const selected = VEHICLES.find((vehicle) => vehicle.id === booking.vehicle)
+    if (!selected || !vehicleFits(selected, booking.passengers, booking.luggage)) {
+      const compatible = VEHICLES.find((vehicle) => vehicleFits(vehicle, booking.passengers, booking.luggage))
+      if (compatible) booking.vehicle = compatible.id
+    }
+    return { booking, confirmed: false }
+  }),
   setHovered: (hovered) => set({ hovered }),
   confirm: () => set({ confirmed: true }),
   reset: () => set({ confirmed: false }),
