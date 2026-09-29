@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Car, ClipboardList, Compass, Globe2, Home as HomeIcon, LayoutGrid, Lock, MapPinned, Radar, Sparkles, X } from 'lucide-react'
+import { Car, ClipboardList, Compass, Globe2, Home as HomeIcon, LayoutGrid, MapPinned, Radar, Sparkles, X } from 'lucide-react'
 import clsx from 'clsx'
 import { useLang } from '../../i18n'
 import { LANGS } from '../../i18n/translations'
-import { useGatekeeper } from '../../lib/gatekeeper'
 import { useDemoTourStore } from '../../lib/demoTour'
 import { SessionHeaderIndicator } from '../security/SessionHeaderIndicator'
 
@@ -30,7 +29,6 @@ const APPS = [
  */
 export function DemoModeSwitcher() {
   const { t, lang, setLang } = useLang()
-  const { lock } = useGatekeeper()
   const { startTour } = useDemoTourStore()
   const location = useLocation()
   const [open, setOpen] = useState(false)
@@ -118,22 +116,6 @@ export function DemoModeSwitcher() {
                   </Link>
                 )
               })}
-
-              {/* Lock System / 鎖定展示 Action Button */}
-              <div className="mt-1 border-t border-white/10 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false)
-                    lock()
-                  }}
-                  data-testid="gatekeeper-lock-system-btn"
-                  className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-400/10"
-                >
-                  <Lock className="h-3.5 w-3.5 text-amber-400" />
-                  <span>{t('gatekeeper.lockSystem')}</span>
-                </button>
-              </div>
 
               <div className="mt-1 flex items-center justify-between border-t border-white/10 px-2.5 pt-2">
                 <span className="text-[10px] font-medium text-slate-500">{t('lang.switchLabel')}</span>
