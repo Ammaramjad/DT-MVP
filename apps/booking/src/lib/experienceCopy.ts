@@ -2,14 +2,16 @@ import type { ServiceId } from './data'
 
 export const COPY = {
   en: {
-    nav: ['Book', 'Business', 'About'], bookRide: 'Book a ride', language: 'Language', menu: 'Menu',
+    nav: ['Book', 'Services', 'Business', 'About'], primaryNav: 'Primary navigation', bookRide: 'Book a ride', language: 'Language', menu: 'Menu',
     eyebrow: 'Private mobility · Taiwan', heroA: 'Movement,', heroB: 'beautifully managed.',
     heroCopy: 'Airport transfers, private journeys and executive mobility—coordinated with precision from curb to destination.',
     plan: 'Plan your journey', discover: 'Discover Fleet OS', availability: 'Operating across Taiwan',
+    servicesKicker: 'Five ways to move', servicesTitle: 'One standard. A journey shaped around you.', servicesCopy: 'Choose a service and the booking flow, vehicle context and spatial world respond immediately.',
+    howKicker: 'How Fleet OS works', howTitle: 'From intent to arrival.', howSteps: [['Configure', 'Tell us where, when and how you want to travel.'], ['Match', 'Capacity, luggage and service needs shape the right vehicle.'], ['Move', 'Follow a clear journey lifecycle from approach to arrival.']],
     bookingEyebrow: 'Intelligent booking', bookingTitle: 'One calm flow. Every detail considered.', bookingCopy: 'Build your journey step by step while the world adapts around you.',
     steps: ['Service', 'Pickup', 'Destination', 'Date & time', 'Passengers & luggage', 'Vehicle class', 'Vehicle model', 'Options', 'Review'],
     selectService: 'Choose how you want to move', pickup: 'Where should we meet you?', destination: 'Where are you going?', schedule: 'When should we arrive?',
-    travellers: 'Who and what is travelling?', vehicle: 'Choose your vehicle', review: 'Review your journey',
+    travellers: 'Who and what is travelling?', vehicle: 'Choose your vehicle', review: 'Review your journey', optionItems: ['Meet & greet at pickup', 'Quiet ride preference', 'Child seat request'],
     next: 'Continue', back: 'Back', date: 'Date', time: 'Time', passengers: 'Passengers', luggage: 'Luggage', bags: 'bags', seats: 'seats',
     pickupLabel: 'Pickup', destinationLabel: 'Destination', estimate: 'Estimated fare', distance: 'Estimated journey', request: 'Prepare booking request',
     disclaimer: 'Prototype estimate · Availability and payment are confirmed by a connected booking provider.', selected: 'Selected', unavailable: 'Does not fit',
@@ -25,12 +27,14 @@ export const COPY = {
     ctaTitle: 'Your next journey, precisely arranged.', footer: 'Fleet OS · Taiwan', ready: 'Request prepared', close: 'Close', loading: 'Preparing vehicle world…', fallback: 'Interactive preview unavailable. Booking remains available.',
   },
   'zh-TW': {
-    nav: ['預約', '企業服務', '關於我們'], bookRide: '開始預約', language: '語言', menu: '選單',
+    nav: ['預約', '服務', '企業服務', '關於我們'], primaryNav: '主要導覽', bookRide: '開始預約', language: '語言', menu: '選單',
     eyebrow: '台灣 · 私人移動服務', heroA: '讓每次移動，', heroB: '都從容有序。', heroCopy: '從機場接送、私人行程到高階商務移動，以精準安排串聯上車地點與目的地。',
     plan: '規劃您的旅程', discover: '探索 Fleet OS', availability: '服務範圍遍及台灣',
+    servicesKicker: '五種移動方式', servicesTitle: '一致標準，為您量身打造每段旅程。', servicesCopy: '選擇服務後，預約流程、車輛情境與空間場景都會即時回應。',
+    howKicker: 'Fleet OS 運作方式', howTitle: '從需求到抵達。', howSteps: [['設定', '告訴我們地點、時間與您的移動方式。'], ['媒合', '依乘載、行李與服務需求選擇合適車輛。'], ['啟程', '從司機接近到安全抵達，清楚掌握每個階段。']],
     bookingEyebrow: '智慧預約', bookingTitle: '一套從容流程，兼顧每個細節。', bookingCopy: '循序建立行程，視覺情境會隨您的選擇即時變化。',
     steps: ['服務', '上車地點', '目的地', '日期時間', '乘客與行李', '車輛級別', '車款', '加購選項', '確認'], selectService: '選擇您的移動方式', pickup: '我們要在哪裡接您？', destination: '您要前往哪裡？', schedule: '希望何時出發？',
-    travellers: '同行人數與行李', vehicle: '選擇您的車輛', review: '確認您的旅程', next: '繼續', back: '返回', date: '日期', time: '時間', passengers: '乘客', luggage: '行李', bags: '件行李', seats: '座位',
+    travellers: '同行人數與行李', vehicle: '選擇您的車輛', review: '確認您的旅程', optionItems: ['上車地點迎賓服務', '偏好安靜乘車', '兒童安全座椅需求'], next: '繼續', back: '返回', date: '日期', time: '時間', passengers: '乘客', luggage: '行李', bags: '件行李', seats: '座位',
     pickupLabel: '上車地點', destinationLabel: '目的地', estimate: '預估車資', distance: '預估行程', request: '準備預約需求', disclaimer: '此為預覽估價 · 車輛供應與付款將由正式預約服務確認。', selected: '已選擇', unavailable: '空間不足',
     world: ['機場抵達接送區', '機場出發接送', '城市點對點', '私人租車展示間', '行政商務接送'], worldSub: ['桃園機場 · 航廈接送', '市區上車 · 機場送達', '台灣城市移動網絡', '自駕車輛取車', '商務區專車接送'],
     businessKicker: 'Fleet OS 企業移動', businessTitle: '為分秒必爭的團隊打造移動基礎。', businessCopy: '以一致的高品質標準，整合高階主管用車、機場接送方案、員工交通與團體移動。',
@@ -49,4 +53,3 @@ export const SERVICE_NAMES: Record<ServiceId, { en: string; zh: string; detailEn
   'self-drive': { en: 'Self-drive rental', zh: '自駕租車', detailEn: 'Premium vehicle collection', detailZh: '高品質車輛取車服務' },
   'chauffeur': { en: 'Professional chauffeur', zh: '專業司機服務', detailEn: 'Executive vehicle and driver', detailZh: '行政車輛與專業司機' },
 }
-
