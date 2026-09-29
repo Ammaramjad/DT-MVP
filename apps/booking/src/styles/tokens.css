@@ -1,0 +1,2 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Manrope:wght@300;400;500;600&display=swap');
+:root{--ice:#f4f9fd;--paper:#fff;--blue:#168fe0;--blue-dark:#0875c0;--cyan:#45d3d0;--navy:#061a2b;--ink:#102638;--muted:#637585;--line:#d9e6ef;--night:#041522;--radius:2px;--shadow:0 30px 80px rgba(23,77,115,.14);--display:clamp(3.3rem,7vw,7.7rem);font-family:'DM Sans',sans-serif;color:var(--ink);background:var(--ice);font-synthesis:none}

@@ -1,3 +1,3 @@
-import FleetExperience from './ui/FleetExperience'
+import { AppShell } from './app/AppShell'
 
-export default FleetExperience
+export default AppShell

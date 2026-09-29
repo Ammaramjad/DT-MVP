@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { PLACES, VEHICLES, estimateDurationMin, estimateFare, haversineKm, vehicleFits, type Place, type ServiceId, type VehicleId } from './lib/data'
 import { translate, type Locale, type TranslationKey } from './lib/i18n'
+import { VEHICLE_ASSETS, type VehicleClassId } from './vehicles/vehicleRegistry'
 
 export type SectionId =
   | 'hero'
@@ -52,6 +53,8 @@ type Booking = {
   passengers: number
   luggage: number
   vehicle: VehicleId
+  vehicleClassId: VehicleClassId
+  vehicleModelId: VehicleId
   options: string[]
 }
 
@@ -124,6 +127,8 @@ export const useStore = create<State>((set) => ({
     passengers: 2,
     luggage: 2,
     vehicle: 'comfort',
+    vehicleClassId: VEHICLE_ASSETS.comfort.classId,
+    vehicleModelId: 'comfort',
     options: [],
   },
   hovered: null,
@@ -136,10 +141,22 @@ export const useStore = create<State>((set) => ({
   setActive: (active) => set({ active }),
   setBooking: (patch) => set((s) => {
     const booking = { ...s.booking, ...patch }
+    if (patch.vehicle) {
+      booking.vehicleModelId = patch.vehicle
+      booking.vehicleClassId = VEHICLE_ASSETS[patch.vehicle].classId
+    }
+    if (patch.vehicleModelId) {
+      booking.vehicle = patch.vehicleModelId
+      booking.vehicleClassId = VEHICLE_ASSETS[patch.vehicleModelId].classId
+    }
     const selected = VEHICLES.find((vehicle) => vehicle.id === booking.vehicle)
     if (!selected || !vehicleFits(selected, booking.passengers, booking.luggage)) {
       const compatible = VEHICLES.find((vehicle) => vehicleFits(vehicle, booking.passengers, booking.luggage))
-      if (compatible) booking.vehicle = compatible.id
+      if (compatible) {
+        booking.vehicle = compatible.id
+        booking.vehicleModelId = compatible.id
+        booking.vehicleClassId = VEHICLE_ASSETS[compatible.id].classId
+      }
     }
     return { booking, confirmed: false }
   }),
