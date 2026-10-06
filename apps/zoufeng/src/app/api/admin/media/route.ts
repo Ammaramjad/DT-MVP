@@ -4,7 +4,7 @@ import { handle, HttpError, ok } from "@/lib/api";
 import { requireAdmin } from "@/lib/admin-auth";
 
 const MAX = 4 * 1024 * 1024;
-const TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml", "image/avif"];
+const TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"];
 
 export const GET = handle(async () => {
   await requireAdmin();

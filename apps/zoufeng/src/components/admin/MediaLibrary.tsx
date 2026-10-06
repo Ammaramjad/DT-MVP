@@ -34,7 +34,7 @@ export function MediaLibrary({ initial }: { initial: MediaItem[] }) {
         <button onClick={() => input.current?.click()} className="skeuo-btn px-5 py-2 text-[13px]">Choose files</button>
         <p className="text-[11.5px] text-muted">PNG, JPG, WEBP, GIF, SVG, AVIF · up to 4 MB each</p>
         {err && <p className="text-[12.5px] text-hot">{err}</p>}
-        <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => { if (e.target.files?.length) up(e.target.files); e.target.value = ""; }} />
+        <input ref={input} type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" multiple hidden onChange={(e) => { if (e.target.files?.length) up(e.target.files); e.target.value = ""; }} />
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {items.map((m) => (

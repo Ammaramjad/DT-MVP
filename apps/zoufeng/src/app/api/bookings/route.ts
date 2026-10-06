@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema as s } from "@/db";
 import { getCustomer } from "@/lib/data";
@@ -59,7 +59,16 @@ export const POST = handle(async (req: Request) => {
     code = makeCode();
   }
 
-  await db.insert(s.bookings).values({
+  await db.transaction(async (tx) => {
+    if (promo) {
+      const reserved = await tx
+        .update(s.promotions)
+        .set({ usedCount: sql`${s.promotions.usedCount} + 1` })
+        .where(and(eq(s.promotions.id, promo.id), eq(s.promotions.active, true), sql`(${s.promotions.usageLimit} = 0 OR ${s.promotions.usedCount} < ${s.promotions.usageLimit})`))
+        .returning({ id: s.promotions.id });
+      if (!reserved.length) throw new HttpError("Invalid or expired promo code", 422);
+    }
+    await tx.insert(s.bookings).values({
     code,
     customerId: customer?.id ?? null,
     categoryId: ctx.category.id,
@@ -85,9 +94,9 @@ export const POST = handle(async (req: Request) => {
     flightNo: b.flightNo,
     notes: b.notes,
     paymentMethod: b.paymentMethod,
-    paymentStatus: b.paymentMethod === "cash" ? "unpaid" : "paid",
+    paymentStatus: "unpaid",
     status: "pending",
+    });
   });
-  if (promo) await db.update(s.promotions).set({ usedCount: sql`${s.promotions.usedCount} + 1` }).where(eq(s.promotions.id, promo.id));
   return ok({ code, total: subtotal - discount }, { status: 201 });
 });

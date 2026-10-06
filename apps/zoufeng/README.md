@@ -37,7 +37,7 @@ Set the project root to `apps/zoufeng` and configure:
 |---|---|
 | `AUTH_SECRET` | **Required.** Long random string for signing session cookies |
 | `DATABASE_URL`, `DATABASE_AUTH_TOKEN` | Turso/libSQL database (strongly recommended — without it Vercel uses an ephemeral `/tmp` SQLite file) |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Initial admin account (set before first boot) |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Initial admin account. `ADMIN_PASSWORD` is **required** in production for the first boot (no default password, no demo customer) |
 
 ## Scripts
 
