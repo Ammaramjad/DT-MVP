@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { isSafeHref } from "./safe-url";
 import { and, asc, count, desc, eq, like, or, type SQL } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { getDb } from "@/db";
@@ -88,6 +89,7 @@ async function coerce(key: ResourceKey, body: Row, creating: boolean): Promise<R
         if (f.name === "email") v = (v as string).toLowerCase();
         if (f.name === "code" && key === "promotions") v = (v as string).toUpperCase();
         if (f.required && !v) throw new HttpError(`${f.label} is required`, 422);
+        if ((f.name === "href" || f.type === "image") && v && !isSafeHref(v as string)) throw new HttpError(`${f.label} must be a site path (/...) or an http(s) URL`, 422);
     }
     out[f.name] = v;
   }

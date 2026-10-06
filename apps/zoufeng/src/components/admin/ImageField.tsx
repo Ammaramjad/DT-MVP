@@ -52,7 +52,7 @@ export function ImageField({ value, onChange }: { value: string; onChange: (v: s
       <input
         ref={input}
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
         hidden
         onChange={async (e) => {
           if (!e.target.files?.length) return;

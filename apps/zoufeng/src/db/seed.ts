@@ -19,8 +19,19 @@ function rng(seedN: number) {
 }
 
 export async function seed(db: DB) {
-  const [{ n }] = await db.select({ n: count() }).from(s.admins);
-  if (n > 0) return;
+  await db.transaction(
+    async (tx) => {
+      const [{ n }] = await tx.select({ n: count() }).from(s.admins);
+      if (n > 0) return;
+      await seedAll(tx as unknown as DB);
+    },
+    { behavior: "immediate" },
+  );
+}
+
+async function seedAll(db: DB) {
+  const prod = process.env.NODE_ENV === "production";
+  if (prod && !process.env.ADMIN_PASSWORD) throw new Error("ADMIN_PASSWORD environment variable is required to create the initial admin in production");
   const rand = rng(20260924);
   const pickOne = <T,>(arr: T[]) => arr[Math.floor(rand() * arr.length)];
 
@@ -145,12 +156,12 @@ export async function seed(db: DB) {
 
   const surnames = ["陳", "林", "黃", "張", "李", "王", "吳", "劉", "蔡", "楊", "許", "鄭", "謝", "郭", "洪"];
   const given = ["怡君", "雅婷", "志豪", "家瑋", "淑芬", "冠宇", "佩珊", "承翰", "詩涵", "柏翰", "欣怡", "俊宏"];
-  const pw = await bcrypt.hash("password123", 10);
+  const pw = await bcrypt.hash(prod ? crypto.randomUUID() + crypto.randomUUID() : "password123", 10);
   const customerRows = Array.from({ length: 48 }, (_, i) => {
     const name = surnames[i % surnames.length] + given[(i * 7) % given.length];
     return { name, email: `customer${i + 1}@example.com`, phone: `09${String(20000000 + i * 1234567).slice(0, 8)}`, passwordHash: pw };
   });
-  customerRows.unshift({ name: "Demo Customer", email: "demo@zoufeng.tw", phone: "0912345678", passwordHash: pw });
+  if (!prod) customerRows.unshift({ name: "Demo Customer", email: "demo@zoufeng.tw", phone: "0912345678", passwordHash: pw });
   const customers = await db.insert(s.customers).values(customerRows).returning();
 
   const now = Date.now();

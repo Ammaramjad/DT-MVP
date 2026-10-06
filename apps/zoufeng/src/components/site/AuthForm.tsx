@@ -59,7 +59,7 @@ export function AuthForm({ lang, mode, next }: { lang: Lang; mode: "login" | "re
       <Link href={mode === "login" ? "/register" : "/login"} className="text-center text-[13px] font-semibold text-brand">
         {mode === "login" ? tr("noAccount") : tr("haveAccount")}
       </Link>
-      {mode === "login" && (
+      {mode === "login" && process.env.NODE_ENV !== "production" && (
         <button type="button" onClick={() => setF((x) => ({ ...x, email: "demo@zoufeng.tw", password: "password123" }))} className="neu-inset px-3 py-2 text-[12px] text-muted">
           {tr("demo")}: demo@zoufeng.tw / password123
         </button>
